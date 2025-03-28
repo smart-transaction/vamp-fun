@@ -35,14 +35,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init()
         .unwrap();
 
-    let mut appchain_listener =
+    let mut state_snapshot_listener =
         appchain_listener::RabbitMQListener::new("StateSnapshot", "DefaultSolver").await?;
 
-    let mut state_snapshot_handler = Arc::new(Mutex::new(
+    let state_snapshot_handler = Arc::new(Mutex::new(
         state_snapshot_handler::StateSnapshotHandler::new(),
     ));
     spawn(async move {
-        appchain_listener.listen(state_snapshot_handler).await;
+        state_snapshot_listener.listen(state_snapshot_handler.clone()).await;
     });
 
     // Start HTTP server

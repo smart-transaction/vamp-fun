@@ -1,13 +1,12 @@
 use ethers::types::{Address, U256};
 use crate::appchain_listener::Handler;
+use crate::merkle_tree::{Leaf, MerkleTree};
 
 pub mod proto {
     tonic::include_proto!("vamp.fun");
 }
 
 pub use proto::StateSnapshot;
-
-use crate::merkle_tree::{self, Leaf, MerkleTree};
 
 pub struct StateSnapshotHandler {
     merkle_tree: MerkleTree,

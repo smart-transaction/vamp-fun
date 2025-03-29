@@ -73,11 +73,11 @@ impl RabbitMQListener {
                 error!("Error decoding event: {:?}", err);
                 continue;
             }
-            let h = handler.clone();
+            let handler = handler.clone();
             let event = event.unwrap();
             spawn(async move {
-                let mut h = h.lock().await;
-                h.handle(event).await;
+                let mut handler = handler.lock().await;
+                handler.handle(event).await;
             });
             let _ = self
                 .consumer

@@ -23,7 +23,6 @@ impl StateSnapshotHandler {
 
 impl Handler<StateSnapshot> for StateSnapshotHandler {
     async fn handle(&mut self, event: StateSnapshot) {
-        info!("Received StateSnapshot: {:?}", event);
         let mut leaves = Vec::new();
         for i in 0..event.accounts.len() {
             let account = &event.accounts[i];
@@ -35,6 +34,7 @@ impl Handler<StateSnapshot> for StateSnapshotHandler {
             };
             leaves.push(leaf);
         }
+        info!("Received StateSnapshot: {:?}", leaves);
         self.merkle_tree = MerkleTree::new(&leaves);
     }
 }

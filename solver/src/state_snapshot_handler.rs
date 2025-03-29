@@ -1,12 +1,13 @@
 use ethers::types::{Address, U256};
+use log::info;
 use crate::appchain_listener::Handler;
 use crate::merkle_tree::{Leaf, MerkleTree};
 
-pub mod proto {
+mod proto {
     tonic::include_proto!("vamp.fun");
 }
 
-pub use proto::StateSnapshot;
+use proto::StateSnapshot;
 
 pub struct StateSnapshotHandler {
     merkle_tree: MerkleTree,
@@ -21,7 +22,8 @@ impl StateSnapshotHandler {
 }
 
 impl Handler<StateSnapshot> for StateSnapshotHandler {
-    fn handle(&mut self, event: StateSnapshot) {
+    async fn handle(&mut self, event: StateSnapshot) {
+        info!("Received StateSnapshot: {:?}", event);
         let mut leaves = Vec::new();
         for i in 0..event.accounts.len() {
             let account = &event.accounts[i];

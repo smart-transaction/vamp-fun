@@ -1,4 +1,4 @@
-use std::{error::Error, sync::Arc};
+use std::{error::Error, future::Future, marker::Send, sync::Arc};
 
 use futures::StreamExt;
 use log::error;
@@ -8,14 +8,14 @@ use rabbitmq_stream_client::{
     error::StreamCreateError,
     types::{ByteCapacity, OffsetSpecification, ResponseCode},
 };
-use tokio::sync::Mutex;
+use tokio::{spawn, sync::Mutex};
 
 pub struct RabbitMQListener {
     consumer: Consumer,
 }
 
 pub trait Handler<T> {
-    fn handle(&mut self, event: T);
+    fn handle(&mut self, event: T) -> impl Future<Output = ()> + Send;
 }
 
 /// A listener for RabbitMQ streams. Expects the event data to be an encoded protobuf message.
@@ -63,7 +63,7 @@ impl RabbitMQListener {
     /// Listens for events on the stream and calls the handler for each event.
     /// The handler is expected to be a function that takes a single argument of the event type.
     /// The event type is expected to correspond the type E that is specified by the caller.
-    pub async fn listen<E: Message + Default, H: Handler<E>>(&mut self, handler: Arc<Mutex<H>>) {
+    pub async fn listen<E: Message + Default + 'static, H: Handler<E> + Send + 'static>(&mut self, handler: Arc<Mutex<H>>) {
         let handle = self.consumer.handle();
         while let Some(delivery) = self.consumer.next().await {
             let d = delivery.unwrap();
@@ -73,8 +73,12 @@ impl RabbitMQListener {
                 error!("Error decoding event: {:?}", err);
                 continue;
             }
-            let mut handler = handler.lock().await;
-            handler.handle(event.unwrap());
+            let h = handler.clone();
+            let event = event.unwrap();
+            spawn(async move {
+                let mut h = h.lock().await;
+                h.handle(event).await;
+            });
             let _ = self
                 .consumer
                 .store_offset(offset)

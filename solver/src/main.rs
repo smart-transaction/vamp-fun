@@ -18,6 +18,7 @@ use tower_http::cors::{Any, CorsLayer};
 mod appchain_listener;
 mod merkle_tree;
 mod state_snapshot_handler;
+mod user_objective_handler;
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -41,8 +42,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let state_snapshot_handler = Arc::new(Mutex::new(
         state_snapshot_handler::StateSnapshotHandler::new(),
     ));
+
     spawn(async move {
         state_snapshot_listener.listen(state_snapshot_handler.clone()).await;
+    });
+
+    let mut user_objective_listener =
+        appchain_listener::RabbitMQListener::new("UserObjective", "DefaultSolver").await?;
+
+    let user_objective_handler = Arc::new(Mutex::new(
+        user_objective_handler::UserObjectiveHandler::new(),
+    ));
+
+    spawn(async move {
+        user_objective_listener.listen(user_objective_handler.clone()).await;
     });
 
     // Start HTTP server

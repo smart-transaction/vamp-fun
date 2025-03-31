@@ -16,7 +16,7 @@ message CallObjectProto {
 }
 
 message UserObjectiveProto {
-  bytes appId = 1;
+  bytes app_id = 1;
   bytes nonse = 2;
   uint64 chain_id = 3;
   repeated CallObjectProto call_objects = 4;

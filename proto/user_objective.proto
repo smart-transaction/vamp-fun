@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package vamp.fun;
 
-message CallObject {
+message CallObjectProto {
   uint64 id = 1;
   uint64 chain_id = 2;
   bytes salt = 3;
@@ -15,9 +15,9 @@ message CallObject {
   bytes returnvalue = 10;
 }
 
-message UserObjective {
+message UserObjectiveProto {
   bytes appId = 1;
   bytes nonse = 2;
   uint64 chain_id = 3;
-  repeated CallObject call_objects = 4;
+  repeated CallObjectProto call_objects = 4;
 }

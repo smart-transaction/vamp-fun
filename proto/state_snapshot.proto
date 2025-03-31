@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package vamp.fun;
 
-message StateSnapshot {
+message StateSnapshotProto {
     repeated bytes accounts = 1;
     repeated bytes amounts = 2;
 }

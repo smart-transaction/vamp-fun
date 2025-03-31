@@ -11,7 +11,7 @@ mod proto {
   tonic::include_proto!("vamp.fun");
 }
 
-use proto::StateSnapshot;
+use proto::StateSnapshotProto;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -49,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         parse_units(3, "ether").unwrap().into(),
     ];
 
-    let state_snapshot = StateSnapshot{
+    let state_snapshot = StateSnapshotProto{
         accounts: accounts.iter().map(|a| a.as_ref().to_vec()).collect(),
         amounts: amounts.iter().map(|a| {
             let mut bytes: Vec<u8> = vec![0; 32];
@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let mut buf: Vec<u8> = Vec::new();
-    StateSnapshot::encode(&state_snapshot, &mut buf).unwrap();
+    StateSnapshotProto::encode(&state_snapshot, &mut buf).unwrap();
 
     producer
         .send_with_confirm(Message::builder().body(buf).build())

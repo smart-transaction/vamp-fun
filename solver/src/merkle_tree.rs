@@ -23,6 +23,7 @@ impl Leaf {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct MerkleTree {
     pub root: [u8; 32],
     pub levels: Vec<Vec<[u8; 32]>>,

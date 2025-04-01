@@ -11,6 +11,7 @@ use axum::{
 };
 use clap::Parser;
 use log::{Level, info};
+use snapshot_indexer::SnapshotIndexer;
 use stderrlog::Timestamp;
 use tokio::{net::TcpListener, spawn, sync::Mutex};
 use tower_http::cors::{Any, CorsLayer};
@@ -18,7 +19,7 @@ use tower_http::cors::{Any, CorsLayer};
 mod appchain_listener;
 mod merkle_tree;
 mod request_handlers;
-mod state_snapshot;
+mod snapshot_indexer;
 mod use_proto;
 
 #[derive(Parser, Debug)]
@@ -37,27 +38,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init()
         .unwrap();
 
-    let mut state_snapshot_listener =
-        appchain_listener::RabbitMQListener::new("StateSnapshot", "DefaultSolver").await?;
+    let mut deploy_token_listener =
+        appchain_listener::RabbitMQListener::new("DeployToken", "DefaultSolver").await?;
 
-    let state_snapshot_handler =
-        Arc::new(Mutex::new(request_handlers::StateSnapshotHandler::new()));
+    let indexer = Arc::new(SnapshotIndexer::new());
 
-    spawn(async move {
-        state_snapshot_listener
-            .listen(state_snapshot_handler.clone())
-            .await;
-    });
-
-    let mut user_objective_listener =
-        appchain_listener::RabbitMQListener::new("UserObjective", "DefaultSolver").await?;
-
-    let user_objective_handler =
-        Arc::new(Mutex::new(request_handlers::UserObjectiveHandler::new()));
+    let deploy_token_handler =
+        Arc::new(Mutex::new(request_handlers::DeployTokenHandler::new(indexer.clone())));
 
     spawn(async move {
-        user_objective_listener
-            .listen(user_objective_handler.clone())
+        deploy_token_listener
+            .listen(deploy_token_handler.clone())
             .await;
     });
 

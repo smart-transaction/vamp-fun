@@ -1,37 +1,36 @@
-use crate::appchain_listener::Handler;
-use crate::state_snapshot::StateSnapshot;
-use crate::use_proto::proto::{StateSnapshotProto, UserObjectiveProto};
+use std::sync::Arc;
+
+use crate::{appchain_listener::Handler, snapshot_indexer::SnapshotIndexer};
+use crate::use_proto::proto::UserEventProto;
+use ethers::types::Address;
+use ethers::utils::keccak256;
 use log::info;
 
-pub struct StateSnapshotHandler {
-    state_snapshot: StateSnapshot,
+pub struct DeployTokenHandler {
+    pub indexer: Arc<SnapshotIndexer>,
+    pub contract_address_name: [u8; 32],
 }
 
-impl StateSnapshotHandler {
-    pub fn new() -> Self {
+impl DeployTokenHandler {
+    pub fn new(indexer: Arc<SnapshotIndexer>) -> Self {
         Self {
-            state_snapshot: StateSnapshot::new(),
+            indexer,
+            contract_address_name: keccak256(CONTRACT_ADDRESS_NAME.as_bytes()),
         }
     }
 }
 
-impl Handler<StateSnapshotProto> for StateSnapshotHandler {
-    async fn handle(&mut self, event: StateSnapshotProto) {
+const CONTRACT_ADDRESS_NAME: &str = "ERC20ContractAddress";
+
+impl Handler<UserEventProto> for DeployTokenHandler {
+    async fn handle(&mut self, event: UserEventProto) {
         info!("Received StateSnapshot: {:?}", event);
-        self.state_snapshot = StateSnapshot::from_event(event);
-    }
-}
-
-pub struct UserObjectiveHandler {}
-
-impl UserObjectiveHandler {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-impl Handler<UserObjectiveProto> for UserObjectiveHandler {
-    async fn handle(&mut self, event: UserObjectiveProto) {
-        info!("Received UserObjective: {:?}", event);
+        for add_data in event.additional_data {
+            if add_data.key == self.contract_address_name {
+                let contract_address = Address::from_slice(&add_data.value);
+                self.indexer.index_snapshot(contract_address, event.block_number).await;
+                break;
+            }
+        }
     }
 }

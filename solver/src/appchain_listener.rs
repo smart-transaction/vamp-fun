@@ -1,7 +1,7 @@
 use std::{error::Error, future::Future, marker::Send, sync::Arc};
 
 use futures::StreamExt;
-use log::error;
+use log::{error, info};
 use prost::Message;
 use rabbitmq_stream_client::{
     Consumer, Environment,
@@ -48,6 +48,7 @@ impl RabbitMQListener {
             .await?;
 
         let stored_offset: u64 = consumer.query_offset().await.unwrap_or_else(|_| 0);
+        info!("Stored offset: {}", stored_offset);
         if stored_offset > 0 {
             consumer = environment
                 .consumer()
@@ -67,7 +68,10 @@ impl RabbitMQListener {
         let handle = self.consumer.handle();
         while let Some(delivery) = self.consumer.next().await {
             let d = delivery.unwrap();
-            let offset = d.offset();
+            let mut offset = d.offset();
+            if offset == 0 {
+                offset += 1;
+            }
             let event = E::decode(d.message().data().unwrap());
             if let Err(err) = event {
                 error!("Error decoding event: {:?}", err);

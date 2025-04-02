@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use crate::{appchain_listener::Handler, snapshot_indexer::SnapshotIndexer};
 use crate::use_proto::proto::UserEventProto;
+use crate::{appchain_listener::Handler, snapshot_indexer::SnapshotIndexer};
 use ethers::types::Address;
 use ethers::utils::keccak256;
-use log::info;
+use log::error;
 
 pub struct DeployTokenHandler {
     pub indexer: Arc<SnapshotIndexer>,
@@ -24,11 +24,16 @@ const CONTRACT_ADDRESS_NAME: &str = "ERC20ContractAddress";
 
 impl Handler<UserEventProto> for DeployTokenHandler {
     async fn handle(&mut self, event: UserEventProto) {
-        info!("Received StateSnapshot: {:?}", event);
         for add_data in event.additional_data {
             if add_data.key == self.contract_address_name {
-                let contract_address = Address::from_slice(&add_data.value);
-                self.indexer.index_snapshot(contract_address, event.block_number).await;
+                let erc20_address = Address::from_slice(&add_data.value);
+                if let Err(err) = self
+                    .indexer
+                    .index_snapshot(event.chain_id, erc20_address, event.block_number)
+                    .await
+                {
+                    error!("Failed to index snapshot: {:?}", err);
+                }
                 break;
             }
         }

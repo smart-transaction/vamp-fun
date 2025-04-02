@@ -1,8 +1,8 @@
-use std::{collections::HashMap, error::Error, str::FromStr, sync::Arc};
+use std::{cmp::min, collections::HashMap, error::Error, str::FromStr, sync::Arc};
 
 use ethers::{
     providers::{Http, Middleware, Provider},
-    types::{Address, BlockNumber, Filter, H256, U256},
+    types::{Address, Filter, H256, U256},
     utils::keccak256,
 };
 use log::{error, info};
@@ -89,17 +89,19 @@ impl SnapshotIndexer {
         let mysql_conn = self.create_db_conn()?;
         spawn(async move {
             let blocks_step = 10000;
-            let first_block = prev_block_number.unwrap_or(0);
-            let latest_block = 1145842;
-
-            info!("Processing blocks from {} to {}", first_block, latest_block);
+            let first_block = prev_block_number.unwrap_or(0) + 1;
+            let latest_block = block_number as usize;
 
             let event_signature = H256::from_slice(&keccak256("Transfer(address,address,uint256)"));
 
-            for b in (first_block..latest_block).step_by(blocks_step) {
+            for b in (first_block..latest_block + 1).step_by(blocks_step) {
+                let block_from = b;
+                let block_to = min(b + blocks_step - 1, latest_block);
+                info!("Processing blocks from {} to {}", block_from, block_to);
+                // Creating a filter for the Transfer event
                 let filter = Filter::new()
-                    .from_block(BlockNumber::from(b))
-                    .to_block(BlockNumber::from(b + blocks_step - 1))
+                    .from_block(block_from)
+                    .to_block(block_to)
                     .topic0(event_signature)
                     .address(erc20_address);
 

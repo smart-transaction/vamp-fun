@@ -4,15 +4,6 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
 
-// // Generate the ERC20 interface (includes Transfer event)
-// abigen!(
-//     ERC20,
-//     r#"[
-//         event Transfer(address indexed from, address indexed to, uint256 value)
-//     ]"#
-// );
-
-
 // SECONDARY_HTTP_CHAIN_URL="https://sepolia.base.org"
 // SECONDARY_ERC20="0xb69A656b2Be8aa0b3859B24eed3c22dB206Ee966"
 
@@ -23,15 +14,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Successfully connected to the chain");
     let client = Arc::new(provider);
 
-    // let contract_address: Address = "0xb69A656b2Be8aa0b3859B24eed3c22dB206Ee966".parse()?;
-    // let contract_address: Address = "0xb69A656b2Be8aa0b3859B24eed3c22dB206Ee966".parse()?;
-    let contract_address: Address = "0x2D29ee5D409e66482EB5C4FBCaF092CeC4e57A8c".parse()?;
+    let contract_address: Address = "0xb69A656b2Be8aa0b3859B24eed3c22dB206Ee966".parse()?;
+    // let contract_address: Address = "0x2D29ee5D409e66482EB5C4FBCaF092CeC4e57A8c".parse()?;
 
     let mut holders: HashMap<Address, U256> = HashMap::new();
 
     let blocks_step = 10000;
-    let first_block = 0;
-    let latest_block = 1145842;
+    let first_block = 1153780;
+    let latest_block = 1153781;
 
     let event_signature = H256::from_slice(
         &keccak256("Transfer(address,address,uint256)")
@@ -40,7 +30,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     for b in (first_block..latest_block).step_by(blocks_step) {
         // println!("Processing blocks from {} to {}", b, b + blocks_step);
         let filter = Filter::new().from_block(BlockNumber::from(b))
-            .to_block(BlockNumber::from(b + blocks_step))
+            .to_block(BlockNumber::from(b + blocks_step - 1))
             .topic0(event_signature)
             .address(contract_address);
 

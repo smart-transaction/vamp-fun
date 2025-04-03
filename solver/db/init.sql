@@ -6,16 +6,18 @@ USE vampfun;
 
 -- Create the tables.
 CREATE TABLE IF NOT EXISTS epochs(
-  erc20_address CHAR(42) NOT NULL,
+  chain_id BIGINT NOT NULL,
   block_number BIGINT NOT NULL,
+  erc20_address CHAR(42) NOT NULL,
   ts TIMESTAMP DEFAULT current_timestamp,
-  INDEX block_number_idx(block_number)
 );
 
 CREATE TABLE IF NOT EXISTS tokens(
+  chain_id BIGINT NOT NULL,
   erc20_address CHAR(42) NOT NULL,
   holder_address CHAR(42) NOT NULL,
   holder_amount VARCHAR(78) NOT NULL,
+  INDEX chain_id_idx(chain_id),
   INDEX erc20_address_idx(erc20_address),
   INDEX holder_address_idx(holder_address)
 );

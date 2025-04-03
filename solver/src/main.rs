@@ -12,7 +12,9 @@ use axum::{
 use clap::Parser;
 use ethers::types::{Address, U256};
 use log::{Level, info};
+use merkle_tree::MerkleTree;
 use snapshot_indexer::SnapshotIndexer;
+use snapshot_processor::Snapshot;
 use stderrlog::Timestamp;
 use tokio::{net::TcpListener, spawn, sync::{mpsc, Mutex}};
 use tower_http::cors::{Any, CorsLayer};
@@ -85,8 +87,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .await;
     });
 
+    let snapshot: Arc<Mutex<Snapshot>> = Arc::new(Mutex::new(Snapshot {
+        merkle_tree: MerkleTree::new(&[]),
+    }));
+
+    let curr_snapshot = snapshot.clone();
     spawn(async move {
-        snapshot_processor::listen_indexed_snapshot(rx).await;
+        snapshot_processor::listen_indexed_snapshot(rx, curr_snapshot).await;
     });
 
     // Start HTTP server

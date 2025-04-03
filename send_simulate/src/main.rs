@@ -46,16 +46,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let token_deploy_request = UserEventProto {
         app_id: keccak256("DeployToken".as_bytes()).to_vec(),
-        chain_id: 21363,
-        block_number: 1153818,
+        chain_id: 84532,
+        block_number: 23961122,
         user_objective: Some(UserObjectiveProto {
             app_id: keccak256("DeployToken".as_bytes()).to_vec(),
             nonse: 1,
-            chain_id: 21363,
+            chain_id: 84532,
             call_objects: vec![
                 CallObjectProto {
                     id: 1,
-                    chain_id: 21363,
+                    chain_id: 84532,
                     salt: keccak256("TheSalt".as_bytes()).to_vec(),
                     amount: amount_bytes.to_vec(),
                     gas: gas_bytes.to_vec(),

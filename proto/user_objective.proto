@@ -34,3 +34,24 @@ message UserEventProto {
   UserObjectiveProto user_objective = 4;
   repeated AdditionalDataProto additional_data = 5;
 }
+
+message TokenSnapshotRootRequest {
+  uint64 chain_id = 1;
+  bytes token = 2;
+  uint64 block_number = 3;
+  bytes merkle_root = 4;
+}
+
+enum TokenSnapshotRootResponseStatus {
+  OK = 0;
+  FAIL = 1;
+}
+
+message TokenSnapshotRootResponse {
+  TokenSnapshotRootResponseStatus status = 1;
+  string message = 2;
+}
+
+service Solver {
+  rpc TokenSnapshotRoot(TokenSnapshotRootRequest) returns (TokenSnapshotRootResponse);
+}

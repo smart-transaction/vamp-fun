@@ -96,13 +96,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let indexer = Arc::new(indexer);
 
-    let deploy_token_handler = Arc::new(Mutex::new(request_handlers::DeployTokenHandler::new(
+    let deploy_token_handler = Arc::new(request_handlers::DeployTokenHandler::new(
         indexer.clone(),
-    )));
+    ));
 
     spawn(async move {
         if let Err(err) = deploy_token_listener
-            .listen(deploy_token_handler.clone())
+            .listen(deploy_token_handler)
             .await
         {
             error!("Failed to listen to request registrator: {:?}", err);

@@ -39,7 +39,7 @@ impl RequestRegistratorService for MyRequestRegistratorService {
             chain_id: 84532,
             block_number: 24016254,
             user_objective: Some(UserObjectiveProto {
-                app_id: keccak256("DeployToken".as_bytes()).to_vec(),
+                app_id: keccak256("VampFunDeployToken".as_bytes()).to_vec(),
                 nonse: 1,
                 chain_id: 84532,
                 call_objects: vec![CallObjectProto {

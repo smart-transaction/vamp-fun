@@ -1,15 +1,18 @@
 use std::{error::Error, future::Future, marker::Send, sync::Arc, time::{Duration, SystemTime}};
 
+use ethers::utils::keccak256;
 use log::{error, info};
 use mysql::{Pool, PooledConn, prelude::Queryable};
 use tokio::{spawn, sync::Mutex, time::sleep};
 use tonic::{Request, transport::Channel};
 
-use crate::use_proto::proto::{
+use crate::{request_handlers::DeployTokenHandler, use_proto::proto::{
     request_registrator_service_client::RequestRegistratorServiceClient, PollRequestProto, UserEventProto
-};
+}};
 
 const TICK_FREQUENCY: &str = "500ms";
+const DEPLOY_TOKEN_APP_ID: &str = "VampFunDeployToken";
+const CLONE_APP_ID: &str = "VampFunClone";
 
 pub struct RequestRegistratorListener {
     client: RequestRegistratorServiceClient<Channel>,
@@ -19,10 +22,6 @@ pub struct RequestRegistratorListener {
     mysql_user: String,
     mysql_password: String,
     mysql_database: String,
-}
-
-pub trait Handler {
-    fn handle(&mut self, event: UserEventProto) -> impl Future<Output = ()> + Send;
 }
 
 /// A polling client that pings the request registrator for new UserEventProto events.
@@ -52,11 +51,10 @@ impl RequestRegistratorListener {
     /// Listens for events on the stream and calls the handler for each event.
     /// The handler is expected to be a function that takes a single argument of the event type.
     /// The event type is expected to correspond the type E that is specified by the caller.
-    pub async fn listen<H: Handler + Send + 'static>(
-        &mut self,
-        handler: Arc<Mutex<H>>,
-    ) -> Result<(), Box<dyn Error>> {
+    pub async fn listen(&mut self, deploy_token_handler: Arc<DeployTokenHandler>) -> Result<(), Box<dyn Error>> {
         let tick_frequency = parse_duration::parse(TICK_FREQUENCY)?;
+        let deploy_token_app_id = keccak256(DEPLOY_TOKEN_APP_ID.as_bytes());
+        let clone_app_id = keccak256(CLONE_APP_ID.as_bytes());
         let mut last_timestamp = 0u64;
         loop {
             let time_now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
@@ -80,11 +78,12 @@ impl RequestRegistratorListener {
                     if response_proto.is_new_request {
                         let request_id = response_proto.request_id;
                         if let Some(event) = response_proto.event {
-                            let handler = handler.clone();
-                            spawn(async move {
-                                let mut handler = handler.lock().await;
-                                handler.handle(event).await;
-                            });
+                            if event.app_id.as_slice() == deploy_token_app_id {
+                                let handler = deploy_token_handler.clone();
+                                spawn(async move {
+                                    handler.handle(event).await;
+                                });
+                            }
                             self.write_request_id(request_id)?;
                         } else {
                             error!("Malformed request: the event is None while the is_new_request is true");

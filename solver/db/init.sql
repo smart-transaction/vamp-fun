@@ -22,6 +22,12 @@ CREATE TABLE IF NOT EXISTS tokens(
   INDEX holder_address_idx(holder_address)
 );
 
+CREATE TABLE IF NOT EXISTS request_logs(
+  user_event_id BINARY(32) NOT NULL,
+  ts TIMESTAMP DEFAULT current_timestamp,
+  INDEX user_event_id_idx(user_event_id)
+);
+
 -- Create the user.
 -- 1. Remove '%' user
 --    if the server and mysql run on the same instance.

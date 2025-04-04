@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::use_proto::proto::UserEventProto;
-use crate::{appchain_listener::Handler, snapshot_indexer::SnapshotIndexer};
+use crate::{request_registrator_listener::Handler, snapshot_indexer::SnapshotIndexer};
 use ethers::types::Address;
 use ethers::utils::keccak256;
 use log::error;
@@ -22,7 +22,7 @@ impl DeployTokenHandler {
 
 const CONTRACT_ADDRESS_NAME: &str = "ERC20ContractAddress";
 
-impl Handler<UserEventProto> for DeployTokenHandler {
+impl Handler for DeployTokenHandler {
     async fn handle(&mut self, event: UserEventProto) {
         for add_data in event.additional_data {
             if add_data.key == self.contract_address_name {

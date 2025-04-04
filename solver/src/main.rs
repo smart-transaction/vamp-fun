@@ -11,18 +11,22 @@ use axum::{
 };
 use clap::Parser;
 use ethers::types::{Address, U256};
-use log::{Level, info};
+use log::{Level, error, info};
 use merkle_tree::MerkleTree;
 use snapshot_indexer::SnapshotIndexer;
 use snapshot_processor::Snapshot;
 use stderrlog::Timestamp;
-use tokio::{net::TcpListener, spawn, sync::{mpsc, Mutex}};
+use tokio::{
+    net::TcpListener,
+    spawn,
+    sync::{Mutex, mpsc},
+};
 use tower_http::cors::{Any, CorsLayer};
 
-mod appchain_listener;
 mod chain_info;
 mod merkle_tree;
 mod request_handlers;
+mod request_registrator_listener;
 mod snapshot_indexer;
 mod snapshot_processor;
 mod use_proto;
@@ -31,6 +35,12 @@ mod use_proto;
 pub struct Args {
     #[arg(long, default_value_t = 9000)]
     pub port: u16,
+
+    #[arg(long)]
+    pub request_registrator_url: String,
+
+    #[arg(long, default_value = "40s")]
+    pub poll_frequency_secs: String,
 
     #[arg(long)]
     pub mysql_user: String,
@@ -51,6 +61,7 @@ pub struct Args {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
+    let poll_frequency = parse_duration::parse(&args.poll_frequency_secs)?;
 
     stderrlog::new()
         .verbosity(Level::Info)
@@ -59,8 +70,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
 
     // Initialize RabbitMQ listener
-    let mut deploy_token_listener =
-        appchain_listener::RabbitMQListener::new("DeployToken", "DefaultSolver").await?;
+    let mut deploy_token_listener = request_registrator_listener::RequestRegistratorListener::new(
+        args.request_registrator_url,
+        poll_frequency,
+        args.mysql_host.clone(),
+        args.mysql_port.clone(),
+        args.mysql_user.clone(),
+        args.mysql_password.clone(),
+        args.mysql_database.clone(),
+    )
+    .await?;
 
     let (tx, rx) = mpsc::channel::<HashMap<Address, U256>>(100);
 
@@ -82,9 +101,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     )));
 
     spawn(async move {
-        deploy_token_listener
+        if let Err(err) = deploy_token_listener
             .listen(deploy_token_handler.clone())
-            .await;
+            .await
+        {
+            error!("Failed to listen to request registrator: {:?}", err);
+        }
     });
 
     let snapshot: Arc<Mutex<Snapshot>> = Arc::new(Mutex::new(Snapshot {

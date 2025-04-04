@@ -7,7 +7,6 @@ edition = "2024"
 ethers = "2.0.14"
 futures = "0.3.31"
 prost = "0.13.5"
-rabbitmq-stream-client = "0.8.0"
 rand = "0.9.0"
 tokio = { version = "1.44.1", features = ["rt", "rt-multi-thread", "macros"] }
 tonic = "0.13.0"

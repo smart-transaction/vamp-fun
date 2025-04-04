@@ -50,24 +50,13 @@ impl SnapshotIndexer {
             self.mysql_port,
             self.mysql_database
         );
-        let mysql_display_url = format!(
-            "mysql://{}:{}@{}:{}/{}",
-            self.mysql_user, "********", self.mysql_host, self.mysql_port, self.mysql_database
-        );
-        info!(
-            "Connecting to the database with URL {} ...",
-            mysql_display_url
-        );
         let db_conn = Pool::new(mysql_url.as_str())?.get_conn()?;
-        info!("Successfully created DB connection.");
-
         Ok(db_conn)
     }
 
     pub async fn init_chain_info(&mut self) -> Result<(), Box<dyn Error>> {
         let chains = fetch_chains().await?;
         self.chain_info = chains;
-        info!("Successfully fetched chain information.");
         Ok(())
     }
 
@@ -201,7 +190,7 @@ impl SnapshotIndexer {
             let token_supply_value: Option<String> = row.get(1);
             if let Some(token_address) = token_address {
                 if let Some(token_supply_value) = token_supply_value {
-                    let token_supply_value = token_supply_value.parse::<U256>()?;
+                    let token_supply_value = U256::from_dec_str(&token_supply_value)?;
                     let token_address = Address::from_str(&token_address)?;
                     token_supply.insert(token_address, token_supply_value);
                 }
@@ -222,11 +211,11 @@ impl SnapshotIndexer {
         block_number: u64,
         token_supply: &HashMap<Address, U256>,
     ) -> Result<(), Box<dyn Error>> {
+        // Delete existing records for the given erc20_address
         let mut tx = conn.start_transaction(TxOpts::default())?;
         let stmt = "DELETE FROM tokens WHERE chain_id = ? AND erc20_address = ?";
         let str_address = format!("{:#x}", erc20_address);
         tx.exec_drop(stmt, (chain_id, &str_address))?; // Delete existing records for the given erc20_address
-        // Delete existing records for the given erc20_address
 
         // Insert new supplies
         for (token_address, supply) in token_supply {

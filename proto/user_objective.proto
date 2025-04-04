@@ -35,16 +35,27 @@ message UserEventProto {
   repeated AdditionalDataProto additional_data = 5;
 }
 
-enum AppChainResponseStatus {
+enum AppChainResultStatus {
   OK = 0;
   FAIL = 1;
 }
 
-message AppChainResponseProto {
-  AppChainResponseStatus status = 1;
+message AppChainResultProto {
+  AppChainResultStatus status = 1;
   string message = 2;
 }
 
-service AppChain {
-  rpc SolverResult(UserEventProto) returns (AppChainResponseProto);
+message PollRequestProto {
+  bytes last_request_id = 1;
+}
+
+message PollResponseProto {
+  bool is_new_request = 1;
+  AppChainResultProto result = 2;
+  bytes request_id = 3;
+  UserEventProto event = 4;
+}
+
+service RequestRegistratorService {
+  rpc Poll(PollRequestProto) returns (PollResponseProto);
 }

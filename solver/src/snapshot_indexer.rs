@@ -86,7 +86,8 @@ impl SnapshotIndexer {
 
         let tx = self.tx.clone();
         let mysql_conn = self.create_db_conn()?;
-        let (mut token_supply, prev_block_number) = Self::read_token_supply(mysql_conn, chain_id, erc20_address)?;
+        let (mut token_supply, prev_block_number) =
+            Self::read_token_supply(mysql_conn, chain_id, erc20_address)?;
         let mysql_conn = self.create_db_conn()?;
         spawn(async move {
             let blocks_step = 10000;
@@ -112,6 +113,7 @@ impl SnapshotIndexer {
                     return;
                 }
                 let logs = logs.unwrap();
+                info!("Processing {} transfers", logs.len());
                 for log in logs {
                     let from = log.topics.get(1).unwrap();
                     let to = log.topics.get(2).unwrap();
@@ -136,9 +138,13 @@ impl SnapshotIndexer {
                 }
             }
             // Writing the token supply to the database
-            if let Err(err) =
-                Self::write_token_supply(mysql_conn, chain_id, erc20_address, block_number, &token_supply)
-            {
+            if let Err(err) = Self::write_token_supply(
+                mysql_conn,
+                chain_id,
+                erc20_address,
+                block_number,
+                &token_supply,
+            ) {
                 error!("Failed to write token supply: {:?}", err);
                 return;
             }
@@ -187,7 +193,7 @@ impl SnapshotIndexer {
         // Reading the current snapshot from the database
         let stmt = "SELECT holder_address, holder_amount FROM tokens WHERE chain_id = ? AND erc20_address = ?";
         let addr_str = format!("{:#x}", erc20_address);
-        let result = conn.exec_iter(stmt, (chain_id, &addr_str,))?;
+        let result = conn.exec_iter(stmt, (chain_id, &addr_str))?;
 
         for row in result {
             let row = row?;
@@ -219,7 +225,7 @@ impl SnapshotIndexer {
         let mut tx = conn.start_transaction(TxOpts::default())?;
         let stmt = "DELETE FROM tokens WHERE chain_id = ? AND erc20_address = ?";
         let str_address = format!("{:#x}", erc20_address);
-        tx.exec_drop(stmt, (chain_id, &str_address,))?; // Delete existing records for the given erc20_address
+        tx.exec_drop(stmt, (chain_id, &str_address))?; // Delete existing records for the given erc20_address
         // Delete existing records for the given erc20_address
 
         // Insert new supplies
@@ -227,7 +233,10 @@ impl SnapshotIndexer {
             let stmt = "INSERT INTO tokens (chain_id, erc20_address, holder_address, holder_amount) VALUES (?, ?, ?, ?)";
             let addr_str = format!("{:#x}", erc20_address);
             let token_addr_str = format!("{:#x}", token_address);
-            tx.exec_drop(stmt, (chain_id, addr_str, token_addr_str, supply.to_string()))?;
+            tx.exec_drop(
+                stmt,
+                (chain_id, addr_str, token_addr_str, supply.to_string()),
+            )?;
         }
         // Insert new epoch
         let stmt = "INSERT INTO epochs (chain_id, erc20_address, block_number) VALUES(?, ?, ?)";

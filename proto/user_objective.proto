@@ -35,23 +35,16 @@ message UserEventProto {
   repeated AdditionalDataProto additional_data = 5;
 }
 
-message TokenSnapshotRootRequest {
-  uint64 chain_id = 1;
-  bytes token = 2;
-  uint64 block_number = 3;
-  bytes merkle_root = 4;
-}
-
-enum TokenSnapshotRootResponseStatus {
+enum AppChainResponseStatus {
   OK = 0;
   FAIL = 1;
 }
 
-message TokenSnapshotRootResponse {
-  TokenSnapshotRootResponseStatus status = 1;
+message AppChainResponseProto {
+  AppChainResponseStatus status = 1;
   string message = 2;
 }
 
-service Solver {
-  rpc TokenSnapshotRoot(TokenSnapshotRootRequest) returns (TokenSnapshotRootResponse);
+service AppChain {
+  rpc SolverResult(UserEventProto) returns (AppChainResponseProto);
 }

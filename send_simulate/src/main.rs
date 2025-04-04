@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let token_deploy_request = UserEventProto {
         app_id: keccak256("DeployToken".as_bytes()).to_vec(),
         chain_id: 84532,
-        block_number: 23961122,
+        block_number: 23973895,
         user_objective: Some(UserObjectiveProto {
             app_id: keccak256("DeployToken".as_bytes()).to_vec(),
             nonse: 1,
@@ -70,7 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         additional_data: vec![
             AdditionalDataProto {
                 key: keccak256("ERC20ContractAddress".as_bytes()).to_vec(),
-                value: Address::from_str("0xb69A656b2Be8aa0b3859B24eed3c22dB206Ee966").unwrap().as_bytes().to_vec(),
+                value: Address::from_str("0xE5a0F6BCCBF606718D3E7844E64Bf9c34727EA33").unwrap().as_bytes().to_vec(),
             },
         ],
     };

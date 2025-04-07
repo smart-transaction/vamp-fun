@@ -56,6 +56,21 @@ message PollResponseProto {
   UserEventProto event = 4;
 }
 
+message SolverDecisionRequestProto {
+  bytes app_id = 1;
+  uint64 chain_id = 2;
+  UserEventProto event = 3;
+}
+
+message SolverDecisionResponseProto {
+  AppChainResultStatus status = 1;
+}
+
 service RequestRegistratorService {
+  // To be called periodically from the solver to the request registrator
+  // to check if there are new requests to be solved.
   rpc Poll(PollRequestProto) returns (PollResponseProto);
+
+  // To be called from the solver to the executor to deliver the solver decision.
+  rpc SolverDecision(SolverDecisionRequestProto) returns (SolverDecisionResponseProto);
 }

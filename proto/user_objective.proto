@@ -70,7 +70,9 @@ service RequestRegistratorService {
   // To be called periodically from the solver to the request registrator
   // to check if there are new requests to be solved.
   rpc Poll(PollRequestProto) returns (PollResponseProto);
+}
 
+service ExecutorService{
   // To be called from the solver to the executor to deliver the solver decision.
   rpc SolverDecision(SolverDecisionRequestProto) returns (SolverDecisionResponseProto);
 }

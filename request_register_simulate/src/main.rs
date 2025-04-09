@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use clap::Parser;
 use ethers::types::{Address, U256};
 use ethers::utils::{keccak256, parse_units};
 use prost::Message as _;
@@ -9,7 +10,8 @@ mod proto {
 }
 
 use proto::{
-    AdditionalDataProto, CallObjectProto, PollRequestProto, PollResponseProto, UserEventProto, UserObjectiveProto,
+    AdditionalDataProto, CallObjectProto, PollRequestProto, PollResponseProto, UserEventProto,
+    UserObjectiveProto,
     request_registrator_service_server::{
         RequestRegistratorService, RequestRegistratorServiceServer,
     },
@@ -18,7 +20,26 @@ use tonic::transport::Server;
 use tonic::{Request, Response, Status};
 
 #[derive(Default)]
-struct MyRequestRegistratorService{}
+struct MyRequestRegistratorService {
+    start_seq_id: u64,
+}
+
+const VAMPING_APP_ID: &str = "VampFunVamping";
+const CONTRACT_ADDRESS_NAME: &str = "ERC20ContractAddress";
+
+#[derive(Parser, Debug)]
+pub struct Args {
+    #[arg(long)]
+    pub start_sequence_id: u64,
+}
+
+impl MyRequestRegistratorService {
+    pub fn new(start_sequence_id: u64) -> Self {
+        Self {
+            start_seq_id: start_sequence_id,
+        }
+    }
+}
 
 #[tonic::async_trait]
 impl RequestRegistratorService for MyRequestRegistratorService {
@@ -35,11 +56,11 @@ impl RequestRegistratorService for MyRequestRegistratorService {
         gas.to_little_endian(&mut gas_bytes);
 
         let token_deploy_event = UserEventProto {
-            app_id: keccak256("DeployToken".as_bytes()).to_vec(),
+            app_id: keccak256(VAMPING_APP_ID.as_bytes()).to_vec(),
             chain_id: 84532,
-            block_number: 24016254,
+            block_number: 24221560,
             user_objective: Some(UserObjectiveProto {
-                app_id: keccak256("VampFunDeployToken".as_bytes()).to_vec(),
+                app_id: keccak256(VAMPING_APP_ID.as_bytes()).to_vec(),
                 nonse: 1,
                 chain_id: 84532,
                 call_objects: vec![CallObjectProto {
@@ -59,7 +80,7 @@ impl RequestRegistratorService for MyRequestRegistratorService {
                 }],
             }),
             additional_data: vec![AdditionalDataProto {
-                key: keccak256("ERC20ContractAddress".as_bytes()).to_vec(),
+                key: keccak256(CONTRACT_ADDRESS_NAME.as_bytes()).to_vec(),
                 value: Address::from_str("0xb69A656b2Be8aa0b3859B24eed3c22dB206Ee966")
                     .unwrap()
                     .as_bytes()
@@ -73,13 +94,9 @@ impl RequestRegistratorService for MyRequestRegistratorService {
         UserEventProto::encode(&token_deploy_event, &mut token_deploy_buff).unwrap();
 
         let request_id = keccak256(&token_deploy_buff);
-        if request.into_inner().last_request_id != request_id {
-            poll_response.is_new_request = true;
-            poll_response.request_id = request_id.to_vec();
-            poll_response.event = Some(token_deploy_event);
-        } else {
-            poll_response.is_new_request = false;
-        }
+        poll_response.sequence_id = self.start_seq_id;
+        poll_response.request_id = request_id.to_vec();
+        poll_response.event = Some(token_deploy_event);
 
         Ok(Response::new(poll_response))
     }
@@ -87,8 +104,9 @@ impl RequestRegistratorService for MyRequestRegistratorService {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse();
     let addr = "[::1]:50051".parse()?;
-    let request_registrator = MyRequestRegistratorService::default();
+    let request_registrator = MyRequestRegistratorService::new(args.start_sequence_id);
 
     Server::builder()
         .add_service(RequestRegistratorServiceServer::new(request_registrator))

@@ -4,12 +4,14 @@ use crate::use_proto::proto::UserEventProto;
 use crate::snapshot_indexer::SnapshotIndexer;
 use ethers::types::Address;
 use ethers::utils::keccak256;
-use log::error;
+use log::{error, info};
 
 pub struct DeployTokenHandler {
     pub indexer: Arc<SnapshotIndexer>,
     pub contract_address_name: [u8; 32],
 }
+
+const CONTRACT_ADDRESS_NAME: &str = "ERC20ContractAddress";
 
 impl DeployTokenHandler {
     pub fn new(indexer: Arc<SnapshotIndexer>) -> Self {
@@ -20,6 +22,7 @@ impl DeployTokenHandler {
     }
 
     pub async fn handle(&self, event: UserEventProto) {
+        info!("DeployTokenHandler triggered");
         for add_data in event.additional_data {
             if add_data.key == self.contract_address_name {
                 let erc20_address = Address::from_slice(&add_data.value);
@@ -35,5 +38,3 @@ impl DeployTokenHandler {
         }
     }
 }
-
-const CONTRACT_ADDRESS_NAME: &str = "ERC20ContractAddress";

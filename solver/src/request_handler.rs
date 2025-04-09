@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::use_proto::proto::UserEventProto;
 use crate::snapshot_indexer::SnapshotIndexer;
+use crate::use_proto::proto::UserEventProto;
 use ethers::types::Address;
 use ethers::utils::keccak256;
 use log::{error, info};

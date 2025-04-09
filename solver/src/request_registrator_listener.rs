@@ -1,4 +1,8 @@
-use std::{error::Error, sync::Arc, time::{Duration, SystemTime}};
+use std::{
+    error::Error,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use ethers::utils::keccak256;
 use log::{error, info};
@@ -6,9 +10,12 @@ use mysql::{Pool, PooledConn, prelude::Queryable};
 use tokio::{spawn, time::sleep};
 use tonic::{Request, transport::Channel};
 
-use crate::{request_handlers::DeployTokenHandler, use_proto::proto::{
-    request_registrator_service_client::RequestRegistratorServiceClient, PollRequestProto
-}};
+use crate::{
+    request_handler::DeployTokenHandler,
+    use_proto::proto::{
+        PollRequestProto, request_registrator_service_client::RequestRegistratorServiceClient,
+    },
+};
 
 const TICK_FREQUENCY: &str = "500ms";
 pub const VAMPING_APP_ID: &str = "VampFunVamping";
@@ -34,8 +41,12 @@ impl RequestRegistratorListener {
         mysql_password: String,
         mysql_database: String,
     ) -> Result<Self, Box<dyn Error>> {
-        let client = RequestRegistratorServiceClient::connect(request_registrator_url.clone()).await?;
-        info!("Connected to request registrator at {}", request_registrator_url);
+        let client =
+            RequestRegistratorServiceClient::connect(request_registrator_url.clone()).await?;
+        info!(
+            "Connected to request registrator at {}",
+            request_registrator_url
+        );
         Ok(Self {
             client,
             poll_frequency,
@@ -49,13 +60,18 @@ impl RequestRegistratorListener {
 
     /// Listens for events on the stream and calls the handler for each event.
     /// The handler is expected to be a function that takes a single argument of the event type.
-    pub async fn listen(&mut self, deploy_token_handler: Arc<DeployTokenHandler>) -> Result<(), Box<dyn Error>> {
+    pub async fn listen(
+        &mut self,
+        deploy_token_handler: Arc<DeployTokenHandler>,
+    ) -> Result<(), Box<dyn Error>> {
         let tick_frequency = parse_duration::parse(TICK_FREQUENCY)?;
         let vamping_app_id = keccak256(VAMPING_APP_ID.as_bytes());
         let mut last_timestamp = 0u64;
         loop {
             let time_now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
-            if time_now.as_secs() == last_timestamp || time_now.as_secs() % self.poll_frequency.as_secs() != 0 {
+            if time_now.as_secs() == last_timestamp
+                || time_now.as_secs() % self.poll_frequency.as_secs() != 0
+            {
                 sleep(tick_frequency).await;
                 continue;
             }
@@ -90,7 +106,7 @@ impl RequestRegistratorListener {
                     error!("Failed to poll request registrator: {:?}", err);
                 }
             }
-            
+
             sleep(tick_frequency).await;
         }
     }
@@ -117,10 +133,7 @@ impl RequestRegistratorListener {
         Ok(seq_id)
     }
 
-    fn write_request_id(
-        &self,
-        sequence_id: u64
-    ) -> Result<(), Box<dyn Error>> {
+    fn write_request_id(&self, sequence_id: u64) -> Result<(), Box<dyn Error>> {
         let mut conn = self.create_db_conn()?;
 
         let stmt = "INSERT INTO request_logs (sequence_id) VALUES (?)";

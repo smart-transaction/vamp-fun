@@ -37,7 +37,7 @@ pub async fn listen_indexed_snapshot(
         let mut snapshot = snapshot.lock().await;
         snapshot.merkle_tree = merkle_tree;
         let root = snapshot.merkle_tree.root;
-        
+
         let mut user_event = UserEventProto::default();
         user_event.app_id = keccak256(TOKEN_MAPPING_NAME.as_bytes()).to_vec();
         user_event.additional_data.push(AdditionalDataProto {
@@ -50,10 +50,7 @@ pub async fn listen_indexed_snapshot(
         });
 
         let token_mapping = TokenMappingProto {
-            addresses: message
-                .iter()
-                .map(|(k, _)| k.as_bytes().to_vec())
-                .collect(),
+            addresses: message.iter().map(|(k, _)| k.as_bytes().to_vec()).collect(),
             amounts: message
                 .iter()
                 .map(|(_, v)| {

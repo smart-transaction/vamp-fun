@@ -25,7 +25,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 mod chain_info;
 mod merkle_tree;
-mod request_handlers;
+mod request_handler;
 mod request_registrator_listener;
 mod snapshot_indexer;
 mod snapshot_processor;
@@ -96,7 +96,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let indexer = Arc::new(indexer);
 
-    let deploy_token_handler = Arc::new(request_handlers::DeployTokenHandler::new(
+    let deploy_token_handler = Arc::new(request_handler::DeployTokenHandler::new(
         indexer.clone(),
     ));
 

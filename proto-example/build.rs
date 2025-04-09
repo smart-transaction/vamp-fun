@@ -1,10 +1,16 @@
-pub fn main() {
-  tonic_build::configure()
-      .compile_protos(
-          &[
-              "../proto/vamp_fun.proto",
-          ],
-          &["../proto"],
-      )
-      .expect("Failed to compile the proto");
+// pub fn main() {
+//   tonic_build::configure()
+//       .compile_protos(
+//           &[
+//               "../proto/vamp_fun.proto",
+//           ],
+//           &["../proto"],
+//       )
+//       .expect("Failed to compile the proto");
+// }
+
+use std::io::Result;
+pub fn main() -> Result<()> {
+    prost_build::compile_protos(&["../proto/vamp_fun.proto"], &["../proto"])?;
+    Ok(())
 }

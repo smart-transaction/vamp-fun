@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use ethers::{types::{Address, U256}, utils::parse_units};
+use ethers::{types::{Address, H160, U256}, utils::parse_units};
 use prost::Message;
 
 pub mod vamp_fun {
@@ -35,13 +35,25 @@ fn encode() -> Vec<u8> {
     encoded_val
 }
 
-fn decode(encoded_val: Vec<u8>) -> TokenMappingProto {
+fn decode(encoded_val: Vec<u8>) -> (Vec<H160>, Vec<U256>) {
     let decoded_proto = TokenMappingProto::decode(&encoded_val[..]).unwrap();
-    decoded_proto
+
+    let decoded_addresses: Vec<H160> = decoded_proto.addresses.iter()
+        .map(|address| Address::from_slice(address))
+        .collect();
+    let decoded_amounts: Vec<U256> = decoded_proto.amounts.iter()
+        .map(|amount| {
+            let mut amount_bytes = [0; 32];
+            amount_bytes.copy_from_slice(amount);
+            U256::from_little_endian(&amount_bytes)
+        })
+        .collect();
+
+    (decoded_addresses, decoded_amounts)
 }
 
 fn main() {
     let encoded_proto = encode();
-    let decoded_proto = decode(encoded_proto.clone());
-    println!("Decoded Proto: {:?}", decoded_proto);
+    let decoded = decode(encoded_proto.clone());
+    println!("Decoded Proto: {:#?}", decoded);
 }

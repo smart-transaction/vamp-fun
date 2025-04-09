@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package vamp.fun;
+
+// The token mapping. Contains two parallel arrays of addresses and amounts.
+message TokenMappingProto {
+  // Addresses.
+  repeated bytes addresses = 1;
+  // Amounts. U256 in little endian encoding.
+  repeated bytes amounts = 2;
+}

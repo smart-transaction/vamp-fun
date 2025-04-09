@@ -52,7 +52,7 @@ message PollRequestProto {
 message PollResponseProto {
   uint64 sequence_id = 1;
   AppChainResultProto result = 2;
-  bytes request_id = 3;
+  optional bytes request_id = 3;
   UserEventProto event = 4;
 }
 

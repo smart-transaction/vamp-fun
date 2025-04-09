@@ -1,0 +1,67 @@
+use redis::AsyncCommands;
+use std::sync::Arc;
+
+#[derive(Clone)]
+pub struct Storage {
+    client: Arc<redis::Client>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub enum RequestState {
+    New,
+    UnderExecution(String), // solver_id
+    Executed(String), // solver_id,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct StoredRequest {
+    pub sequence_id: u64,
+    pub data: Vec<u8>,
+    pub state: RequestState,
+}
+
+impl Storage {
+    const SEQUENCE_KEY: &'static str = "global:sequence_id";
+
+    pub async fn new(cfg: &config::Config) -> anyhow::Result<Self> {
+        let redis_url: String = cfg.get("storage.redis_url")?;
+        let client = redis::Client::open(redis_url)?;
+        Ok(Self { client: Arc::new(client) })
+    }
+
+    /// Atomically generates a sequential sequence_id using Redis INCR command
+    pub async fn next_sequence_id(&self) -> anyhow::Result<u64> {
+        let mut conn = self.client.get_multiplexed_async_connection().await?;
+        let sequence_number: u64 = conn.incr(Self::SEQUENCE_KEY, 1).await?;
+        Ok(sequence_number)
+    }
+
+    /// Stores a new request in the 'NEW' state
+    pub async fn save_new_request(&self, sequence_id: &u64, data: &[u8]) -> anyhow::Result<()> {
+        let stored_request = StoredRequest {
+            sequence_id: *sequence_id,
+            data: data.to_vec(),
+            state: RequestState::New,
+        };
+
+        let serialized = serde_json::to_string(&stored_request)?;
+        let mut conn = self.client.get_multiplexed_async_connection().await?;
+        let _: () = conn.set(Self::request_key(sequence_id), serialized).await?;
+        Ok(())
+    }
+
+    /// Fetches a request by its sequence_id
+    pub async fn get_request_by_sequence_id(&self, sequence_id: &u64) ->
+                                                                    anyhow::Result<StoredRequest> {
+        let mut conn = self.client.get_multiplexed_async_connection().await?;
+        let key = Self::request_key(sequence_id);
+        let serialized: String = conn.get(key).await?;
+        let request: StoredRequest = serde_json::from_str(&serialized)?;
+        Ok(request)
+    }
+
+    #[inline]
+    fn request_key(sequence_id: &u64) -> String {
+        format!("request:{}", sequence_id)
+    }
+}

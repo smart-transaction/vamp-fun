@@ -95,7 +95,7 @@ impl RequestRegistratorService for MyRequestRegistratorService {
 
         let request_id = keccak256(&token_deploy_buff);
         poll_response.sequence_id = self.start_seq_id;
-        poll_response.request_id = request_id.to_vec();
+        poll_response.request_id = Some(request_id.to_vec());
         poll_response.event = Some(token_deploy_event);
 
         Ok(Response::new(poll_response))

@@ -6,6 +6,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let proto_files = &["../proto/user_objective.proto"];
     let proto_includes = &["../proto"];
 
+    fs::create_dir_all("src/generated")?; // Be sure that the output directory exists
+
     let descriptor_path = "src/generated/user_descriptor.pb"; // Output where everything else is
 
     tonic_build::configure()

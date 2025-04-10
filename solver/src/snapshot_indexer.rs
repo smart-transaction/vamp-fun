@@ -7,9 +7,23 @@ use ethers::{
 };
 use log::{error, info};
 use mysql::{Pool, PooledConn, TxOpts, prelude::Queryable};
-use tokio::{spawn, sync::mpsc::Sender};
+use tokio::spawn;
 
-use crate::chain_info::{ChainInfo, fetch_chains};
+use crate::{
+    chain_info::{ChainInfo, fetch_chains},
+    snapshot_processor::process_and_send_snapshot,
+};
+
+#[derive(Default)]
+pub struct TokenRequestData {
+    pub chain_id: u64,
+    pub erc20_address: Address,
+    pub token_full_name: String,
+    pub token_symbol_name: String,
+    pub token_uri_name: String,
+    pub token_decimal: u8,
+    pub block_number: u64,
+}
 
 pub struct SnapshotIndexer {
     chain_info: HashMap<u64, ChainInfo>,
@@ -18,7 +32,7 @@ pub struct SnapshotIndexer {
     mysql_user: String,
     mysql_password: String,
     mysql_database: String,
-    tx: Sender<HashMap<Address, U256>>,
+    orchestrator_url: String,
 }
 
 impl SnapshotIndexer {
@@ -28,7 +42,7 @@ impl SnapshotIndexer {
         mysql_user: String,
         mysql_password: String,
         mysql_database: String,
-        tx: Sender<HashMap<Address, U256>>,
+        orchestrator_url: String,
     ) -> Self {
         Self {
             chain_info: HashMap::new(),
@@ -37,7 +51,7 @@ impl SnapshotIndexer {
             mysql_user,
             mysql_password,
             mysql_database,
-            tx,
+            orchestrator_url,
         }
     }
 
@@ -62,26 +76,27 @@ impl SnapshotIndexer {
 
     pub async fn index_snapshot(
         &self,
-        chain_id: u64,
-        erc20_address: Address,
-        block_number: u64,
+        request_data: TokenRequestData,
     ) -> Result<(), Box<dyn Error>> {
         info!(
             "Indexing snapshot for token address: {:?} at block number: {:?}",
-            erc20_address, block_number
+            request_data.erc20_address, request_data.block_number
         );
 
-        let provider = Arc::new(self.connect_chain(chain_id).await?);
+        let provider = Arc::new(self.connect_chain(request_data.chain_id).await?);
 
-        let tx = self.tx.clone();
         let mysql_conn = self.create_db_conn()?;
-        let (mut token_supply, prev_block_number) =
-            Self::read_token_supply(mysql_conn, chain_id, erc20_address)?;
+        let (mut token_supply, prev_block_number) = Self::read_token_supply(
+            mysql_conn,
+            request_data.chain_id,
+            request_data.erc20_address,
+        )?;
         let mysql_conn = self.create_db_conn()?;
+        let orchestrator_url = self.orchestrator_url.clone();
         spawn(async move {
             let blocks_step = 10000;
             let first_block = prev_block_number.unwrap_or(0) + 1;
-            let latest_block = block_number as usize;
+            let latest_block = request_data.block_number as usize;
 
             let event_signature = H256::from_slice(&keccak256("Transfer(address,address,uint256)"));
 
@@ -94,7 +109,7 @@ impl SnapshotIndexer {
                     .from_block(block_from)
                     .to_block(block_to)
                     .topic0(event_signature)
-                    .address(erc20_address);
+                    .address(request_data.erc20_address);
 
                 let logs = provider.get_logs(&filter).await;
                 if let Err(err) = logs {
@@ -129,24 +144,24 @@ impl SnapshotIndexer {
             // Writing the token supply to the database
             if let Err(err) = Self::write_token_supply(
                 mysql_conn,
-                chain_id,
-                erc20_address,
-                block_number,
+                request_data.chain_id,
+                request_data.erc20_address,
+                request_data.block_number,
                 &token_supply,
             ) {
                 error!("Failed to write token supply: {:?}", err);
                 return;
             }
 
-            // Sending the token supply to the channel
-            if let Err(err) = tx.send(token_supply).await {
-                error!("Failed to send token supply: {:?}", err);
-            }
-
             info!(
                 "Successfully indexed snapshot for token address: {:?}",
-                erc20_address
+                request_data.erc20_address
             );
+
+            // Sending the token supply to processor
+            if let Err(err) = process_and_send_snapshot(request_data, token_supply, orchestrator_url).await {
+                error!("Failed to process and send snapshot: {:?}", err);
+            }
         });
 
         Ok(())

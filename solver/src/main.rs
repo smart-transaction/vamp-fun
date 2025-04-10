@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error, sync::Arc};
+use std::{error::Error, sync::Arc};
 
 use axum::{
     Router,
@@ -10,17 +10,10 @@ use axum::{
     serve,
 };
 use clap::Parser;
-use ethers::types::{Address, U256};
 use log::{Level, error, info};
-use merkle_tree::MerkleTree;
 use snapshot_indexer::SnapshotIndexer;
-use snapshot_processor::Snapshot;
 use stderrlog::Timestamp;
-use tokio::{
-    net::TcpListener,
-    spawn,
-    sync::{Mutex, mpsc},
-};
+use tokio::{net::TcpListener, spawn};
 use tower_http::cors::{Any, CorsLayer};
 
 mod chain_info;
@@ -38,6 +31,9 @@ pub struct Args {
 
     #[arg(long)]
     pub request_registrator_url: String,
+
+    #[arg(long)]
+    pub orchestrator_url: String,
 
     #[arg(long, default_value = "40s")]
     pub poll_frequency_secs: String,
@@ -81,8 +77,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     )
     .await?;
 
-    let (tx, rx) = mpsc::channel::<HashMap<Address, U256>>(100);
-
     // Initialize SnapshotIndexer
     let mut indexer = SnapshotIndexer::new(
         args.mysql_host,
@@ -90,32 +84,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
         args.mysql_user,
         args.mysql_password,
         args.mysql_database,
-        tx.clone(),
+        args.orchestrator_url,
     );
     indexer.init_chain_info().await?;
 
     let indexer = Arc::new(indexer);
 
-    let deploy_token_handler = Arc::new(request_handler::DeployTokenHandler::new(
-        indexer.clone(),
-    ));
+    let deploy_token_handler = Arc::new(request_handler::DeployTokenHandler::new(indexer.clone()));
 
     spawn(async move {
-        if let Err(err) = deploy_token_listener
-            .listen(deploy_token_handler)
-            .await
-        {
+        if let Err(err) = deploy_token_listener.listen(deploy_token_handler).await {
             error!("Failed to listen to request registrator: {:?}", err);
         }
-    });
-
-    let snapshot: Arc<Mutex<Snapshot>> = Arc::new(Mutex::new(Snapshot {
-        merkle_tree: MerkleTree::new(&[]),
-    }));
-
-    let curr_snapshot = snapshot.clone();
-    spawn(async move {
-        snapshot_processor::listen_indexed_snapshot(rx, curr_snapshot).await;
     });
 
     // Start HTTP server

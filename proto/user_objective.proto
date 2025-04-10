@@ -42,7 +42,7 @@ enum AppChainResultStatus {
 
 message AppChainResultProto {
   AppChainResultStatus status = 1;
-  string message = 2;
+  optional string message = 2;
 }
 
 message PollRequestProto {
@@ -58,12 +58,11 @@ message PollResponseProto {
 
 message SolverDecisionRequestProto {
   bytes app_id = 1;
-  bytes request_id = 2;
   UserEventProto event = 3;
 }
 
 message SolverDecisionResponseProto {
-  AppChainResultStatus status = 1;
+  AppChainResultProto result = 1;
 }
 
 service RequestRegistratorService {
@@ -72,7 +71,7 @@ service RequestRegistratorService {
   rpc Poll(PollRequestProto) returns (PollResponseProto);
 }
 
-service ExecutorService{
-  // To be called from the solver to the executor to deliver the solver decision.
+service OrchestratorService{
+  // To be called from the solver to the orchestrator to deliver the solver decision.
   rpc SolverDecision(SolverDecisionRequestProto) returns (SolverDecisionResponseProto);
 }

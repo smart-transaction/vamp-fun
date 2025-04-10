@@ -1,71 +1,94 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use ethers::types::{Address, U256};
 use ethers::utils::keccak256;
 use log::info;
 use prost::Message;
-use tokio::sync::{Mutex, mpsc::Receiver};
 
 use crate::merkle_tree::{Leaf, MerkleTree};
-use crate::use_proto::proto::{AdditionalDataProto, TokenMappingProto, UserEventProto};
+use crate::request_registrator_listener::VAMPING_APP_ID;
+use crate::snapshot_indexer::TokenRequestData;
+use crate::use_proto::proto::AppChainResultStatus;
+use crate::use_proto::proto::{
+    AdditionalDataProto, SolverDecisionRequestProto, TokenMappingProto, TokenVampingInfoProto,
+    UserEventProto, orchestrator_service_client::OrchestratorServiceClient,
+};
 
-const TOKEN_MAPPING_NAME: &str = "TokenMapping";
-const MERKLE_ROOT_NAME: &str = "MerkleRoot";
-const TOKEN_METADATA_NAME: &str = "TokenMetadata";
+const TOKEN_VAMPING_INFO_NAME: &str = "TokenVampingInfo";
 
-pub struct Snapshot {
-    pub merkle_tree: MerkleTree,
-}
+pub async fn process_and_send_snapshot(
+    request_data: TokenRequestData,
+    snapshot: HashMap<Address, U256>,
+    orchestrator_url: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    info!("Received indexed snapshot");
+    let leaves = snapshot
+        .iter()
+        .map(|(k, v)| {
+            let leaf = Leaf {
+                account: *k,
+                amount: *v,
+            };
+            leaf
+        })
+        .collect::<Vec<_>>();
+    let merkle_tree = MerkleTree::new(&leaves);
+    let root = merkle_tree.root;
 
-pub async fn listen_indexed_snapshot(
-    mut rx: Receiver<HashMap<Address, U256>>,
-    snapshot: Arc<Mutex<Snapshot>>,
-) {
-    while let Some(message) = rx.recv().await {
-        info!("Received indexed snapshot");
-        let leaves = message
+    let mut user_event = UserEventProto::default();
+    user_event.app_id = keccak256(VAMPING_APP_ID.as_bytes()).to_vec();
+
+    let token_mapping = TokenMappingProto {
+        addresses: snapshot
             .iter()
-            .map(|(k, v)| {
-                let leaf = Leaf {
-                    account: *k,
-                    amount: *v,
-                };
-                leaf
+            .map(|(k, _)| k.as_bytes().to_vec())
+            .collect(),
+        amounts: snapshot
+            .iter()
+            .map(|(_, v)| {
+                let mut amount_bytes = [0; 32];
+                v.to_little_endian(&mut amount_bytes);
+                amount_bytes.to_vec()
             })
-            .collect::<Vec<_>>();
-        let merkle_tree = MerkleTree::new(&leaves);
-        let mut snapshot = snapshot.lock().await;
-        snapshot.merkle_tree = merkle_tree;
-        let root = snapshot.merkle_tree.root;
+            .collect(),
+    };
 
-        let mut user_event = UserEventProto::default();
-        user_event.app_id = keccak256(TOKEN_MAPPING_NAME.as_bytes()).to_vec();
-        user_event.additional_data.push(AdditionalDataProto {
-            key: keccak256(MERKLE_ROOT_NAME.as_bytes()).to_vec(),
-            value: root.to_vec(),
-        });
-        user_event.additional_data.push(AdditionalDataProto {
-            key: keccak256(TOKEN_METADATA_NAME.as_bytes()).to_vec(),
-            value: vec![],
-        });
+    let token_vamping_info = TokenVampingInfoProto {
+        merkle_root: root.to_vec(),
+        token_name: request_data.token_full_name,
+        token_symbol: request_data.token_symbol_name,
+        token_erc20_address: request_data.erc20_address.as_bytes().to_vec(),
+        token_uri: None,
+        amount: 0,
+        decimal: 18,
+        token_mapping: Some(token_mapping),
+    };
 
-        let token_mapping = TokenMappingProto {
-            addresses: message.iter().map(|(k, _)| k.as_bytes().to_vec()).collect(),
-            amounts: message
-                .iter()
-                .map(|(_, v)| {
-                    let mut amount_bytes = [0; 32];
-                    v.to_little_endian(&mut amount_bytes);
-                    amount_bytes.to_vec()
-                })
-                .collect(),
-        };
-        let mut encoded_token_mapping: Vec<u8> = Vec::new();
-        if let Ok(_) = token_mapping.encode(&mut encoded_token_mapping) {
-            user_event.additional_data.push(AdditionalDataProto {
-                key: keccak256(TOKEN_MAPPING_NAME.as_bytes()).to_vec(),
-                value: encoded_token_mapping,
-            });
+    let mut encoded_vamping_info: Vec<u8> = Vec::new();
+    token_vamping_info.encode(&mut encoded_vamping_info)?;
+    user_event.additional_data.push(AdditionalDataProto {
+        key: keccak256(TOKEN_VAMPING_INFO_NAME.as_bytes()).to_vec(),
+        value: encoded_vamping_info,
+    });
+
+    let request_proto = SolverDecisionRequestProto {
+        app_id: keccak256(VAMPING_APP_ID.as_bytes()).to_vec(),
+        event: Some(user_event),
+    };
+
+    let mut client = OrchestratorServiceClient::connect(orchestrator_url.clone()).await?;
+    info!("Connected to orchestrator at {}", orchestrator_url);
+    let response = client.solver_decision(request_proto).await?;
+    let response_proto = response.into_inner();
+    if let Some(result) = response_proto.result.clone() {
+        if result.status != AppChainResultStatus::Ok as i32 {
+            if let Some(message) = result.message {
+                return Err(format!("Error in orchestrator response: {}", message).into());
+            } else {
+                return Err("Error in orchestrator response: Unknown error".into());
+            }
         }
     }
+
+    Ok(())
 }

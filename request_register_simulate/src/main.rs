@@ -58,7 +58,7 @@ impl RequestRegistratorService for MyRequestRegistratorService {
         let token_deploy_event = UserEventProto {
             app_id: keccak256(VAMPING_APP_ID.as_bytes()).to_vec(),
             chain_id: 84532,
-            block_number: 24221560,
+            block_number: 24270058,
             user_objective: Some(UserObjectiveProto {
                 app_id: keccak256(VAMPING_APP_ID.as_bytes()).to_vec(),
                 nonse: 1,
@@ -107,6 +107,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
     let addr = "[::1]:50051".parse()?;
     let request_registrator = MyRequestRegistratorService::new(args.start_sequence_id);
+
+    println!("Starting request registrator simulation server on {}", addr);
 
     Server::builder()
         .add_service(RequestRegistratorServiceServer::new(request_registrator))

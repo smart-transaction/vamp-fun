@@ -9,3 +9,23 @@ message TokenMappingProto {
   // Amounts. U256 in little endian encoding.
   repeated bytes amounts = 2;
 }
+
+// The token vamping info. Contains the merkle root, name, symbol, uri, amount, decimal and token mapping.
+message TokenVampingInfoProto {
+  // Merkle root of the token mapping computed from .
+  bytes merkle_root = 1;
+  // Name of the token.
+  string token_name = 2;
+  // Symbol of the token.
+  string token_symbol = 3;
+  // Token ERC20 contract address.
+  bytes token_erc20_address = 4;
+  // URI of the token.
+  optional string token_uri = 5;
+  // Amount of the token.
+  uint64 amount = 6;
+  // Decimal of the token.
+  uint32 decimal = 7;
+  // Token mapping.
+  TokenMappingProto token_mapping = 8;
+}

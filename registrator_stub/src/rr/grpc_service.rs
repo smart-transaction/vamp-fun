@@ -34,7 +34,7 @@ impl RequestRegistratorService for RRService {
                 Ok(Response::new(PollResponseProto {
                     result: AppChainResultProto {
                         status: AppChainResultStatus::Ok.into(),
-                        message: "".into(),
+                        message: None
                     }.into(),
                     sequence_id: stored_request.sequence_id,
                     event: Some(user_event),

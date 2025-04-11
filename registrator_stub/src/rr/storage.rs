@@ -21,7 +21,8 @@ pub struct StoredRequest {
 }
 
 impl Storage {
-    const SEQUENCE_KEY: &'static str = "global:sequence_id";
+    const SEQUENCE_KEY: &'static str = "vamp:intents:global:sequence_id";
+    const LAST_PROCESSED_BLOCK_KEY: &'static str = "vamp:intents:global:last_processed_block";
 
     pub async fn new(cfg: &config::Config) -> anyhow::Result<Self> {
         let redis_url: String = cfg.get("storage.redis_url")?;
@@ -60,8 +61,23 @@ impl Storage {
         Ok(request)
     }
 
+    /// Gets the last processed Ethereum block (if exists)
+    pub async fn get_last_processed_block(&self) -> anyhow::Result<u64> {
+        let mut conn = self.client.get_multiplexed_async_connection().await?;
+        let block: Option<u64> = conn.get(Self::LAST_PROCESSED_BLOCK_KEY).await.ok();
+        Ok(block.unwrap_or(0))
+    }
+
+    /// Sets the last processed Ethereum block
+    pub async fn set_last_processed_block(&self, block_number: u64) -> anyhow::Result<()> {
+        let mut conn = self.client.get_multiplexed_async_connection().await?;
+        let _: () = conn.set(Self::LAST_PROCESSED_BLOCK_KEY, block_number).await?;
+        Ok(())
+    }
+
+
     #[inline]
     fn request_key(sequence_id: &u64) -> String {
-        format!("request:{}", sequence_id)
+        format!("vamp:intents:by_sequence_id:{}", sequence_id)
     }
 }

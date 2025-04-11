@@ -1,9 +1,15 @@
+use std::env;
+
 mod rr;
 mod utils;
 mod proto;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    if env::var("RUST_LOG").is_err() {
+        // unsafe { env::set_var("RUST_LOG", "debug"); }
+        unsafe { env::set_var("RUST_LOG", "info"); }
+    }
     env_logger::init();
 
     let cfg = config::Config::builder()

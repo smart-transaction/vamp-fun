@@ -1,5 +1,5 @@
 [ethereum]
-rpc_url = "wss://service.lestnet.org/"
+rpc_url = "wss://service.lestnet.org:8888/"
 contract_address = "0xB948b013AAe72f370E994Fb2156038cC30864817"
 
 [grpc]

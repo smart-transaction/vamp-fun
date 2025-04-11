@@ -25,30 +25,48 @@ impl EthereumListener {
         let abi_json = include_str!("../../../abis/CallBreakerEVM.json");
         let contract_abi: Abi = serde_json::from_str(abi_json)?;
         let user_event = contract_abi.event("UserObjectivePushed")?;
+        let event_sig = user_event.signature();
 
-        let filter = Filter::new()
-            .address(self.contract_address)
-            .topic0(user_event.signature());
+        let mut block_stream = self.provider.subscribe_blocks().await?;
+        log::info!("Starting Ethereum listener for UserObjectivePushed...");
 
-        let mut stream = self.provider.subscribe_logs(&filter).await?;
+        let last_processed_block = self.storage.get_last_processed_block().await.unwrap_or(0);
+        log::info!("Last processed block from Redis: {}", last_processed_block);
 
-        while let Some(log) = stream.next().await {
-            let raw_log = RawLog {
-                topics: log.topics.clone(),
-                data: log.data.clone().to_vec(),
-            };
+        while let Some(block) = block_stream.next().await {
+            let block_number = block.number.ok_or_else(|| anyhow::anyhow!("Block has no number"))?.as_u64();
+            if block_number <= last_processed_block {
+                continue;
+            }
 
-            let decoded_log = user_event.parse_log(raw_log)?;
+            log::info!("Processing block: {}", block_number);
 
-            let user_event_proto = convert_to_user_event_proto(&decoded_log)?;
-            let json_bytes = serde_json::to_vec(&user_event_proto)?;
+            let logs = self.provider.get_logs(&Filter::new()
+                .address(self.contract_address)
+                .topic0(event_sig)
+                .from_block(block_number)
+                .to_block(block_number)).await?;
 
-            let sequence_id = self.storage.next_sequence_id().await?;
-            let event_hash = calculate_hash(&json_bytes);
+            for log in logs {
+                log::info!("Found UserObjectivePushed event at block: {}", block_number);
 
-            self.storage.save_new_request(&sequence_id, &json_bytes).await?;
+                let raw_log = RawLog {
+                    topics: log.topics.clone(),
+                    data: log.data.to_vec(),
+                };
 
-            log::info!("Stored event seq_id={} hash={}", sequence_id, event_hash);
+                let decoded_log = user_event.parse_log(raw_log)?;
+                let user_event_proto = convert_to_user_event_proto(&decoded_log)?;
+                let json_bytes = serde_json::to_vec(&user_event_proto)?;
+
+                let sequence_id = self.storage.next_sequence_id().await?;
+                let event_hash = calculate_hash(&json_bytes);
+
+                self.storage.save_new_request(&sequence_id, &json_bytes).await?;
+                log::info!("Stored event seq_id={} hash={}", sequence_id, event_hash);
+            }
+
+            self.storage.set_last_processed_block(block_number).await?;
         }
 
         Ok(())

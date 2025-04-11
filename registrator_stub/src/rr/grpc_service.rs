@@ -1,3 +1,4 @@
+use std::fs;
 use crate::proto::{
     request_registrator_service_server::{RequestRegistratorService, RequestRegistratorServiceServer},
     PollRequestProto, PollResponseProto, AppChainResultProto, AppChainResultStatus, UserEventProto,
@@ -5,6 +6,7 @@ use crate::proto::{
 use crate::rr::storage::Storage;
 use crate::utils::crypto::calculate_hash;
 use tonic::{transport::Server, Request, Response, Status};
+use tonic_reflection::server::Builder as ReflectionBuilder;
 
 #[derive(Clone)]
 pub struct RRService {
@@ -59,8 +61,17 @@ pub async fn start_grpc_server(storage: Storage, cfg: &config::Config) -> anyhow
     let addr = addr.parse()?;
     let service = RRService { storage };
 
+    let descriptor_bytes = fs::read("src/generated/user_descriptor.pb")?;
+
+    let reflection_service = ReflectionBuilder::configure()
+        .register_encoded_file_descriptor_set(&*descriptor_bytes)
+        .build_v1()?;
+
+
+    log::info!("Starting gRPC server on {}", addr);
     Server::builder()
         .add_service(RequestRegistratorServiceServer::new(service))
+        .add_service(reflection_service)
         .serve(addr)
         .await?;
 

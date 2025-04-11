@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS tokens(
 );
 
 CREATE TABLE IF NOT EXISTS request_logs(
-  user_event_id BINARY(32) NOT NULL,
   sequence_id BIGINT NOT NULL,
   ts TIMESTAMP DEFAULT current_timestamp,
   INDEX user_event_id_idx(user_event_id),

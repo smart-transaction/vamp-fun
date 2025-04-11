@@ -22,21 +22,30 @@ use tonic::{Request, Response, Status};
 #[derive(Default)]
 struct MyRequestRegistratorService {
     start_seq_id: u64,
+    start_block_number: u64,
 }
 
 const VAMPING_APP_ID: &str = "VampFunVamping";
 const CONTRACT_ADDRESS_NAME: &str = "ERC20ContractAddress";
+const TOKEN_FULL_NAME: &str = "TokenFullName";
+const TOKEN_SYMBOL_NAME: &str = "TokenSymbolName";
+const TOKEN_URI: &str = "TokenURI";
+const TOKEN_DECIMAL: &str = "TokenDecimal";
 
 #[derive(Parser, Debug)]
 pub struct Args {
     #[arg(long)]
     pub start_sequence_id: u64,
+
+    #[arg(long)]
+    pub start_block_number: u64,
 }
 
 impl MyRequestRegistratorService {
-    pub fn new(start_sequence_id: u64) -> Self {
+    pub fn new(start_sequence_id: u64, start_block_number: u64) -> Self {
         Self {
             start_seq_id: start_sequence_id,
+            start_block_number,
         }
     }
 }
@@ -58,7 +67,7 @@ impl RequestRegistratorService for MyRequestRegistratorService {
         let token_deploy_event = UserEventProto {
             app_id: keccak256(VAMPING_APP_ID.as_bytes()).to_vec(),
             chain_id: 84532,
-            block_number: 24270058,
+            block_number: self.start_block_number,
             user_objective: Some(UserObjectiveProto {
                 app_id: keccak256(VAMPING_APP_ID.as_bytes()).to_vec(),
                 nonse: 1,
@@ -79,13 +88,31 @@ impl RequestRegistratorService for MyRequestRegistratorService {
                     returnvalue: vec![],
                 }],
             }),
-            additional_data: vec![AdditionalDataProto {
-                key: keccak256(CONTRACT_ADDRESS_NAME.as_bytes()).to_vec(),
-                value: Address::from_str("0xb69A656b2Be8aa0b3859B24eed3c22dB206Ee966")
-                    .unwrap()
-                    .as_bytes()
-                    .to_vec(),
-            }],
+            additional_data: vec![
+                AdditionalDataProto {
+                    key: keccak256(CONTRACT_ADDRESS_NAME.as_bytes()).to_vec(),
+                    value: Address::from_str("0xb69A656b2Be8aa0b3859B24eed3c22dB206Ee966")
+                        .unwrap()
+                        .as_bytes()
+                        .to_vec(),
+                },
+                AdditionalDataProto {
+                    key: keccak256(TOKEN_FULL_NAME.as_bytes()).to_vec(),
+                    value: "Shim Token".as_bytes().to_vec(),
+                },
+                AdditionalDataProto {
+                    key: keccak256(TOKEN_SYMBOL_NAME.as_bytes()).to_vec(),
+                    value: "SHIM".as_bytes().to_vec(),
+                },
+                AdditionalDataProto {
+                    key: keccak256(TOKEN_URI.as_bytes()).to_vec(),
+                    value: "https://token/uri/shim".as_bytes().to_vec(),
+                },
+                AdditionalDataProto {
+                    key: keccak256(TOKEN_DECIMAL.as_bytes()).to_vec(),
+                    value: 18u8.to_le_bytes().to_vec(),
+                },
+            ],
         };
 
         let mut poll_response = PollResponseProto::default();
@@ -106,7 +133,8 @@ impl RequestRegistratorService for MyRequestRegistratorService {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
     let addr = "[::1]:50051".parse()?;
-    let request_registrator = MyRequestRegistratorService::new(args.start_sequence_id);
+    let request_registrator =
+        MyRequestRegistratorService::new(args.start_sequence_id, args.start_block_number);
 
     println!("Starting request registrator simulation server on {}", addr);
 

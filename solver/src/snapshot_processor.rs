@@ -18,6 +18,7 @@ const TOKEN_VAMPING_INFO_NAME: &str = "TokenVampingInfo";
 
 pub async fn process_and_send_snapshot(
     request_data: TokenRequestData,
+    amount: U256,
     snapshot: HashMap<Address, U256>,
     orchestrator_url: String,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -53,14 +54,17 @@ pub async fn process_and_send_snapshot(
             .collect(),
     };
 
+    let mut amount_bytes = [0; 32];
+    amount.to_little_endian(&mut amount_bytes);
+
     let token_vamping_info = TokenVampingInfoProto {
         merkle_root: root.to_vec(),
         token_name: request_data.token_full_name,
         token_symbol: request_data.token_symbol_name,
         token_erc20_address: request_data.erc20_address.as_bytes().to_vec(),
-        token_uri: None,
-        amount: 0,
-        decimal: 18,
+        token_uri: Some(request_data.token_uri),
+        amount: amount_bytes.to_vec(),
+        decimal: request_data.token_decimal as u32,
         token_mapping: Some(token_mapping),
     };
 

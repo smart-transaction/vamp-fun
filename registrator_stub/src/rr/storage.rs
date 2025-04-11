@@ -16,7 +16,7 @@ pub enum RequestState {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct StoredRequest {
     pub sequence_id: u64,
-    pub data: Vec<u8>,
+    pub data: String,
     pub state: RequestState,
 }
 
@@ -38,10 +38,10 @@ impl Storage {
     }
 
     /// Stores a new request in the 'NEW' state
-    pub async fn save_new_request(&self, sequence_id: &u64, data: &[u8]) -> anyhow::Result<()> {
+    pub async fn save_new_request(&self, sequence_id: &u64, data: &str) -> anyhow::Result<()> {
         let stored_request = StoredRequest {
             sequence_id: *sequence_id,
-            data: data.to_vec(),
+            data: data.to_string(),
             state: RequestState::New,
         };
 
@@ -52,8 +52,7 @@ impl Storage {
     }
 
     /// Fetches a request by its sequence_id
-    pub async fn get_request_by_sequence_id(&self, sequence_id: &u64) ->
-                                                                    anyhow::Result<StoredRequest> {
+    pub async fn get_request_by_sequence_id(&self, sequence_id: &u64) -> anyhow::Result<StoredRequest> {
         let mut conn = self.client.get_multiplexed_async_connection().await?;
         let key = Self::request_key(sequence_id);
         let serialized: String = conn.get(key).await?;
@@ -74,7 +73,6 @@ impl Storage {
         let _: () = conn.set(Self::LAST_PROCESSED_BLOCK_KEY, block_number).await?;
         Ok(())
     }
-
 
     #[inline]
     fn request_key(sequence_id: &u64) -> String {

@@ -57,12 +57,12 @@ impl EthereumListener {
 
                 let decoded_log = user_event.parse_log(raw_log)?;
                 let user_event_proto = convert_to_user_event_proto(&decoded_log)?;
-                let json_bytes = serde_json::to_vec(&user_event_proto)?;
+                let json_string = serde_json::to_string(&user_event_proto)?;
 
                 let sequence_id = self.storage.next_sequence_id().await?;
-                let event_hash = calculate_hash(&json_bytes);
+                let event_hash = calculate_hash(json_string.as_bytes());
 
-                self.storage.save_new_request(&sequence_id, &json_bytes).await?;
+                self.storage.save_new_request(&sequence_id, &json_string).await?;
                 log::info!("Stored event seq_id={} hash={}", sequence_id, event_hash);
             }
 

@@ -1,0 +1,1109 @@
+[
+    {
+        "inputs": [],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+    },
+    {
+        "inputs": [],
+        "name": "CallFailed",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "CallNotFound",
+        "type": "error"
+    },
+    {
+        "inputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "salt",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "amount",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "gas",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "addr",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "callvalue",
+                        "type": "bytes"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "returnvalue",
+                        "type": "bytes"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "skippable",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "verifiable",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "exposeReturn",
+                        "type": "bool"
+                    }
+                ],
+                "internalType": "struct CallObject",
+                "name": "",
+                "type": "tuple"
+            }
+        ],
+        "name": "CallPositionFailed",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "CallVerificationFailed",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "DirectETHTransferNotAllowed",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "FlatIndexOutOfBounds",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "InvalidAmount",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "LengthMismatch",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "OutOfEther",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "ReentrancyGuardReentrantCall",
+        "type": "error"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "recoveredAddress",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "signer",
+                "type": "address"
+            }
+        ],
+        "name": "UnauthorisedSigner",
+        "type": "error"
+    },
+    {
+        "anonymous": false,
+        "inputs": [],
+        "name": "CallIndicesPopulated",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "sender",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "name": "Deposit",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "uint256",
+                "name": "appId",
+                "type": "uint256"
+            },
+            {
+                "indexed": true,
+                "internalType": "uint256",
+                "name": "chainId",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "blockNumber",
+                "type": "uint256"
+            },
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "appId",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "nonce",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "sender",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "tip",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "chainId",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "maxFeePerGas",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "maxPriorityFeePerGas",
+                        "type": "uint256"
+                    },
+                    {
+                        "components": [
+                            {
+                                "internalType": "uint256",
+                                "name": "salt",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "amount",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "gas",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "address",
+                                "name": "addr",
+                                "type": "address"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "callvalue",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "returnvalue",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "bool",
+                                "name": "skippable",
+                                "type": "bool"
+                            },
+                            {
+                                "internalType": "bool",
+                                "name": "verifiable",
+                                "type": "bool"
+                            },
+                            {
+                                "internalType": "bool",
+                                "name": "exposeReturn",
+                                "type": "bool"
+                            }
+                        ],
+                        "internalType": "struct CallObject[]",
+                        "name": "callObjects",
+                        "type": "tuple[]"
+                    }
+                ],
+                "indexed": false,
+                "internalType": "struct UserObjective",
+                "name": "userObjective",
+                "type": "tuple"
+            },
+            {
+                "components": [
+                    {
+                        "internalType": "bytes32",
+                        "name": "key",
+                        "type": "bytes32"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "value",
+                        "type": "bytes"
+                    }
+                ],
+                "indexed": false,
+                "internalType": "struct AdditionalData[]",
+                "name": "additionalData",
+                "type": "tuple[]"
+            }
+        ],
+        "name": "UserObjectivePushed",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [],
+        "name": "VerifyStxn",
+        "type": "event"
+    },
+    {
+        "stateMutability": "payable",
+        "type": "fallback"
+    },
+    {
+        "inputs": [],
+        "name": "CALL_ORDER_STORAGE_SLOT",
+        "outputs": [
+            {
+                "internalType": "bytes32",
+                "name": "",
+                "type": "bytes32"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "EMPTY_DATA",
+        "outputs": [
+            {
+                "internalType": "bytes32",
+                "name": "",
+                "type": "bytes32"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "EXECUTING_CALL_INDEX_SLOT",
+        "outputs": [
+            {
+                "internalType": "bytes32",
+                "name": "",
+                "type": "bytes32"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "additionalDataKeyList",
+        "outputs": [
+            {
+                "internalType": "bytes32",
+                "name": "",
+                "type": "bytes32"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "",
+                "type": "bytes32"
+            }
+        ],
+        "name": "additionalDataStore",
+        "outputs": [
+            {
+                "internalType": "bytes",
+                "name": "",
+                "type": "bytes"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "callGrid",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "salt",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "gas",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "addr",
+                "type": "address"
+            },
+            {
+                "internalType": "bytes",
+                "name": "callvalue",
+                "type": "bytes"
+            },
+            {
+                "internalType": "bytes",
+                "name": "returnvalue",
+                "type": "bytes"
+            },
+            {
+                "internalType": "bool",
+                "name": "skippable",
+                "type": "bool"
+            },
+            {
+                "internalType": "bool",
+                "name": "verifiable",
+                "type": "bool"
+            },
+            {
+                "internalType": "bool",
+                "name": "exposeReturn",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "callObjIndices",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes",
+                "name": "",
+                "type": "bytes"
+            }
+        ],
+        "name": "callObjReturn",
+        "outputs": [
+            {
+                "internalType": "bytes",
+                "name": "",
+                "type": "bytes"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "callObjReturnKeys",
+        "outputs": [
+            {
+                "internalType": "bytes",
+                "name": "",
+                "type": "bytes"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "deposit",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "appId",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "nonce",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "sender",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "tip",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "chainId",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "maxFeePerGas",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "maxPriorityFeePerGas",
+                        "type": "uint256"
+                    },
+                    {
+                        "components": [
+                            {
+                                "internalType": "uint256",
+                                "name": "salt",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "amount",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "gas",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "address",
+                                "name": "addr",
+                                "type": "address"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "callvalue",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "returnvalue",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "bool",
+                                "name": "skippable",
+                                "type": "bool"
+                            },
+                            {
+                                "internalType": "bool",
+                                "name": "verifiable",
+                                "type": "bool"
+                            },
+                            {
+                                "internalType": "bool",
+                                "name": "exposeReturn",
+                                "type": "bool"
+                            }
+                        ],
+                        "internalType": "struct CallObject[]",
+                        "name": "callObjects",
+                        "type": "tuple[]"
+                    }
+                ],
+                "internalType": "struct UserObjective[]",
+                "name": "_userObjectives",
+                "type": "tuple[]"
+            },
+            {
+                "internalType": "bytes[]",
+                "name": "_signatures",
+                "type": "bytes[]"
+            },
+            {
+                "internalType": "bytes[]",
+                "name": "_returnsBytes",
+                "type": "bytes[]"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "_orderOfExecution",
+                "type": "uint256[]"
+            },
+            {
+                "components": [
+                    {
+                        "internalType": "bytes32",
+                        "name": "key",
+                        "type": "bytes32"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "value",
+                        "type": "bytes"
+                    }
+                ],
+                "internalType": "struct AdditionalData[]",
+                "name": "_mevTimeData",
+                "type": "tuple[]"
+            }
+        ],
+        "name": "executeAndVerify",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "salt",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "amount",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "gas",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "addr",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "callvalue",
+                        "type": "bytes"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "returnvalue",
+                        "type": "bytes"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "skippable",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "verifiable",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "exposeReturn",
+                        "type": "bool"
+                    }
+                ],
+                "internalType": "struct CallObject",
+                "name": "callObj",
+                "type": "tuple"
+            }
+        ],
+        "name": "expectFutureCall",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "isExecutedInFuture",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "salt",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "amount",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "gas",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "addr",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "callvalue",
+                        "type": "bytes"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "returnvalue",
+                        "type": "bytes"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "skippable",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "verifiable",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "exposeReturn",
+                        "type": "bool"
+                    }
+                ],
+                "internalType": "struct CallObject",
+                "name": "callObj",
+                "type": "tuple"
+            },
+            {
+                "internalType": "uint256",
+                "name": "index",
+                "type": "uint256"
+            }
+        ],
+        "name": "expectFutureCallAt",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "isExecutedAtIndex",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "salt",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "amount",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "gas",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "addr",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "callvalue",
+                        "type": "bytes"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "returnvalue",
+                        "type": "bytes"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "skippable",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "verifiable",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "exposeReturn",
+                        "type": "bool"
+                    }
+                ],
+                "internalType": "struct CallObject",
+                "name": "callObj",
+                "type": "tuple"
+            }
+        ],
+        "name": "getCallIndex",
+        "outputs": [
+            {
+                "internalType": "uint256[]",
+                "name": "callIndices",
+                "type": "uint256[]"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getCurrentlyExecuting",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "callIndex",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "appId",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "nonce",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "sender",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "tip",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "chainId",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "maxFeePerGas",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "maxPriorityFeePerGas",
+                        "type": "uint256"
+                    },
+                    {
+                        "components": [
+                            {
+                                "internalType": "uint256",
+                                "name": "salt",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "amount",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "gas",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "address",
+                                "name": "addr",
+                                "type": "address"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "callvalue",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "returnvalue",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "bool",
+                                "name": "skippable",
+                                "type": "bool"
+                            },
+                            {
+                                "internalType": "bool",
+                                "name": "verifiable",
+                                "type": "bool"
+                            },
+                            {
+                                "internalType": "bool",
+                                "name": "exposeReturn",
+                                "type": "bool"
+                            }
+                        ],
+                        "internalType": "struct CallObject[]",
+                        "name": "callObjects",
+                        "type": "tuple[]"
+                    }
+                ],
+                "internalType": "struct UserObjective",
+                "name": "userObj",
+                "type": "tuple"
+            }
+        ],
+        "name": "getMessageHash",
+        "outputs": [
+            {
+                "internalType": "bytes32",
+                "name": "",
+                "type": "bytes32"
+            }
+        ],
+        "stateMutability": "pure",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "appId",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "nonce",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "sender",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "tip",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "chainId",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "maxFeePerGas",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "maxPriorityFeePerGas",
+                        "type": "uint256"
+                    },
+                    {
+                        "components": [
+                            {
+                                "internalType": "uint256",
+                                "name": "salt",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "amount",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "gas",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "address",
+                                "name": "addr",
+                                "type": "address"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "callvalue",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "returnvalue",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "bool",
+                                "name": "skippable",
+                                "type": "bool"
+                            },
+                            {
+                                "internalType": "bool",
+                                "name": "verifiable",
+                                "type": "bool"
+                            },
+                            {
+                                "internalType": "bool",
+                                "name": "exposeReturn",
+                                "type": "bool"
+                            }
+                        ],
+                        "internalType": "struct CallObject[]",
+                        "name": "callObjects",
+                        "type": "tuple[]"
+                    }
+                ],
+                "internalType": "struct UserObjective",
+                "name": "_userObjective",
+                "type": "tuple"
+            },
+            {
+                "components": [
+                    {
+                        "internalType": "bytes32",
+                        "name": "key",
+                        "type": "bytes32"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "value",
+                        "type": "bytes"
+                    }
+                ],
+                "internalType": "struct AdditionalData[]",
+                "name": "_additionalData",
+                "type": "tuple[]"
+            }
+        ],
+        "name": "pushUserObjective",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "senderBalances",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "stateMutability": "payable",
+        "type": "receive"
+    }
+]

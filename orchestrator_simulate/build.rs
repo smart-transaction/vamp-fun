@@ -3,6 +3,7 @@ pub fn main() {
         .compile_protos(
             &[
                 "../proto/user_objective.proto",
+                "../proto/vamp_fun.proto",
             ],
             &["../proto"],
         )

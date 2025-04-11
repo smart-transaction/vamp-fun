@@ -47,7 +47,7 @@ impl DeployTokenHandler {
             } else if add_data.key == self.token_symbol_name {
                 request_data.token_symbol_name = String::from_utf8(add_data.value).unwrap();
             } else if add_data.key == self.token_uri_name {
-                request_data.token_uri_name = String::from_utf8(add_data.value).unwrap();
+                request_data.token_uri = String::from_utf8(add_data.value).unwrap();
             } else if add_data.key == self.token_decimal_name {
                 if add_data.value.len() != 1 {
                     return Err("Invalid token decimal length".into());

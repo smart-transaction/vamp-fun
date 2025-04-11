@@ -20,7 +20,7 @@ pub struct TokenRequestData {
     pub erc20_address: Address,
     pub token_full_name: String,
     pub token_symbol_name: String,
-    pub token_uri_name: String,
+    pub token_uri: String,
     pub token_decimal: u8,
     pub block_number: u64,
 }
@@ -91,6 +91,11 @@ impl SnapshotIndexer {
             request_data.chain_id,
             request_data.erc20_address,
         )?;
+
+        let mut total_amount = token_supply.iter()
+            .map(|(_, v)| *v)
+            .fold(U256::zero(), |acc, x| acc.checked_add(x).unwrap());
+
         let mysql_conn = self.create_db_conn()?;
         let orchestrator_url = self.orchestrator_url.clone();
         spawn(async move {
@@ -139,6 +144,7 @@ impl SnapshotIndexer {
                             }
                         }
                     }
+                    total_amount = total_amount.checked_add(value).unwrap();
                 }
             }
             // Writing the token supply to the database
@@ -159,7 +165,7 @@ impl SnapshotIndexer {
             );
 
             // Sending the token supply to processor
-            if let Err(err) = process_and_send_snapshot(request_data, token_supply, orchestrator_url).await {
+            if let Err(err) = process_and_send_snapshot(request_data, total_amount, token_supply, orchestrator_url).await {
                 error!("Failed to process and send snapshot: {:?}", err);
             }
         });

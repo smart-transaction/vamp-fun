@@ -2,11 +2,13 @@ mod proto {
     tonic::include_proto!("vamp.fun");
 }
 
+use ethers::utils::keccak256;
+use prost::Message;
 use proto::{
     orchestrator_service_server::{
         OrchestratorService, OrchestratorServiceServer,
     },
-    AppChainResultProto, AppChainResultStatus, SolverDecisionRequestProto, SolverDecisionResponseProto,
+    AppChainResultProto, AppChainResultStatus, SolverDecisionRequestProto, SolverDecisionResponseProto, TokenVampingInfoProto
 };
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
@@ -26,7 +28,28 @@ impl OrchestratorService for MyOrchestratorService {
         &self,
         request: Request<SolverDecisionRequestProto>,
     ) -> Result<Response<SolverDecisionResponseProto>, Status> {
-        println!("Received request: {:?}", request);
+        let solver_decision_request = request.into_inner();
+        if let Some(user_event) = solver_decision_request.event {
+            for data in user_event.additional_data {
+                if data.key == keccak256("TokenVampingInfo".as_bytes()).to_vec() {
+                    match TokenVampingInfoProto::decode(&data.value[..]) {
+                        Ok(token_vamping_info) => {
+                            println!("Token Vamping Info: {:?}", token_vamping_info);
+                        }
+                        Err(e) => {
+                            return Err(Status::invalid_argument(format!(
+                                "Failed to decode TokenVampingInfo: {}",
+                                e
+                            )));
+                        }
+                    }
+                } else {
+                    return Err(Status::invalid_argument("Unknown additional data key"));
+                }
+            }
+        } else {
+            return Err(Status::invalid_argument("No event found in request"));
+        }
 
         let result = AppChainResultProto {
             status: AppChainResultStatus::Ok as i32,

@@ -23,7 +23,7 @@ message TokenVampingInfoProto {
   // URI of the token.
   optional string token_uri = 5;
   // Amount of the token.
-  uint64 amount = 6;
+  bytes amount = 6;
   // Decimal of the token.
   uint32 decimal = 7;
   // Token mapping.

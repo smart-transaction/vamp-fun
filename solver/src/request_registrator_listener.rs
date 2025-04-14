@@ -13,7 +13,7 @@ use tonic::{Request, transport::Channel};
 use crate::{
     request_handler::DeployTokenHandler,
     use_proto::proto::{
-        PollRequestProto, request_registrator_service_client::RequestRegistratorServiceClient,
+        request_registrator_service_client::RequestRegistratorServiceClient, AppChainResultStatus, PollRequestProto
     },
 };
 
@@ -86,21 +86,45 @@ impl RequestRegistratorListener {
             let response = self.client.poll(request).await;
             match response {
                 Ok(res) => {
+                    info!("Received response: {:?}", res);
                     let response_proto = res.into_inner();
-                    let sequence_id = response_proto.sequence_id;
-                    if last_sequence_id < sequence_id {
-                        if let Some(event) = response_proto.event {
-                            if event.app_id.as_slice() == vamping_app_id {
-                                let handler = deploy_token_handler.clone();
-                                spawn(async move {
-                                    if let Err(err) = handler.handle(event).await {
-                                        error!("Failed to handle event: {:?}", err);
+                    if let Some(result) = response_proto.result {
+                        match AppChainResultStatus::try_from(result.status) {
+                            Ok(status) => {
+                                match status {
+                                    AppChainResultStatus::Ok => {
+                                        let sequence_id = response_proto.sequence_id;
+                                        if last_sequence_id < sequence_id {
+                                            if let Some(event) = response_proto.event {
+                                                if event.app_id.as_slice() == vamping_app_id {
+                                                    let handler = deploy_token_handler.clone();
+                                                    spawn(async move {
+                                                        if let Err(err) = handler.handle(event).await {
+                                                            error!("Failed to handle event: {:?}", err);
+                                                        }
+                                                    });
+                                                }
+                                                self.write_request_id(sequence_id)?;
+                                            } else {
+                                                error!("Malformed request: the event is None");
+                                            }
+                                        }
+                                                        }
+                                    AppChainResultStatus::EventNotFound => {
+                                        // No new event, just skip
+                                        sleep(tick_frequency).await;
+                                        continue;
+                                                            }
+                                    AppChainResultStatus::Error => {
+                                        error!("Request failed with result: {:?}", result);
+                                        sleep(tick_frequency).await;
+                                        continue;
                                     }
-                                });
+                                }
                             }
-                            self.write_request_id(sequence_id)?;
-                        } else {
-                            error!("Malformed request: the event is None");
+                            Err(err) => {
+                                error!("Failed to parse result status: {:?}", err);
+                            }
                         }
                     }
                 }

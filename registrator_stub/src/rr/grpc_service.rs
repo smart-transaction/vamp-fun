@@ -45,7 +45,7 @@ impl RequestRegistratorService for RRService {
             }
             Err(_) => Ok(Response::new(PollResponseProto {
                 result: AppChainResultProto {
-                    status: AppChainResultStatus::Fail.into(),
+                    status: AppChainResultStatus::EventNotFound.into(),
                     message: format!("sequence_id {} does not exist", next_sequence_id).into(),
                 }.into(),
                 sequence_id: next_sequence_id.into(),

@@ -37,7 +37,8 @@ message UserEventProto {
 
 enum AppChainResultStatus {
   OK = 0;
-  FAIL = 1;
+  EVENT_NOT_FOUND = 20;
+  ERROR = 30;
 }
 
 message AppChainResultProto {

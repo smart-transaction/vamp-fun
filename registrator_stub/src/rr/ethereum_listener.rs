@@ -123,16 +123,27 @@ fn u256_to_bytes(val: U256) -> Vec<u8> {
 }
 
 fn convert_to_user_event_proto(log: &ethers::abi::Log) -> anyhow::Result<UserEventProto> {
-    let app_id_u256 = log.params[0].value.clone().into_uint().unwrap();
-    let app_id = u256_to_bytes(app_id_u256);
+    let app_id = match &log.params[0].value {
+        Token::FixedBytes(b) => b.clone(),
+        other => {
+            log::error!("Expected bytes32 for top-level appId but got: {:?}", other);
+            return Err(anyhow::anyhow!("Invalid appId type"));
+        }
+    };
     let chain_id = log.params[1].value.clone().into_uint().unwrap().as_u64();
     let block_number = log.params[2].value.clone().into_uint().unwrap().as_u64();
 
     let user_objective = match &log.params[3].value {
         Token::Tuple(fields) => {
-            let app_id = u256_to_bytes(fields[0].clone().into_uint().unwrap());
+            let app_id = match &fields[0] {
+                Token::Bytes(b) => b.clone(),
+                other => {
+                    log::error!("Expected bytes for userObjective.appId but got: {:?}", other);
+                    return Err(anyhow::anyhow!("Invalid appId type in userObjective"));
+                }
+            };
             let nonce = fields[1].clone().into_uint().unwrap().as_u64();
-            let chain_id = fields[4].clone().into_uint().unwrap().as_u64();
+            let chain_id = fields[3].clone().into_uint().unwrap().as_u64();
 
             let call_objects = fields[7].clone().into_array().unwrap().into_iter().map(|obj| {
                 if let Token::Tuple(inner) = obj {
@@ -143,10 +154,10 @@ fn convert_to_user_event_proto(log: &ethers::abi::Log) -> anyhow::Result<UserEve
                         amount: u256_to_bytes(inner[1].clone().into_uint().unwrap()),
                         gas: u256_to_bytes(inner[2].clone().into_uint().unwrap()),
                         address: inner[3].clone().into_address().unwrap().as_bytes().to_vec(),
-                        skippable: inner[6].clone().into_bool().unwrap(),
-                        verifiable: inner[7].clone().into_bool().unwrap(),
                         callvalue: inner[4].clone().into_bytes().unwrap(),
                         returnvalue: inner[5].clone().into_bytes().unwrap(),
+                        skippable: inner[6].clone().into_bool().unwrap(),
+                        verifiable: inner[7].clone().into_bool().unwrap(),
                     }
                 } else {
                     panic!("Unexpected callObject format")
@@ -185,3 +196,4 @@ fn convert_to_user_event_proto(log: &ethers::abi::Log) -> anyhow::Result<UserEve
         additional_data,
     })
 }
+

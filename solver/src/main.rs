@@ -62,6 +62,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     stderrlog::new()
         .verbosity(Level::Info)
         .timestamp(Timestamp::Millisecond)
+        .show_module_names(true)
         .init()
         .unwrap();
 

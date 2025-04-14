@@ -13,7 +13,8 @@ use tonic::{Request, transport::Channel};
 use crate::{
     request_handler::DeployTokenHandler,
     use_proto::proto::{
-        request_registrator_service_client::RequestRegistratorServiceClient, AppChainResultStatus, PollRequestProto
+        AppChainResultStatus, PollRequestProto,
+        request_registrator_service_client::RequestRegistratorServiceClient,
     },
 };
 
@@ -68,11 +69,11 @@ impl RequestRegistratorListener {
         let vamping_app_id = keccak256(VAMPING_APP_ID.as_bytes());
         let mut last_timestamp = 0u64;
         loop {
+            sleep(tick_frequency).await;
             let time_now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
             if time_now.as_secs() == last_timestamp
                 || time_now.as_secs() % self.poll_frequency.as_secs() != 0
             {
-                sleep(tick_frequency).await;
                 continue;
             }
             last_timestamp = time_now.as_secs();
@@ -84,56 +85,49 @@ impl RequestRegistratorListener {
             let last_sequence_id = request_proto.last_sequence_id;
             let request = Request::new(request_proto);
             let response = self.client.poll(request).await;
-            match response {
-                Ok(res) => {
-                    info!("Received response: {:?}", res);
-                    let response_proto = res.into_inner();
-                    if let Some(result) = response_proto.result {
-                        match AppChainResultStatus::try_from(result.status) {
-                            Ok(status) => {
-                                match status {
-                                    AppChainResultStatus::Ok => {
-                                        let sequence_id = response_proto.sequence_id;
-                                        if last_sequence_id < sequence_id {
-                                            if let Some(event) = response_proto.event {
-                                                if event.app_id.as_slice() == vamping_app_id {
-                                                    let handler = deploy_token_handler.clone();
-                                                    spawn(async move {
-                                                        if let Err(err) = handler.handle(event).await {
-                                                            error!("Failed to handle event: {:?}", err);
-                                                        }
-                                                    });
-                                                }
-                                                self.write_request_id(sequence_id)?;
-                                            } else {
-                                                error!("Malformed request: the event is None");
-                                            }
-                                        }
-                                                        }
-                                    AppChainResultStatus::EventNotFound => {
-                                        // No new event, just skip
-                                        sleep(tick_frequency).await;
-                                        continue;
-                                                            }
-                                    AppChainResultStatus::Error => {
-                                        error!("Request failed with result: {:?}", result);
-                                        sleep(tick_frequency).await;
-                                        continue;
+            if let Err(err) = response {
+                error!("Failed to send request: {:?}", err);
+                continue;
+            }
+            let res = response.unwrap();
+            let response_proto = res.into_inner();
+            if let Some(result) = response_proto.result {
+                if let Err(err) = AppChainResultStatus::try_from(result.status) {
+                    error!("Failed to parse result status: {:?}", err);
+                    continue;
+                }
+                let status = AppChainResultStatus::try_from(result.status).unwrap();
+                match status {
+                    AppChainResultStatus::Ok => {
+                        let sequence_id = response_proto.sequence_id;
+                        if last_sequence_id >= sequence_id {
+                            // The message was already received, skipping it
+                            continue;
+                        }
+                        if let Some(event) = response_proto.event {
+                            if event.app_id.as_slice() == vamping_app_id {
+                                let handler = deploy_token_handler.clone();
+                                spawn(async move {
+                                    if let Err(err) = handler.handle(event).await {
+                                        error!("Failed to handle event: {:?}", err);
                                     }
-                                }
+                                });
                             }
-                            Err(err) => {
-                                error!("Failed to parse result status: {:?}", err);
-                            }
+                            self.write_request_id(sequence_id)?;
+                        } else {
+                            error!("Malformed request: the event is None");
                         }
                     }
-                }
-                Err(err) => {
-                    error!("Failed to poll request registrator: {:?}", err);
+                    AppChainResultStatus::EventNotFound => {
+                        // No new event, just skip
+                        continue;
+                    }
+                    AppChainResultStatus::Error => {
+                        error!("Request failed with result: {:?}", result);
+                        continue;
+                    }
                 }
             }
-
-            sleep(tick_frequency).await;
         }
     }
 

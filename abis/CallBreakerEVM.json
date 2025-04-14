@@ -153,9 +153,9 @@
         "inputs": [
             {
                 "indexed": true,
-                "internalType": "uint256",
+                "internalType": "bytes",
                 "name": "appId",
-                "type": "uint256"
+                "type": "bytes"
             },
             {
                 "indexed": true,
@@ -172,19 +172,14 @@
             {
                 "components": [
                     {
-                        "internalType": "uint256",
+                        "internalType": "bytes",
                         "name": "appId",
-                        "type": "uint256"
+                        "type": "bytes"
                     },
                     {
                         "internalType": "uint256",
                         "name": "nonce",
                         "type": "uint256"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "sender",
-                        "type": "address"
                     },
                     {
                         "internalType": "uint256",
@@ -205,6 +200,11 @@
                         "internalType": "uint256",
                         "name": "maxPriorityFeePerGas",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "sender",
+                        "type": "address"
                     },
                     {
                         "components": [
@@ -511,19 +511,14 @@
             {
                 "components": [
                     {
-                        "internalType": "uint256",
+                        "internalType": "bytes",
                         "name": "appId",
-                        "type": "uint256"
+                        "type": "bytes"
                     },
                     {
                         "internalType": "uint256",
                         "name": "nonce",
                         "type": "uint256"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "sender",
-                        "type": "address"
                     },
                     {
                         "internalType": "uint256",
@@ -544,6 +539,11 @@
                         "internalType": "uint256",
                         "name": "maxPriorityFeePerGas",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "sender",
+                        "type": "address"
                     },
                     {
                         "components": [
@@ -861,19 +861,14 @@
             {
                 "components": [
                     {
-                        "internalType": "uint256",
+                        "internalType": "bytes",
                         "name": "appId",
-                        "type": "uint256"
+                        "type": "bytes"
                     },
                     {
                         "internalType": "uint256",
                         "name": "nonce",
                         "type": "uint256"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "sender",
-                        "type": "address"
                     },
                     {
                         "internalType": "uint256",
@@ -894,6 +889,11 @@
                         "internalType": "uint256",
                         "name": "maxPriorityFeePerGas",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "sender",
+                        "type": "address"
                     },
                     {
                         "components": [
@@ -969,19 +969,14 @@
             {
                 "components": [
                     {
-                        "internalType": "uint256",
+                        "internalType": "bytes",
                         "name": "appId",
-                        "type": "uint256"
+                        "type": "bytes"
                     },
                     {
                         "internalType": "uint256",
                         "name": "nonce",
                         "type": "uint256"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "sender",
-                        "type": "address"
                     },
                     {
                         "internalType": "uint256",
@@ -1002,6 +997,11 @@
                         "internalType": "uint256",
                         "name": "maxPriorityFeePerGas",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "sender",
+                        "type": "address"
                     },
                     {
                         "components": [

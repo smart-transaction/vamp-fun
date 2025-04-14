@@ -23,7 +23,7 @@ pub struct StoredRequest {
 impl Storage {
     const SEQUENCE_KEY: &'static str = "vamp:intents:global:sequence_id";
     const LAST_PROCESSED_BLOCK_KEY: &'static str = "vamp:intents:global:last_processed_block";
-    const MIN_START_BLOCK: u64 = 1_216_830;
+    const MIN_START_BLOCK: u64 = 1_239_700;
 
     pub async fn new(cfg: &config::Config) -> anyhow::Result<Self> {
         let redis_url: String = cfg.get("storage.redis_url")?;

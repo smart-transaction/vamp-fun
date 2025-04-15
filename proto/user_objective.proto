@@ -59,6 +59,7 @@ message PollResponseProto {
 
 message SolverDecisionRequestProto {
   bytes app_id = 1;
+  uint64 sequence_id = 2;
   UserEventProto event = 3;
 }
 

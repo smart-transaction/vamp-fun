@@ -77,6 +77,7 @@ pub async fn process_and_send_snapshot(
 
     let request_proto = SolverDecisionRequestProto {
         app_id: keccak256(VAMPING_APP_ID.as_bytes()).to_vec(),
+        sequence_id: request_data.sequence_id,
         event: Some(user_event),
     };
 

@@ -34,9 +34,10 @@ impl DeployTokenHandler {
         }
     }
 
-    pub async fn handle(&self, event: UserEventProto) -> Result<(), Box<dyn Error>> {
+    pub async fn handle(&self, sequence_id: u64, event: UserEventProto) -> Result<(), Box<dyn Error>> {
         info!("DeployTokenHandler triggered");
         let mut request_data = TokenRequestData::default();
+        request_data.sequence_id = sequence_id;
         request_data.chain_id = event.chain_id;
         request_data.block_number = event.block_number;
         for add_data in event.additional_data {

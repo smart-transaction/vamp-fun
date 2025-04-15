@@ -84,13 +84,15 @@ pub async fn process_and_send_snapshot(
     info!("Connected to orchestrator at {}", orchestrator_url);
     let response = client.solver_decision(request_proto).await?;
     let response_proto = response.into_inner();
-    if let Some(result) = response_proto.result.clone() {
-        if result.status != AppChainResultStatus::Ok as i32 {
+    if let Some(result) = response_proto.result.to_owned() {
+        if result.status == AppChainResultStatus::Error as i32 {
             if let Some(message) = result.message {
                 return Err(format!("Error in orchestrator response: {}", message).into());
             } else {
                 return Err("Error in orchestrator response: Unknown error".into());
             }
+        } else {
+            info!("The solver decision is successfully sent to the orchestrator.");
         }
     }
 

@@ -104,19 +104,26 @@ impl RequestRegistratorListener {
                             // The message was already received, skipping it
                             continue;
                         }
-                        if let Some(event) = response_proto.event {
-                            if event.app_id.as_slice() == vamping_app_id {
-                                let handler = deploy_token_handler.clone();
-                                spawn(async move {
-                                    if let Err(err) = handler.handle(event).await {
-                                        error!("Failed to handle event: {:?}", err);
-                                    }
-                                });
-                            }
-                            self.write_request_id(sequence_id)?;
-                        } else {
+                        if let None = response_proto.event {
                             error!("Malformed request: the event is None");
+                            continue;
                         }
+                        let event = response_proto.event.unwrap();
+                        if let None = event.user_objective {
+                            error!("Malformed request: the user objective is None");
+                            continue;
+                        }
+                        let event_to_handle = event.clone();
+                        let user_objective = event.user_objective.unwrap();
+                        if user_objective.app_id.as_slice() == vamping_app_id {
+                            let handler = deploy_token_handler.clone();
+                            spawn(async move {
+                                if let Err(err) = handler.handle(event_to_handle).await {
+                                    error!("Failed to handle event: {:?}", err);
+                                }
+                            });
+                        }
+                        self.write_request_id(sequence_id)?;
                     }
                     AppChainResultStatus::EventNotFound => {
                         // No new event, just skip

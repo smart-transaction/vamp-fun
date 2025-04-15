@@ -57,13 +57,13 @@ message PollResponseProto {
   UserEventProto event = 4;
 }
 
-message SolverDecisionRequestProto {
+message SubmitSolutionRequestProto {
   bytes app_id = 1;
-  uint64 sequence_id = 2;
-  UserEventProto event = 3;
+  uint64 request_sequence_id = 2;
+  bytes genericSolution = 3;
 }
 
-message SolverDecisionResponseProto {
+message SubmitSolutionResponseProto {
   AppChainResultProto result = 1;
 }
 
@@ -75,5 +75,5 @@ service RequestRegistratorService {
 
 service OrchestratorService{
   // To be called from the solver to the orchestrator to deliver the solver decision.
-  rpc SolverDecision(SolverDecisionRequestProto) returns (SolverDecisionResponseProto);
+  rpc SolverDecision(SubmitSolutionRequestProto) returns (SubmitSolutionResponseProto);
 }

@@ -10,7 +10,7 @@ use crate::request_registrator_listener::VAMPING_APP_ID;
 use crate::snapshot_indexer::TokenRequestData;
 use crate::use_proto::proto::AppChainResultStatus;
 use crate::use_proto::proto::{
-    AdditionalDataProto, SolverDecisionRequestProto, TokenMappingProto, TokenVampingInfoProto,
+    AdditionalDataProto, SubmitSolutionRequestProto, TokenMappingProto, TokenVampingInfoProto,
     UserEventProto, orchestrator_service_client::OrchestratorServiceClient,
 };
 
@@ -75,10 +75,13 @@ pub async fn process_and_send_snapshot(
         value: encoded_vamping_info,
     });
 
-    let request_proto = SolverDecisionRequestProto {
+    let mut buf = Vec::new();
+    user_event.encode(&mut buf)?;
+
+    let request_proto = SubmitSolutionRequestProto {
         app_id: keccak256(VAMPING_APP_ID.as_bytes()).to_vec(),
-        sequence_id: request_data.sequence_id,
-        event: Some(user_event),
+        request_sequence_id: request_data.sequence_id,
+        generic_solution: buf.into(),
     };
 
     let mut client = OrchestratorServiceClient::connect(orchestrator_url.clone()).await?;

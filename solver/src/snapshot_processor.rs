@@ -10,11 +10,9 @@ use crate::request_registrator_listener::VAMPING_APP_ID;
 use crate::snapshot_indexer::TokenRequestData;
 use crate::use_proto::proto::AppChainResultStatus;
 use crate::use_proto::proto::{
-    AdditionalDataProto, SubmitSolutionRequestProto, TokenMappingProto, TokenVampingInfoProto,
+    SubmitSolutionRequestProto, TokenMappingProto, TokenVampingInfoProto,
     UserEventProto, orchestrator_service_client::OrchestratorServiceClient,
 };
-
-const TOKEN_VAMPING_INFO_NAME: &str = "TokenVampingInfo";
 
 pub async fn process_and_send_snapshot(
     request_data: TokenRequestData,
@@ -23,6 +21,19 @@ pub async fn process_and_send_snapshot(
     orchestrator_url: String,
 ) -> Result<(), Box<dyn std::error::Error>> {
     info!("Received indexed snapshot");
+    // Convert the amount into a Solana format
+    let amount = amount.checked_div(U256::from(10u64.pow(9)))
+        .ok_or("Failed to convert amount")?;
+    let amount = amount.as_u64();
+    let snapshot = snapshot
+        .iter()
+        .map(|(k, v)| {
+            let amount = v.checked_div(U256::from(10u64.pow(9)))
+                .ok_or("Failed to convert amount");
+            (*k, amount.unwrap_or_default().as_u64())
+        })
+        .collect::<HashMap<_, _>>();
+    // Create the Merkle tree
     let leaves = snapshot
         .iter()
         .map(|(k, v)| {
@@ -46,16 +57,9 @@ pub async fn process_and_send_snapshot(
             .collect(),
         amounts: snapshot
             .iter()
-            .map(|(_, v)| {
-                let mut amount_bytes = [0; 32];
-                v.to_little_endian(&mut amount_bytes);
-                amount_bytes.to_vec()
-            })
+            .map(|(_, v)| v.to_le_bytes().to_vec())
             .collect(),
     };
-
-    let mut amount_bytes = [0; 32];
-    amount.to_little_endian(&mut amount_bytes);
 
     let token_vamping_info = TokenVampingInfoProto {
         merkle_root: root.to_vec(),
@@ -63,25 +67,18 @@ pub async fn process_and_send_snapshot(
         token_symbol: request_data.token_symbol_name,
         token_erc20_address: request_data.erc20_address.as_bytes().to_vec(),
         token_uri: Some(request_data.token_uri),
-        amount: amount_bytes.to_vec(),
+        amount,
         decimal: request_data.token_decimal as u32,
         token_mapping: Some(token_mapping),
     };
 
-    let mut encoded_vamping_info: Vec<u8> = Vec::new();
+    let mut encoded_vamping_info = Vec::new();
     token_vamping_info.encode(&mut encoded_vamping_info)?;
-    user_event.additional_data.push(AdditionalDataProto {
-        key: keccak256(TOKEN_VAMPING_INFO_NAME.as_bytes()).to_vec(),
-        value: encoded_vamping_info,
-    });
-
-    let mut buf = Vec::new();
-    user_event.encode(&mut buf)?;
 
     let request_proto = SubmitSolutionRequestProto {
         app_id: keccak256(VAMPING_APP_ID.as_bytes()).to_vec(),
         request_sequence_id: request_data.sequence_id,
-        generic_solution: buf.into(),
+        generic_solution: encoded_vamping_info.into(),
     };
 
     let mut client = OrchestratorServiceClient::connect(orchestrator_url.clone()).await?;

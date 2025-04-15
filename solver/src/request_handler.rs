@@ -53,6 +53,7 @@ impl DeployTokenHandler {
                 if add_data.value.len() != 1 {
                     return Err("Invalid token decimal length".into());
                 }
+                info!("Token decimal: {:?}", add_data.value[0]);
                 request_data.token_decimal = add_data.value[0];
             }
         }

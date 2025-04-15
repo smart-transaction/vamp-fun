@@ -60,7 +60,7 @@ message PollResponseProto {
 message SubmitSolutionRequestProto {
   bytes app_id = 1;
   uint64 request_sequence_id = 2;
-  bytes genericSolution = 3;
+  bytes generic_solution = 3;
 }
 
 message SubmitSolutionResponseProto {

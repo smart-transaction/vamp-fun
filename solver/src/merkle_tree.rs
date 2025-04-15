@@ -1,11 +1,11 @@
-use ethers::types::{H160, U256};
+use ethers::types::H160;
 use sha3::{Digest, Keccak256};
 
 /// Represents a leaf node (account, amount)
 #[derive(Clone, Debug)]
 pub struct Leaf {
     pub account: H160,
-    pub amount: U256,
+    pub amount: u64,
 }
 
 impl Leaf {
@@ -13,8 +13,7 @@ impl Leaf {
         let mut data = Vec::with_capacity(52); // 20 + 32
         data.extend_from_slice(self.account.as_bytes());
 
-        let mut amount_bytes = [0u8; 32];
-        self.amount.to_big_endian(&mut amount_bytes);
+        let amount_bytes = self.amount.to_be_bytes();
         data.extend_from_slice(&amount_bytes);
 
         let mut hasher = Keccak256::new();
@@ -132,15 +131,15 @@ mod tests {
     fn test_build_merkle_tree() {
         let leaf1 = Leaf {
             account: H160::from_low_u64_be(1),
-            amount: U256::from(100),
+            amount: 100,
         };
         let leaf2 = Leaf {
             account: H160::from_low_u64_be(2),
-            amount: U256::from(200),
+            amount: 200,
         };
         let leaf3 = Leaf {
             account: H160::from_low_u64_be(3),
-            amount: U256::from(300),
+            amount: 300,
         };
 
         let leaves = vec![leaf1, leaf2, leaf3];
@@ -151,8 +150,8 @@ mod tests {
 
         // Check that the root is correctly computed
         let expected_root = [
-            188, 217, 76, 171, 134, 201, 250, 109, 171, 82, 228, 204, 109, 51, 45, 186, 82, 241,
-            214, 128, 140, 4, 109, 192, 32, 17, 150, 91, 243, 42, 184, 19,
+            102, 66, 129, 231, 73, 52, 99, 129, 227, 45, 201, 117, 83, 234, 11, 91, 18, 158, 74,
+            79, 99, 185, 172, 206, 71, 18, 20, 110, 6, 118, 37, 8,
         ];
         assert_eq!(merkle_tree.root, expected_root);
     }
@@ -161,15 +160,15 @@ mod tests {
     fn test_generate_merkle_proof() {
         let leaf1 = Leaf {
             account: H160::from_low_u64_be(1),
-            amount: U256::from(100),
+            amount: 100,
         };
         let leaf2 = Leaf {
             account: H160::from_low_u64_be(2),
-            amount: U256::from(200),
+            amount: 200,
         };
         let leaf3 = Leaf {
             account: H160::from_low_u64_be(3),
-            amount: U256::from(300),
+            amount: 300,
         };
 
         let leaves = vec![leaf1, leaf2, leaf3];
@@ -180,12 +179,12 @@ mod tests {
         // Check that the proof is correct
         let expected_proof = [
             [
-                234, 244, 241, 120, 25, 175, 58, 155, 20, 189, 161, 246, 201, 27, 209, 204, 198,
-                61, 194, 73, 51, 236, 105, 102, 117, 106, 154, 1, 208, 76, 81, 112,
+                143, 126, 3, 158, 232, 56, 110, 102, 35, 24, 82, 188, 79, 181, 174, 193, 224, 251,
+                248, 136, 5, 246, 249, 192, 20, 154, 0, 171, 183, 234, 236, 13,
             ],
             [
-                79, 139, 196, 143, 10, 254, 77, 142, 183, 149, 221, 42, 180, 128, 242, 211, 227,
-                115, 224, 78, 74, 240, 57, 175, 81, 141, 32, 245, 138, 41, 156, 140,
+                179, 106, 116, 204, 124, 194, 209, 39, 62, 132, 254, 174, 85, 210, 239, 201, 217,
+                46, 201, 154, 60, 151, 162, 189, 127, 180, 112, 118, 186, 210, 207, 217,
             ],
         ];
         assert_eq!(proof, expected_proof);
@@ -195,26 +194,26 @@ mod tests {
     fn test_verify_merkle_proof() {
         let leaf1 = Leaf {
             account: H160::from_low_u64_be(1),
-            amount: U256::from(100),
+            amount: 100,
         };
         let leaf2 = Leaf {
             account: H160::from_low_u64_be(2),
-            amount: U256::from(200),
+            amount: 200,
         };
         let leaf3 = Leaf {
             account: H160::from_low_u64_be(3),
-            amount: U256::from(300),
+            amount: 300,
         };
 
         let good_leaf_hash = Leaf {
             account: H160::from_low_u64_be(2),
-            amount: U256::from(200),
+            amount: 200,
         }
         .hash();
 
         let bad_leaf_hash = Leaf {
             account: H160::from_low_u64_be(2),
-            amount: U256::from(10),
+            amount: 10,
         }
         .hash();
 

@@ -35,7 +35,8 @@ describe("vamp_project", () => {
 
     const vault = Keypair.generate();
 
-    const merkleRoot = new Uint8Array(32).fill(0); // Dummy value
+    const genericSolutionBase64 = "CiDQrX3uaRDiQdcmkBz9lbF1rXGcXMzspCC77XFNuuvEVBIKU2hpbSBUb2tlbhoEU0hJTSIUtpplayvoqgs4WbJO7Twi2yBu6WYqFmh0dHBzOi8vdG9rZW4vdXJpL3NoaW0wwLP50P2PowI4CUKgAQoUHEvfYVnaNRvm9CmXZqF6RuE9UMgKFA2COESEMoDqXjBUivBjn3ksKBjPChSeTRFJcg5foBlSAd+XkXXVW0MnjQoUfqfB94BNUQdAy5W1MUkxpFfsi0gKFJzrYLvHLuKAQLpfkpbNyZ7OrY3sEggAvKBlAQAAABIIAMqaOwAAAAASCAAoa+4AAAAAEggAyBeoBAAAABIIAAx3QgMAAAA=";
+    const genericSolution = Buffer.from(genericSolutionBase64, "base64");
 
     // Airdrop to authority (also maybe used for signing/fees)
     await provider.connection.requestAirdrop(authority.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL);
@@ -50,14 +51,7 @@ describe("vamp_project", () => {
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     const tx = await program.methods
-      .createTokenMint(
-        Array.from(merkleRoot),
-        "Test Token",
-        "TEST",
-        "https://example.com/token.json",
-        new anchor.BN(1000),
-        9
-      )
+      .createTokenMint(genericSolution)
       .accountsPartial({
         authority: authority.publicKey,
         mintAccount: mintKeypair.publicKey,

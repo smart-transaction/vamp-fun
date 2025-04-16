@@ -1,23 +1,23 @@
 {
-  "address": "5Jntwox2qV5D3gKiUVG1NVRRvPBFZJP8wFLNmQAYBtVr",
+  "address": "BMqQ4vojaUAd4BYo9Jtnq87rrTjt36mQDe9PGMAruxw7",
   "metadata": {
-    "name": "vamp",
+    "name": "solana_vamp_program",
     "version": "0.1.0",
     "spec": "0.1.0",
     "description": "Created with Anchor"
   },
   "instructions": [
     {
-      "name": "initialize",
+      "name": "create_token_mint",
       "discriminator": [
-        175,
-        175,
+        35,
         109,
-        31,
-        13,
-        152,
-        155,
-        237
+        237,
+        196,
+        54,
+        218,
+        33,
+        119
       ],
       "accounts": [
         {
@@ -27,7 +27,8 @@
         },
         {
           "name": "mint_account",
-          "writable": true
+          "writable": true,
+          "signer": true
         },
         {
           "name": "metadata_account",
@@ -63,7 +64,7 @@
           }
         },
         {
-          "name": "state",
+          "name": "vamp_state",
           "writable": true,
           "pda": {
             "seeds": [
@@ -111,33 +112,8 @@
       ],
       "args": [
         {
-          "name": "merkle_root",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "token_name",
-          "type": "string"
-        },
-        {
-          "name": "token_symbol",
-          "type": "string"
-        },
-        {
-          "name": "token_uri",
-          "type": "string"
-        },
-        {
-          "name": "amount",
-          "type": "u64"
-        },
-        {
-          "name": "decimal",
-          "type": "u8"
+          "name": "vamping_data",
+          "type": "bytes"
         }
       ]
     }
@@ -189,7 +165,7 @@
             "type": "pubkey"
           },
           {
-            "name": "vault_bump",
+            "name": "bump",
             "type": "u8"
           },
           {

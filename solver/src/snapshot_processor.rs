@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::error::Error;
 
 use ethers::types::{Address, U256};
 use ethers::utils::keccak256;
@@ -10,9 +11,43 @@ use crate::request_registrator_listener::VAMPING_APP_ID;
 use crate::snapshot_indexer::TokenRequestData;
 use crate::use_proto::proto::AppChainResultStatus;
 use crate::use_proto::proto::{
-    SubmitSolutionRequestProto, TokenMappingProto, TokenVampingInfoProto,
-    UserEventProto, orchestrator_service_client::OrchestratorServiceClient,
+    SubmitSolutionRequestProto, TokenMappingProto, TokenVampingInfoProto, UserEventProto,
+    orchestrator_service_client::OrchestratorServiceClient,
 };
+
+fn convert_to_sol(src_amount: U256) -> Result<(u64, u8), Box<dyn Error>> {
+    // Truncate the amount to gwei
+    let amount = src_amount
+        .checked_div(U256::from(10u64.pow(9)))
+        .ok_or("Failed to divide amount")?;
+    // Further truncating until the value fits u64
+    for decimals in 0..=9 {
+        let trunc_amount = amount
+            .checked_div(U256::from(10u64.pow(decimals as u32)))
+            .ok_or("Failed to divide amount")?;
+        // Check that we are not losing precision
+        if trunc_amount
+            .checked_mul(U256::from(10u64.pow(decimals as u32)))
+            .ok_or("Failed to multiply amount")?
+            != amount
+        {
+            return Err(format!(
+                "The amount {:?} is too large to be minted on Solana",
+                amount
+            )
+            .into());
+        }
+        let max_amount = U256::from(u64::MAX);
+        if trunc_amount <= max_amount {
+            return Ok((trunc_amount.as_u64(), 9u8 - decimals));
+        }
+    }
+    Err(format!(
+        "The amount {:?} is too large to be minted on Solana",
+        amount
+    )
+    .into())
+}
 
 pub async fn process_and_send_snapshot(
     request_data: TokenRequestData,
@@ -22,13 +57,12 @@ pub async fn process_and_send_snapshot(
 ) -> Result<(), Box<dyn std::error::Error>> {
     info!("Received indexed snapshot");
     // Convert the amount into a Solana format
-    let amount = amount.checked_div(U256::from(10u64.pow(9)))
-        .ok_or("Failed to convert amount")?;
-    let amount = amount.as_u64();
+    let (amount, decimals) = convert_to_sol(amount)?;
     let snapshot = snapshot
         .iter()
         .map(|(k, v)| {
-            let amount = v.checked_div(U256::from(10u64.pow(9)))
+            let amount = v
+                .checked_div(U256::from(10u64.pow(9)))
                 .ok_or("Failed to convert amount");
             (*k, amount.unwrap_or_default().as_u64())
         })
@@ -68,7 +102,7 @@ pub async fn process_and_send_snapshot(
         token_erc20_address: request_data.erc20_address.as_bytes().to_vec(),
         token_uri: Some(request_data.token_uri),
         amount,
-        decimal: request_data.token_decimal as u32,
+        decimal: decimals as u32,
         token_mapping: Some(token_mapping),
     };
 
@@ -98,4 +132,47 @@ pub async fn process_and_send_snapshot(
     }
 
     Ok(())
+}
+
+#[test]
+fn test_convert_to_sol() {
+    // Test case: Valid conversion
+    let amount = U256::from(1_000_000_000_000_000_000u128);
+    let result = convert_to_sol(amount).unwrap();
+    assert_eq!(result, (1000000000, 9));
+
+    // Test case: Large amount that fits into u64
+    let amount = U256::from(10_000_000_000_000_000_000u128);
+    let result = convert_to_sol(amount).unwrap();
+    assert_eq!(result, (10000000000, 9));
+
+    // Test case: Large amount that requires zeroes truncating
+    let amount = U256::from(100_000_000_000_000_000_000_000_000_000_000u128);
+    let result = convert_to_sol(amount).unwrap();
+    assert_eq!(result, (10000000000000000000, 5));
+
+    // Test case: Small amount conversion
+    let amount = U256::from(123);
+    let result = convert_to_sol(amount).unwrap();
+    assert_eq!(result, (0, 9));
+
+    // Test case: Maximum allowed amount
+    let amount = U256::from(u64::MAX as u128 * 10u128.pow(9));
+    let result = convert_to_sol(amount).unwrap();
+    assert_eq!(result, (u64::MAX, 9));
+
+    // Test case: Amount too large to fit into u64
+    let amount = U256::from(u128::MAX);
+    let result = convert_to_sol(amount);
+    assert!(result.is_err());
+
+    // Test case: Another too large amount
+    let amount = U256::from((u64::MAX as u128 + 1) * 10u128.pow(9));
+    let result = convert_to_sol(amount);
+    assert!(result.is_err());
+
+    // Test case: Zero amount
+    let amount = U256::zero();
+    let result = convert_to_sol(amount).unwrap();
+    assert_eq!(result, (0, 9));
 }

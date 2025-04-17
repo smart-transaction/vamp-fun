@@ -25,3 +25,35 @@ Token URI
 Token decimal
 0x20a6978212c5fa41beb42fd29d8826078dd2b88b83f88ade3eae8c84da25b492
 0x12
+
+        userObjective:
+                app_id: keccak256("VampFunVamping"),
+                nonse: 1,
+                chain_id: 84532,
+                tip: 10000000,
+                max_fee_per_gas: 100000,
+                max_priority_fee_per_gas: 1000000,
+                sender: 0xF821AdA310c3c7DA23aBEa279bA5Bf22B359A7e1
+
+        additionalData: [
+          {
+                key: keccak256("ERC20ContractAddress")
+                value: 0xb69A656b2Be8aa0b3859B24eed3c22dB206Ee966
+          }
+          {
+                key: keccak256("TokenFullName"),
+                value: "Mocha Token".as_bytes(),
+          }
+          {
+                key: keccak256("TokenSymbolName"),
+                value: "MOCHA".as_bytes(),
+          }
+          {
+                key: keccak256("TokenURI"),
+                value: "https://token/uri/mocha".as_bytes(),
+          }
+          {
+                key: keccak256("TokenDecimal"),
+                value: 9.to_little_endian_bytes(),  // uint8
+          }
+        ],

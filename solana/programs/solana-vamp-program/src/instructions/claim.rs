@@ -54,11 +54,11 @@ pub fn claim_tokens(
     ctx: Context<Claim>,
     amount: u64,
     proof: Vec<[u8; 32]>,
-    claimer: Pubkey,
+    claimer_eth_address: [u8; 20],
 ) -> Result<()> {
     // Merkle verification
     let leaf = anchor_lang::solana_program::keccak::hashv(&[
-        &claimer.to_bytes(),
+        &claimer_eth_address,
         &amount.to_le_bytes(),
     ])
     .0;

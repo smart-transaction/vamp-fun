@@ -48,8 +48,8 @@ pub mod solana_vamp_program {
         ctx: Context<Claim>,
         amount: u64,
         proof: Vec<[u8; 32]>,
-        claimer: Pubkey,
+        claimer_eth_address: [u8; 20],
     ) -> Result<()> {
-        claim_tokens(ctx, amount, proof, claimer)
+        claim_tokens(ctx, amount, proof, claimer_eth_address)
     }
 }

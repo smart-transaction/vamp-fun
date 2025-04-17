@@ -4,12 +4,9 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program::keccak;
 use anchor_spl::token::{Mint, Token, TokenAccount, Transfer};
 use crate::state::vamp_state::VampState;
-
-#[error_code]
-pub enum CustomError {
-    #[msg("Invalid Merkle proof provided.")]
-    InvalidMerkleProof,
-}
+use crate::event::ErrorCode;
+use signature_verifier::ethereum::EthereumVerifier;
+use hex;
 
 #[derive(Accounts)]
 pub struct Claim<'info> {
@@ -38,35 +35,45 @@ pub struct Claim<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-fn verify_merkle_proof(leaf: [u8; 32], proof: &[[u8; 32]], root: [u8; 32]) -> bool {
-    let mut hash = leaf;
-    for p in proof.iter() {
-        hash = if hash <= *p {
-            keccak::hashv(&[&hash, p]).0
-        } else {
-            keccak::hashv(&[p, &hash]).0
-        };
-    }
-    hash == root
+fn verify_ethereum_signature(
+    message: &str,
+    signature: &str,
+    expected_address: [u8; 20],
+) -> Result<()> {
+    let prefix = format!("\x19Ethereum Signed Message:\n{}", message.len());
+    let prefixed_message = format!("{}{}", prefix, message);
+    let message_hash = keccak::hash(&prefixed_message.as_bytes()).0;
+
+    // Recover the signer's address
+    let signature_bytes = hex::decode(signature.trim_start_matches("0x"))
+        .map_err(|_| ErrorCode::InvalidSignature)?;
+    
+    let recovered_address = EthereumVerifier::recover_address(&message_hash, &signature_bytes)
+        .map_err(|_| ErrorCode::InvalidSignature)?;
+
+    // Verify the signature
+    require!(
+        recovered_address == expected_address,
+        ErrorCode::InvalidSignature
+    );
+
+    Ok(())
 }
 
 pub fn claim_tokens(
     ctx: Context<Claim>,
-    amount: u64,
-    proof: Vec<[u8; 32]>,
-    claimer_eth_address: [u8; 20],
+    eth_address: [u8; 20],
+    eth_signature: String,
 ) -> Result<()> {
-    // Merkle verification
-    let leaf = anchor_lang::solana_program::keccak::hashv(&[
-        &claimer_eth_address,
-        &amount.to_le_bytes(),
-    ])
-    .0;
+    // Find the token amount for the given ETH address
+    let amount = ctx.accounts.vamp_state.token_mappings
+        .iter()
+        .find(|mapping| mapping.eth_address == eth_address)
+        .ok_or(ErrorCode::InvalidAddress)?
+        .token_amount;
 
-    require!(
-        verify_merkle_proof(leaf, &proof, ctx.accounts.vamp_state.merkle_root),
-        CustomError::InvalidMerkleProof
-    );
+    // Verify the Ethereum signature
+    verify_ethereum_signature(&amount.to_string(), &eth_signature, eth_address)?;
 
     // Transfer tokens
     let seeds = &[

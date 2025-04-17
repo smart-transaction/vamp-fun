@@ -31,11 +31,15 @@ impl OrchestratorService for OrchestratorGrpcService {
         {
             Some(_stored_request) => {
                 // Forward request data to Solana program
+                log::info!("Submitting solution to Solana program for sequence_id: {}",
+                    req.request_sequence_id);
                 SolanaOrchestrator::submit_to_solana(req.generic_solution).await
                     .map_err(|e| Status::internal(format!("Failed to execute solana transaction: \
                     {}", e)))?;
 
                 // Update state to UnderExecution
+                log::info!("Updating request state to UnderExecution for sequence_id: {}",
+                    req.request_sequence_id);
                 self.storage
                     .update_request_state_to_under_execution(req.request_sequence_id)
                     .await

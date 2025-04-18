@@ -53,10 +53,9 @@ pub mod solana_vamp_program {
     // TDOD: add logic to avoid double claim
     pub fn claim(
         ctx: Context<Claim>,
-        amount: u64,
-        proof: Vec<[u8; 32]>,
-        claimer_eth_address: [u8; 20],
+        eth_address: [u8; 20],
+        eth_signature: String,
     ) -> Result<()> {
-        claim_tokens(ctx, amount, proof, claimer_eth_address)
+        claim_tokens(ctx, eth_address, eth_signature)
     }
 }

@@ -5,7 +5,7 @@ use anchor_lang::solana_program::keccak;
 use anchor_spl::token::{Mint, Token, TokenAccount, Transfer};
 use crate::state::vamp_state::VampState;
 use crate::event::ErrorCode;
-use signature_verifier::ethereum::EthereumVerifier;
+use secp256k1::{Message, Secp256k1, ecdsa::RecoverableSignature};
 use hex;
 
 #[derive(Accounts)]
@@ -44,12 +44,27 @@ fn verify_ethereum_signature(
     let prefixed_message = format!("{}{}", prefix, message);
     let message_hash = keccak::hash(&prefixed_message.as_bytes()).0;
 
-    // Recover the signer's address
+    // Parse the signature
     let signature_bytes = hex::decode(signature.trim_start_matches("0x"))
         .map_err(|_| ErrorCode::InvalidSignature)?;
     
-    let recovered_address = EthereumVerifier::recover_address(&message_hash, &signature_bytes)
+    let recoverable_signature = RecoverableSignature::from_compact(
+        &signature_bytes[..64],
+        signature_bytes[64] as i32 - 27,
+    ).map_err(|_| ErrorCode::InvalidSignature)?;
+
+    // Create a message object from the hash
+    let message = Message::from_slice(&message_hash)
         .map_err(|_| ErrorCode::InvalidSignature)?;
+
+    // Recover the public key
+    let secp = Secp256k1::new();
+    let public_key = secp.recover_ecdsa(&message, &recoverable_signature)
+        .map_err(|_| ErrorCode::InvalidSignature)?;
+
+    // Get the recovered Ethereum address (last 20 bytes of the keccak hash of the public key)
+    let public_key_bytes = public_key.serialize_uncompressed();
+    let recovered_address = &keccak::hash(&public_key_bytes[1..]).0[12..];
 
     // Verify the signature
     require!(

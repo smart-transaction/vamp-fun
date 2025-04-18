@@ -5,7 +5,7 @@ use anchor_lang::solana_program::keccak;
 use anchor_spl::token::{Mint, Token, TokenAccount, Transfer};
 use crate::state::vamp_state::VampState;
 use crate::event::ErrorCode;
-use secp256k1::{Message, Secp256k1, ecdsa::RecoverableSignature};
+use secp256k1::{ecdsa::{RecoverableSignature, RecoveryId}, Message, Secp256k1};
 use hex;
 
 #[derive(Accounts)]
@@ -48,14 +48,15 @@ fn verify_ethereum_signature(
     let signature_bytes = hex::decode(signature.trim_start_matches("0x"))
         .map_err(|_| ErrorCode::InvalidSignature)?;
     
+    let recid = RecoveryId::try_from(signature_bytes[64] as i32 - 27).map_err(|_| ErrorCode::InvalidSignature)?;
+
     let recoverable_signature = RecoverableSignature::from_compact(
         &signature_bytes[..64],
-        signature_bytes[64] as i32 - 27,
+        recid,
     ).map_err(|_| ErrorCode::InvalidSignature)?;
 
     // Create a message object from the hash
-    let message = Message::from_slice(&message_hash)
-        .map_err(|_| ErrorCode::InvalidSignature)?;
+    let message = Message::from_digest(message_hash);
 
     // Recover the public key
     let secp = Secp256k1::new();

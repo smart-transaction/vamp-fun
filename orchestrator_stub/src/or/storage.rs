@@ -21,7 +21,7 @@ pub struct StoredRequest {
 }
 
 impl Storage {
-    const REQUEST_KEY_PREFIX: &'static str = "vamp:orchestrator:request:";
+    const REQUEST_KEY_PREFIX: &'static str = "vamp:intents:by_sequence_id";
 
     pub async fn new(cfg: &config::Config) -> anyhow::Result<Self> {
         let redis_url: String = cfg.get("storage.redis_url")?;
@@ -60,6 +60,6 @@ impl Storage {
 
     #[inline]
     fn request_key(sequence_id: u64) -> String {
-        format!("{}{}", Self::REQUEST_KEY_PREFIX, sequence_id)
+        format!("{}:{}", Self::REQUEST_KEY_PREFIX, sequence_id)
     }
 }

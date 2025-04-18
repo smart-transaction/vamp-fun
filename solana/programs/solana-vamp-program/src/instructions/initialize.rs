@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use crate::constants::*;
-use crate::state::vamp_state::VampState;
+use crate::state::vamp_state::{VampState, TokenMapping};
 use anchor_spl::metadata::{
     create_metadata_accounts_v3, mpl_token_metadata::types::DataV2, CreateMetadataAccountsV3,
     Metadata,
@@ -62,7 +62,7 @@ impl<'info> Initialize<'info> {
     // Initialize Vamp with Merkle root and token vault
     pub fn create_token_mint(
         &mut self,
-        merkle_root: [u8; 32],
+        token_mappings: Vec<TokenMapping>,
         token_name: String,
         token_symbol: String,
         token_uri: String,
@@ -112,7 +112,7 @@ impl<'info> Initialize<'info> {
         )?;
 
         self.vamp_state.set_inner(VampState {
-            merkle_root,
+            token_mappings,
             authority: self.authority.key(),
             bump: bumps.vamp_state,
             mint: self.mint_account.key(),

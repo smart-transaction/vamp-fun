@@ -1,5 +1,5 @@
 [toolchain]
-anchor_version = "0.31.0"
+anchor_version = "0.29.0"
 package_manager = "yarn"
 
 [features]
@@ -10,14 +10,14 @@ skip-lint = false
 solana-vamp-program = "5Jntwox2qV5D3gKiUVG1NVRRvPBFZJP8wFLNmQAYBtVr"
 
 [programs.localnet]
-solana_vamp_program = "GxTHHX45PDeqMuystBAwC2vne6FacJNA4JeAC2JJc9hB"
+solana_vamp_program = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
-wallet = "~/.config/solana/id.json"
+cluster = "Localnet"
+wallet = "/Users/eko/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

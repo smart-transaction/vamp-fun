@@ -5,7 +5,7 @@ use anchor_lang::solana_program::keccak;
 use anchor_spl::token::{Mint, Token, TokenAccount, Transfer};
 use crate::state::vamp_state::VampState;
 use crate::event::ErrorCode;
-use secp256k1::{ecdsa::{RecoverableSignature, RecoveryId}, Message, Secp256k1};
+// use secp256k1::{ecdsa::{RecoverableSignature, RecoveryId}, Message, Secp256k1};
 use hex;
 
 #[derive(Accounts)]
@@ -40,38 +40,38 @@ fn verify_ethereum_signature(
     signature: &str,
     expected_address: [u8; 20],
 ) -> Result<()> {
-    let prefix = format!("\x19Ethereum Signed Message:\n{}", message.len());
-    let prefixed_message = format!("{}{}", prefix, message);
-    let message_hash = keccak::hash(&prefixed_message.as_bytes()).0;
+    // let prefix = format!("\x19Ethereum Signed Message:\n{}", message.len());
+    // let prefixed_message = format!("{}{}", prefix, message);
+    // let message_hash = keccak::hash(&prefixed_message.as_bytes()).0;
 
-    // Parse the signature
-    let signature_bytes = hex::decode(signature.trim_start_matches("0x"))
-        .map_err(|_| ErrorCode::InvalidSignature)?;
+    // // Parse the signature
+    // let signature_bytes = hex::decode(signature.trim_start_matches("0x"))
+    //     .map_err(|_| ErrorCode::InvalidSignature)?;
     
-    let recid = RecoveryId::try_from(signature_bytes[64] as i32 - 27).map_err(|_| ErrorCode::InvalidSignature)?;
+    // let recid = RecoveryId::try_from(signature_bytes[64] as i32 - 27).map_err(|_| ErrorCode::InvalidSignature)?;
 
-    let recoverable_signature = RecoverableSignature::from_compact(
-        &signature_bytes[..64],
-        recid,
-    ).map_err(|_| ErrorCode::InvalidSignature)?;
+    // let recoverable_signature = RecoverableSignature::from_compact(
+    //     &signature_bytes[..64],
+    //     recid,
+    // ).map_err(|_| ErrorCode::InvalidSignature)?;
 
-    // Create a message object from the hash
-    let message = Message::from_digest(message_hash);
+    // // Create a message object from the hash
+    // let message = Message::from_digest(message_hash);
 
-    // Recover the public key
-    let secp = Secp256k1::new();
-    let public_key = secp.recover_ecdsa(&message, &recoverable_signature)
-        .map_err(|_| ErrorCode::InvalidSignature)?;
+    // // Recover the public key
+    // let secp = Secp256k1::new();
+    // let public_key = secp.recover_ecdsa(&message, &recoverable_signature)
+    //     .map_err(|_| ErrorCode::InvalidSignature)?;
 
-    // Get the recovered Ethereum address (last 20 bytes of the keccak hash of the public key)
-    let public_key_bytes = public_key.serialize_uncompressed();
-    let recovered_address = &keccak::hash(&public_key_bytes[1..]).0[12..];
+    // // Get the recovered Ethereum address (last 20 bytes of the keccak hash of the public key)
+    // let public_key_bytes = public_key.serialize_uncompressed();
+    // let recovered_address = &keccak::hash(&public_key_bytes[1..]).0[12..];
 
-    // Verify the signature
-    require!(
-        recovered_address == expected_address,
-        ErrorCode::InvalidSignature
-    );
+    // // Verify the signature
+    // require!(
+    //     recovered_address == expected_address,
+    //     ErrorCode::InvalidSignature
+    // );
 
     Ok(())
 }

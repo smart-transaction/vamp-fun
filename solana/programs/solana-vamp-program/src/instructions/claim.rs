@@ -1,12 +1,9 @@
 // File: src/instructions/claim.rs
 
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::keccak;
 use anchor_spl::token::{Mint, Token, TokenAccount, Transfer};
 use crate::state::vamp_state::VampState;
 use crate::event::ErrorCode;
-// use secp256k1::{ecdsa::{RecoverableSignature, RecoveryId}, Message, Secp256k1};
-use hex;
 
 #[derive(Accounts)]
 pub struct Claim<'info> {
@@ -36,9 +33,9 @@ pub struct Claim<'info> {
 }
 
 fn verify_ethereum_signature(
-    message: &str,
-    signature: &str,
-    expected_address: [u8; 20],
+    _message: &str,
+    _signature: &str,
+    _expected_address: [u8; 20],
 ) -> Result<()> {
     // let prefix = format!("\x19Ethereum Signed Message:\n{}", message.len());
     // let prefixed_message = format!("{}{}", prefix, message);

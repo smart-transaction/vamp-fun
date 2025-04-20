@@ -64,14 +64,11 @@ describe("solana-vamp-project", () => {
       program.programId
     );
     
-    // Create a keypair for the vault
-    const vault = await getAssociatedTokenAddress(
-      mintAccount,
-      authority,
-      false,
-      TOKEN_PROGRAM_ID,
-      ASSOCIATED_TOKEN_PROGRAM_ID
-    );    
+    // Find vault PDA
+    const [vault] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), mintAccount.toBuffer()],
+      program.programId
+    );
 
     console.log("Authority:", authority.toBase58());
     console.log("Mint Account:", mintAccount.toBase58());
@@ -85,15 +82,15 @@ describe("solana-vamp-project", () => {
         .createTokenMint(genericSolution)
         .accounts({
           authority,
-          mintAccount,
-          metadataAccount,
-          vampState,
+          mint_account: mintAccount,
+          metadata_account: metadataAccount,
+          vamp_state: vampState,
           vault,
-          mintAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
-          systemProgram: anchor.web3.SystemProgram.programId,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          mint_authority: mintAuthority,
+          token_program: TOKEN_PROGRAM_ID,
+          token_metadata_program: TOKEN_METADATA_PROGRAM_ID,
+          system_program: anchor.web3.SystemProgram.programId,
+          associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
           rent: anchor.web3.SYSVAR_RENT_PUBKEY,
         })
         .signers([provider.wallet.payer])

@@ -73,13 +73,6 @@ describe("solana-vamp-project", () => {
       ASSOCIATED_TOKEN_PROGRAM_ID
     );    
 
-    // Create token mappings
-    const tokenMappings = [{
-      tokenAddress: new anchor.web3.PublicKey("11111111111111111111111111111111"),
-      tokenAmount: new BN(1000000),
-      ethAddress: Array.from(Buffer.alloc(20, 1)) // Example Ethereum address
-    }];
-
     console.log("Authority:", authority.toBase58());
     console.log("Mint Account:", mintAccount.toBase58());
     console.log("Metadata Account:", metadataAccount.toBase58());

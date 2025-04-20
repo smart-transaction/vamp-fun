@@ -22,6 +22,8 @@ pub struct Claim<'info> {
 
     #[account(
         mut,
+        seeds = [b"vault", mint.key().as_ref()],
+        bump,
         token::mint = mint,
         token::authority = vamp_state,
     )]

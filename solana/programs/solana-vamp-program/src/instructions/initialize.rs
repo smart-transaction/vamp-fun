@@ -48,6 +48,8 @@ pub struct Initialize<'info> {
         payer = authority,
         token::mint = mint_account,
         token::authority = vamp_state,
+        seeds = [b"vault", mint_account.key().as_ref()],
+        bump,
     )]
     pub vault: Account<'info, TokenAccount>, // Vamp's token vault
 

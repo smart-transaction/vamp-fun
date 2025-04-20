@@ -10,13 +10,13 @@ skip-lint = false
 solana-vamp-program = "5Jntwox2qV5D3gKiUVG1NVRRvPBFZJP8wFLNmQAYBtVr"
 
 [programs.localnet]
-solana_vamp_program = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+solana_vamp_program = "2H9LS3EhsRqjjTwoe8QwGHCNKACQbVnU396b2Q1BsiQE"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Devnet"
+cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

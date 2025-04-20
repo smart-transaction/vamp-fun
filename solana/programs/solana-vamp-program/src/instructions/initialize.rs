@@ -10,7 +10,6 @@ use anchor_spl::{
     token::{mint_to, Mint, MintTo, Token, TokenAccount},
 };
 
-// Accounts
 #[derive(Accounts)]
 #[instruction(_token_decimals: u8)]
 pub struct Initialize<'info> {
@@ -21,11 +20,13 @@ pub struct Initialize<'info> {
         init,
         payer = authority,
         mint::decimals = _token_decimals,
-        mint::authority = authority.key(),
+        mint::authority = mint_authority.key(),
+        seeds = [b"mint"],
+        bump,
     )]
     pub mint_account: Account<'info, Mint>,
 
-    /// CHECK: Validate address by deriving pda
+    /// CHECK: This is safe because we're deriving the PDA
     #[account(
         mut,
         seeds = [b"metadata", token_metadata_program.key().as_ref(), mint_account.key().as_ref()],
@@ -39,7 +40,7 @@ pub struct Initialize<'info> {
         payer = authority,
         seeds = [b"vamp", authority.key().as_ref()],
         bump,
-        space = ANCHOR_DISCRIMINATOR + VampState::INIT_SPACE
+        space = 10000 // space = ANCHOR_DISCRIMINATOR + VampState::INIT_SPACE
     )]
     pub vamp_state: Account<'info, VampState>,
 
@@ -51,6 +52,13 @@ pub struct Initialize<'info> {
     )]
     pub vault: Account<'info, TokenAccount>, // Vamp's token vault
 
+    /// CHECK: This is safe because we're deriving the PDA
+    #[account(
+        seeds = [b"mint"],
+        bump,
+    )]
+    pub mint_authority: UncheckedAccount<'info>,
+
     pub token_program: Program<'info, Token>,
     pub token_metadata_program: Program<'info, Metadata>,
     pub system_program: Program<'info, System>,
@@ -59,7 +67,6 @@ pub struct Initialize<'info> {
 }
 
 impl<'info> Initialize<'info> {
-    // Initialize Vamp with Merkle root and token vault
     pub fn create_token_mint(
         &mut self,
         token_mappings: Vec<TokenMapping>,
@@ -70,18 +77,24 @@ impl<'info> Initialize<'info> {
         _token_decimals: u8,
         bumps: &InitializeBumps,
     ) -> Result<()> {
+        let seeds = b"mint";
+        let bump = bumps.mint_authority;
+        let signer_seeds_inner: &[&[u8]] = &[seeds, &[bump]];
+        let signer_seeds: &[&[&[u8]]] = &[signer_seeds_inner];        
+
         create_metadata_accounts_v3(
-            CpiContext::new(
+            CpiContext::new_with_signer(
                 self.token_metadata_program.to_account_info(),
                 CreateMetadataAccountsV3 {
                     metadata: self.metadata_account.to_account_info(),
                     mint: self.mint_account.to_account_info(),
-                    mint_authority: self.authority.to_account_info(),
-                    update_authority: self.authority.to_account_info(),
+                    mint_authority: self.mint_authority.to_account_info(),
+                    update_authority: self.mint_authority.to_account_info(),
                     payer: self.authority.to_account_info(),
                     system_program: self.system_program.to_account_info(),
                     rent: self.rent.to_account_info(),
                 },
+                signer_seeds,
             ),
             DataV2 {
                 name: token_name,
@@ -92,21 +105,22 @@ impl<'info> Initialize<'info> {
                 collection: None,
                 uses: None,
             },
-            false, // Is mutable
-            true,  // Update authority is signer
-            None,  // Collection details
+            false,
+            true,
+            None,
         )?;
 
         msg!("Token created successfully.");
 
         mint_to(
-            CpiContext::new(
+            CpiContext::new_with_signer(
                 self.token_program.to_account_info(),
                 MintTo {
                     mint: self.mint_account.to_account_info(),
                     to: self.vault.to_account_info(),
-                    authority: self.authority.to_account_info(),
+                    authority: self.mint_authority.to_account_info(),
                 },
+                signer_seeds,
             ),
             amount,
         )?;

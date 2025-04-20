@@ -1,37 +1,38 @@
-use anchor_lang::solana_program::keccak;
-use crate::state::vamp_state::TokenMapping;
+use std::error::Error;
 
-pub fn generate_merkle_root(mappings: &[TokenMapping]) -> [u8; 32] {
-    // Step 1: Hash each TokenMapping to create the leaf nodes
-    let mut leaves: Vec<[u8; 32]> = mappings
-        .iter()
-        .map(|entry| {
-            let mut data = entry.token_address.to_bytes().to_vec();
-            data.extend_from_slice(&entry.token_amount.to_le_bytes());
-            keccak::hash(&data).0
-        })
-        .collect();
+use merkle_tree::{Leaf, MerkleTree};
 
-    // Step 2: Build the Merkle tree
-    while leaves.len() > 1 {
-        let mut next_level = Vec::new();
-        for i in (0..leaves.len()).step_by(2) {
-            let left = leaves[i];
-            let right = if i + 1 < leaves.len() {
-                leaves[i + 1]
-            } else {
-                // If there's an odd number of nodes, duplicate the last one
-                leaves[i]
-            };
-            let mut combined = Vec::new();
-            combined.extend_from_slice(&left);
-            combined.extend_from_slice(&right);
-            next_level.push(keccak::hash(&combined).0);
-        }
-        leaves = next_level;
+use crate::{state::vamp_state::TokenMapping, use_proto::vamp_fun::TokenMappingProto};
+
+pub fn verify_merkle_root(
+    token_mapping: &TokenMappingProto,
+    decimals: u8,
+    merkle_root: &[u8; 32],
+) -> Result<bool, Box<dyn Error>> {
+    let mut leaves = Vec::new();
+    for i in 0..token_mapping.addresses.len() {
+        let leaf = Leaf {
+            account: token_mapping.addresses[i].as_slice().try_into()?,
+            amount: token_mapping.amounts[i],
+            decimals,
+        };
+        leaves.push(leaf);
     }
-
-    // Step 3: Return the Merkle root
-    leaves[0]
+    let merkle_tree = MerkleTree::new(&leaves);
+    Ok(merkle_tree.root == *merkle_root)
 }
 
+pub fn convert_token_mapping(
+    token_mapping_proto: &TokenMappingProto,
+    decimals: u8,
+) -> Result<Vec<TokenMapping>, Box<dyn Error>> {
+    let mut token_mappings = Vec::new();
+    for i in 0..token_mapping_proto.addresses.len() {
+        let mut token_mapping = TokenMapping::default();
+        token_mapping.eth_address = token_mapping_proto.addresses[i].as_slice().try_into()?;
+        token_mapping.token_amount = token_mapping_proto.amounts[i];
+        token_mapping.decimals = decimals;
+        token_mappings.push(token_mapping);
+    }
+    Ok(token_mappings)
+}

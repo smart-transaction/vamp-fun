@@ -1,20 +1,23 @@
-use ethers::types::H160;
 use sha3::{Digest, Keccak256};
 
 /// Represents a leaf node (account, amount)
 #[derive(Clone, Debug)]
 pub struct Leaf {
-    pub account: H160,
+    pub account: [u8; 20],
     pub amount: u64,
+    pub decimals: u8,
 }
 
 impl Leaf {
     pub fn hash(&self) -> [u8; 32] {
         let mut data = Vec::with_capacity(52); // 20 + 32
-        data.extend_from_slice(self.account.as_bytes());
+        data.extend_from_slice(&self.account);
 
         let amount_bytes = self.amount.to_be_bytes();
         data.extend_from_slice(&amount_bytes);
+
+        let decimals_bytes = self.decimals.to_be_bytes();
+        data.extend_from_slice(&decimals_bytes);
 
         let mut hasher = Keccak256::new();
         hasher.update(&data);
@@ -130,16 +133,19 @@ mod tests {
     #[test]
     fn test_build_merkle_tree() {
         let leaf1 = Leaf {
-            account: H160::from_low_u64_be(1),
+            account: [1; 20],
             amount: 100,
+            decimals: 9,
         };
         let leaf2 = Leaf {
-            account: H160::from_low_u64_be(2),
+            account: [2; 20],
             amount: 200,
+            decimals: 9,
         };
         let leaf3 = Leaf {
-            account: H160::from_low_u64_be(3),
+            account: [3; 20],
             amount: 300,
+            decimals: 9,
         };
 
         let leaves = vec![leaf1, leaf2, leaf3];
@@ -150,8 +156,8 @@ mod tests {
 
         // Check that the root is correctly computed
         let expected_root = [
-            102, 66, 129, 231, 73, 52, 99, 129, 227, 45, 201, 117, 83, 234, 11, 91, 18, 158, 74,
-            79, 99, 185, 172, 206, 71, 18, 20, 110, 6, 118, 37, 8,
+            227, 26, 143, 61, 193, 137, 205, 61, 239, 153, 177, 0, 129, 106, 227, 198, 138, 63,
+            162, 105, 243, 172, 52, 72, 115, 107, 61, 195, 95, 161, 3, 254,
         ];
         assert_eq!(merkle_tree.root, expected_root);
     }
@@ -159,16 +165,19 @@ mod tests {
     #[test]
     fn test_generate_merkle_proof() {
         let leaf1 = Leaf {
-            account: H160::from_low_u64_be(1),
+            account: [1; 20],
             amount: 100,
+            decimals: 9,
         };
         let leaf2 = Leaf {
-            account: H160::from_low_u64_be(2),
+            account: [2; 20],
             amount: 200,
+            decimals: 9,
         };
         let leaf3 = Leaf {
-            account: H160::from_low_u64_be(3),
+            account: [3; 20],
             amount: 300,
+            decimals: 9,
         };
 
         let leaves = vec![leaf1, leaf2, leaf3];
@@ -179,12 +188,12 @@ mod tests {
         // Check that the proof is correct
         let expected_proof = [
             [
-                143, 126, 3, 158, 232, 56, 110, 102, 35, 24, 82, 188, 79, 181, 174, 193, 224, 251,
-                248, 136, 5, 246, 249, 192, 20, 154, 0, 171, 183, 234, 236, 13,
+                66, 105, 170, 88, 129, 252, 235, 50, 125, 110, 239, 176, 140, 183, 206, 19, 73, 16,
+                241, 12, 109, 195, 126, 126, 145, 217, 165, 67, 200, 29, 140, 211,
             ],
             [
-                179, 106, 116, 204, 124, 194, 209, 39, 62, 132, 254, 174, 85, 210, 239, 201, 217,
-                46, 201, 154, 60, 151, 162, 189, 127, 180, 112, 118, 186, 210, 207, 217,
+                238, 207, 180, 63, 241, 145, 225, 207, 4, 61, 182, 94, 187, 27, 211, 53, 70, 3, 44,
+                20, 110, 80, 88, 232, 53, 187, 186, 96, 255, 143, 220, 98,
             ],
         ];
         assert_eq!(proof, expected_proof);
@@ -193,27 +202,32 @@ mod tests {
     #[test]
     fn test_verify_merkle_proof() {
         let leaf1 = Leaf {
-            account: H160::from_low_u64_be(1),
+            account: [1; 20],
             amount: 100,
+            decimals: 9,
         };
         let leaf2 = Leaf {
-            account: H160::from_low_u64_be(2),
+            account: [2; 20],
             amount: 200,
+            decimals: 9,
         };
         let leaf3 = Leaf {
-            account: H160::from_low_u64_be(3),
+            account: [3; 20],
             amount: 300,
+            decimals: 9,
         };
 
         let good_leaf_hash = Leaf {
-            account: H160::from_low_u64_be(2),
+            account: [2; 20],
             amount: 200,
+            decimals: 9,
         }
         .hash();
 
         let bad_leaf_hash = Leaf {
-            account: H160::from_low_u64_be(2),
+            account: [2; 20],
             amount: 10,
+            decimals: 9,
         }
         .hash();
 

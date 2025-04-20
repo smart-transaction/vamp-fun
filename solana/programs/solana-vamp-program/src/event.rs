@@ -12,4 +12,6 @@ pub enum ErrorCode {
     InvalidSignature,
     #[msg("Invalid Ethereum address provided.")]
     InvalidAddress,
+    #[msg("Invalid token mapping provided.")]
+    InvalidTokenMapping,
 }

@@ -1,44 +1,62 @@
 use anchor_lang::prelude::*;
+use merkle_tree::MerkleTree;
 use prost::Message;
 
-declare_id!("GxTHHX45PDeqMuystBAwC2vne6FacJNA4JeAC2JJc9hB");
+declare_id!("2H9LS3EhsRqjjTwoe8QwGHCNKACQbVnU396b2Q1BsiQE");
 
 // Module declarations
 mod constants;
 mod event;
 mod instructions;
 mod state;
+mod use_proto;
 mod util;
 
 // Re-exports
 pub use constants::*;
-use instructions::*;
 use event::ErrorCode;
+use instructions::*;
 
-// Proto definitions
-pub mod vamp_fun {
-    include!(concat!(env!("OUT_DIR"), "/vamp.fun.rs"));
-}
-
-use vamp_fun::TokenVampingInfoProto;
-use state::vamp_state::TokenMapping;
-use util::generate_merkle_root;
+use use_proto::vamp_fun::TokenVampingInfoProto;
+use util::verify_merkle_root;
 
 #[program]
 pub mod solana_vamp_program {
+    use crate::util::convert_token_mapping;
+
     use super::*;
 
-    pub fn create_token_mint(ctx: Context<Initialize>, vamping_data: Vec<u8>, vamp_fun_data: Vec<TokenMapping>) -> Result<()> {
+    pub fn create_token_mint(ctx: Context<Initialize>, vamping_data: Vec<u8>) -> Result<()> {
         let vamping_info = TokenVampingInfoProto::decode(&vamping_data[..]).unwrap();
         let merkle_root: [u8; 32] = vamping_info.merkle_root[..]
             .try_into()
             .expect("Merkle root should be 32 bytes");
 
-        let generated_root = generate_merkle_root(&vamp_fun_data);
-        require!(merkle_root == generated_root, ErrorCode::InvalidMerkleProof);
+        let token_mapping_proto = vamping_info.token_mapping.unwrap_or_default();
+
+        msg!("Token mapping accounts: {}", token_mapping_proto.addresses.len());
+        msg!("Token mapping amounts: {}", token_mapping_proto.amounts.len());
+
+        require!(
+            token_mapping_proto.addresses.len() == token_mapping_proto.amounts.len(),
+            ErrorCode::InvalidTokenMapping,
+        );
+
+        require!(
+            verify_merkle_root(
+                &token_mapping_proto,
+                vamping_info.decimal as u8,
+                &merkle_root
+            )
+            .map_err(|_| { ErrorCode::InvalidMerkleProof })?,
+            ErrorCode::InvalidMerkleProof
+        );
+
+        let token_mapping = convert_token_mapping(&token_mapping_proto, vamping_info.decimal as u8)
+            .map_err(|_| ErrorCode::InvalidTokenMapping)?;
 
         ctx.accounts.create_token_mint(
-            vamp_fun_data,
+            token_mapping,
             vamping_info.token_name,
             vamping_info.token_symbol,
             vamping_info.token_uri.unwrap_or_default(),
@@ -51,11 +69,7 @@ pub mod solana_vamp_program {
     }
 
     // TDOD: add logic to avoid double claim
-    pub fn claim(
-        ctx: Context<Claim>,
-        eth_address: [u8; 20],
-        eth_signature: String,
-    ) -> Result<()> {
+    pub fn claim(ctx: Context<Claim>, eth_address: [u8; 20], eth_signature: String) -> Result<()> {
         claim_tokens(ctx, eth_address, eth_signature)
     }
 }

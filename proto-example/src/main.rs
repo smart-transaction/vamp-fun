@@ -1,59 +1,81 @@
 use std::str::FromStr;
 
 use ethers::{types::{Address, H160, U256}, utils::parse_units};
+use merkle_tree::{Leaf, MerkleTree};
 use prost::Message;
 
 pub mod vamp_fun {
     include!(concat!(env!("OUT_DIR"), "/vamp.fun.rs"));
 }
 
-use vamp_fun::TokenMappingProto;
+use vamp_fun::TokenVampingInfoProto;
 
-fn encode() -> Vec<u8> {
-    let addresses = vec![
-        Address::from_str("0xF821AdA310c3c7DA23aBEa279bA5Bf22B359A7e1").unwrap().as_bytes().to_vec(),
-        Address::from_str("0xb69A656b2Be8aa0b3859B24eed3c22dB206Ee966").unwrap().as_bytes().to_vec(),
+fn prepare_vamping_info_sample() -> Vec<u8> {
+    let mut result = Vec::new();
+
+    let mut vamping_info = TokenVampingInfoProto::default();
+    vamping_info.token_name = "Vamping Token".to_string();
+    vamping_info.token_symbol = "VAMP".to_string();
+    vamping_info.token_erc20_address = H160::from_str("0xb69A656b2Be8aa0b3859B24eed3c22dB206Ee966")
+        .unwrap()
+        .to_fixed_bytes()
+        .to_vec();
+    vamping_info.token_uri = Some("https://example.com/token/1".to_string());
+    vamping_info.decimal = 9;
+
+    // Merkle tree computation
+    let leaves = vec![
+        Leaf {
+            account: H160::from_str("0xc3913d4D8bAb4914328651C2EAE817C8b78E1f4c")
+                .unwrap()
+                .to_fixed_bytes(),
+            amount: 1000000000,
+            decimals: 9,
+        },
+        Leaf {
+            account: H160::from_str("0x65D08a056c17Ae13370565B04cF77D2AfA1cB9FA")
+                .unwrap()
+                .to_fixed_bytes(),
+            amount: 2000000000,
+            decimals: 9,
+        },
+        Leaf {
+            account: H160::from_str("0x5918b2e647464d4743601a865753e64C8059Dc4F")
+                .unwrap()
+                .to_fixed_bytes(),
+            amount: 3000000000,
+            decimals: 9,
+        },
+        Leaf {
+            account: H160::from_str("0xF5504cE2BcC52614F121aff9b93b2001d92715CA")
+                .unwrap()
+                .to_fixed_bytes(),
+            amount: 4000000000,
+            decimals: 9,
+        },
+        Leaf {
+            account: H160::from_str("0xfDCe42116f541fc8f7b0776e2B30832bD5621C85")
+                .unwrap()
+                .to_fixed_bytes(),
+            amount: 5000000000,
+            decimals: 9,
+        },
     ];
-    let amount1: U256 = parse_units(200, "ether").unwrap().into();
-    let amount2: U256 = parse_units(200000, "ether").unwrap().into();
-    let mut amount1_bytes = [0; 32];
-    let mut amount2_bytes = [0; 32];
-    amount1.to_little_endian(&mut amount1_bytes);
-    amount2.to_little_endian(&mut amount2_bytes);
-    let amounts = vec![
-        amount1_bytes.to_vec(),
-        amount2_bytes.to_vec(),
-    ];
 
-    let encoded_proto = TokenMappingProto {
-        addresses: addresses.clone(),
-        amounts: amounts.clone(),
-    };
+    let merkle_tree = MerkleTree::new(&leaves);
+    vamping_info.merkle_root = merkle_tree.root.to_vec();
+    vamping_info.amount = 15000000000;
+    vamping_info.token_mapping = Some(vamp_fun::TokenMappingProto {
+        addresses: leaves.iter().map(|leaf| leaf.account.to_vec()).collect(),
+        amounts: leaves.iter().map(|leaf| leaf.amount).collect(),
+    });
 
-    let mut encoded_val = Vec::new();
-    TokenMappingProto::encode(&encoded_proto, &mut encoded_val).unwrap();
-    encoded_val
-}
+    TokenVampingInfoProto::encode(&vamping_info, &mut result).unwrap();
 
-fn decode(encoded_val: Vec<u8>) -> (Vec<H160>, Vec<U256>) {
-    let decoded_proto = TokenMappingProto::decode(&encoded_val[..]).unwrap();
-
-    let decoded_addresses: Vec<H160> = decoded_proto.addresses.iter()
-        .map(|address| Address::from_slice(address))
-        .collect();
-    let decoded_amounts: Vec<U256> = decoded_proto.amounts.iter()
-        .map(|amount| {
-            let mut amount_bytes = [0; 32];
-            amount_bytes.copy_from_slice(amount);
-            U256::from_little_endian(&amount_bytes)
-        })
-        .collect();
-
-    (decoded_addresses, decoded_amounts)
+    result
 }
 
 fn main() {
-    let encoded_proto = encode();
-    let decoded = decode(encoded_proto.clone());
-    println!("Decoded Proto: {:#?}", decoded);
+    let encoded_sample = prepare_vamping_info_sample();
+    println!("Encoded sample: {:?}", encoded_sample);
 }

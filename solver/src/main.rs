@@ -17,7 +17,6 @@ use tokio::{net::TcpListener, spawn};
 use tower_http::cors::{Any, CorsLayer};
 
 mod chain_info;
-mod merkle_tree;
 mod request_handler;
 mod request_registrator_listener;
 mod snapshot_indexer;

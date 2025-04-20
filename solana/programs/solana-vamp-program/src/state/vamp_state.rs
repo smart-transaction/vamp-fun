@@ -4,17 +4,18 @@ use anchor_lang::prelude::*;
 #[derive(InitSpace)]
 pub struct VampState {
     #[max_len(1000)] // Max number of token mappings
-    pub token_mappings: Vec<TokenMapping>, // Root of the Merkle tree
+    pub token_mappings: Vec<TokenMapping>, // Tokem Napping
     pub authority: Pubkey,     // Admin address
     pub bump: u8,              // Bump for vault authority PDA
     pub mint: Pubkey,          // Token mint address (from fungible_token)
 }
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Clone, Default, AnchorSerialize, AnchorDeserialize)]
 pub struct TokenMapping {
     pub token_address: Pubkey,
     pub token_amount: u64,
     pub eth_address: [u8; 20],
+    pub decimals: u8,
 }
 
 impl Space for TokenMapping {

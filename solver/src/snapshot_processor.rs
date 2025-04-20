@@ -4,9 +4,9 @@ use std::error::Error;
 use ethers::types::{Address, U256};
 use ethers::utils::keccak256;
 use log::info;
+use merkle_tree::{Leaf, MerkleTree};
 use prost::Message;
 
-use crate::merkle_tree::{Leaf, MerkleTree};
 use crate::request_registrator_listener::VAMPING_APP_ID;
 use crate::snapshot_indexer::TokenRequestData;
 use crate::use_proto::proto::AppChainResultStatus;
@@ -61,9 +61,7 @@ pub async fn process_and_send_snapshot(
     let snapshot = snapshot
         .iter()
         .map(|(k, v)| {
-            let amount = v
-                .checked_div(U256::from(10u64.pow(9)))
-                .ok_or("Failed to convert amount");
+            let amount = v.checked_div(U256::from(10u64.pow(18 - decimals as u32)));
             (*k, amount.unwrap_or_default().as_u64())
         })
         .collect::<HashMap<_, _>>();
@@ -72,8 +70,9 @@ pub async fn process_and_send_snapshot(
         .iter()
         .map(|(k, v)| {
             let leaf = Leaf {
-                account: *k,
+                account: k.to_fixed_bytes(),
                 amount: *v,
+                decimals,
             };
             leaf
         })
@@ -89,10 +88,7 @@ pub async fn process_and_send_snapshot(
             .iter()
             .map(|(k, _)| k.as_bytes().to_vec())
             .collect(),
-        amounts: snapshot
-            .iter()
-            .map(|(_, v)| v.to_le_bytes().to_vec())
-            .collect(),
+        amounts: snapshot.iter().map(|(_, v)| *v).collect(),
     };
 
     let token_vamping_info = TokenVampingInfoProto {

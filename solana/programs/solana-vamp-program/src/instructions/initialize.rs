@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use crate::constants::*;
 use crate::state::vamp_state::{VampState, TokenMapping};
 use anchor_spl::metadata::{
     create_metadata_accounts_v3, mpl_token_metadata::types::DataV2, CreateMetadataAccountsV3,

@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use merkle_tree::MerkleTree;
 use prost::Message;
 
 declare_id!("2H9LS3EhsRqjjTwoe8QwGHCNKACQbVnU396b2Q1BsiQE");

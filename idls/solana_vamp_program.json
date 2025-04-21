@@ -1,5 +1,5 @@
 {
-  "address": "GxTHHX45PDeqMuystBAwC2vne6FacJNA4JeAC2JJc9hB",
+  "address": "AUDLhnapssdhniThkMoBy23aRbZreL1gnXbeBmtfXADH",
   "metadata": {
     "name": "solana_vamp_program",
     "version": "0.1.0",
@@ -7,6 +7,96 @@
     "description": "Created with Anchor"
   },
   "instructions": [
+    {
+      "name": "claim",
+      "discriminator": [
+        62,
+        198,
+        214,
+        193,
+        213,
+        159,
+        108,
+        210
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vamp_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  109,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vamp_state.authority",
+                "account": "VampState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "claimer_token_account",
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "eth_address",
+          "type": {
+            "array": [
+              "u8",
+              20
+            ]
+          }
+        },
+        {
+          "name": "eth_signature",
+          "type": "string"
+        }
+      ]
+    },
     {
       "name": "create_token_mint",
       "discriminator": [
@@ -28,7 +118,19 @@
         {
           "name": "mint_account",
           "writable": true,
-          "signer": true
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "metadata_account",
@@ -87,7 +189,40 @@
         {
           "name": "vault",
           "writable": true,
-          "signer": true
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint_account"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "token_program",
@@ -143,21 +278,71 @@
       "code": 6001,
       "name": "InvalidTokenMint",
       "msg": "Token mint mismatch"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidMerkleProof",
+      "msg": "Invalid Merkle proof provided."
+    },
+    {
+      "code": 6003,
+      "name": "InvalidSignature",
+      "msg": "Invalid Ethereum signature provided."
+    },
+    {
+      "code": 6004,
+      "name": "InvalidAddress",
+      "msg": "Invalid Ethereum address provided."
+    },
+    {
+      "code": 6005,
+      "name": "InvalidTokenMapping",
+      "msg": "Invalid token mapping provided."
     }
   ],
   "types": [
+    {
+      "name": "TokenMapping",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "token_address",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_amount",
+            "type": "u64"
+          },
+          {
+            "name": "eth_address",
+            "type": {
+              "array": [
+                "u8",
+                20
+              ]
+            }
+          },
+          {
+            "name": "decimals",
+            "type": "u8"
+          }
+        ]
+      }
+    },
     {
       "name": "VampState",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "merkle_root",
+            "name": "token_mappings",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "vec": {
+                "defined": {
+                  "name": "TokenMapping"
+                }
+              }
             }
           },
           {

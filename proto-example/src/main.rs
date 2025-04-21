@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use ethers::{types::{Address, H160, U256}, utils::parse_units};
+use ethers::types::H160;
 use merkle_tree::{Leaf, MerkleTree};
 use prost::Message;
 

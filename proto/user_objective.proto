@@ -61,6 +61,10 @@ message SubmitSolutionRequestProto {
   bytes app_id = 1;
   uint64 request_sequence_id = 2;
   bytes generic_solution = 3;
+  // A workaroud data for the PoC, to be moved side the generic_solution later
+  uint64 chain_id = 4;
+  bytes token_ers20_address = 5;
+  uint64 salt = 6;
 }
 
 message SubmitSolutionResponseProto {

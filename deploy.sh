@@ -21,9 +21,17 @@ do
         MYSQL_PORT=3306
         MYSQL_DATABASE="vampfun"
         PORT=8000
-        REQUEST_REGISTRATOR_URL=
-        ORCHESTRATOR_URL=
+        REQUEST_REGISTRATOR_URL="http://vamp_fun_request_registrator:50051"
+        ORCHESTRATOR_URL="http://vamp_fun_orchestrator:50052"
         POLL_FREQUENCY_SECS=5
+        REQUEST_REGISTRATOR_ETHEREUM_RPC_URL="wss://service.lestnet.org:8888/"
+        REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x81D0da49057BCC8b2f5c57bfb43A298C2f634362"
+        REQUEST_REGISTRATOR_GRPC_ADDRESS="127.0.0.1:50051"
+        REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
+        ORCHESTRATOR_SOLANA_RPC_URL="https://api.devnet.solana.com"
+        ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="7X4L5K2URU5qLjCawXpNfbszVZViZSGXSCcXM4eBKSrL"
+        ORCHESTRATOR_GRPC_ADDRESS="127.0.0.1:50052"
+        ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         break
         ;;
     "prod")
@@ -34,9 +42,17 @@ do
         MYSQL_PORT=3306
         MYSQL_DATABASE="vampfun"
         PORT=8000
-        REQUEST_REGISTRATOR_URL=
-        ORCHESTRATOR_URL=
+        REQUEST_REGISTRATOR_URL="http://vamp_fun_request_registrator:50051"
+        ORCHESTRATOR_URL="http://vamp_fun_orchestrator:50052"
         POLL_FREQUENCY_SECS=5
+        REQUEST_REGISTRATOR_ETHEREUM_RPC_URL="wss://service.lestnet.org:8888/"
+        REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x81D0da49057BCC8b2f5c57bfb43A298C2f634362"
+        REQUEST_REGISTRATOR_GRPC_ADDRESS="127.0.0.1:50051"
+        REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
+        ORCHESTRATOR_SOLANA_RPC_URL="https://api.devnet.solana.com"
+        ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="7X4L5K2URU5qLjCawXpNfbszVZViZSGXSCcXM4eBKSrL"
+        ORCHESTRATOR_GRPC_ADDRESS="127.0.0.1:50052"
+        ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         break
         ;;
     "quit")
@@ -80,6 +96,9 @@ DOCKER_LOCATION="us-central1-docker.pkg.dev"
 DOCKER_PREFIX="${DOCKER_LOCATION}/solver-438012/solver-docker-repo"
 SOLVER_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-solver-image:${OPT}"
 DB_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-db-image:live"
+ORCHESTRATOR_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-orchestrator-image:${OPT}"
+REQUEST_REGISTRATOR_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-request-registrator-image:${OPT}"
+REDIS_DOCKER_IMAGE=redis/redis-stack-server:latest
 
 # Create docker-compose.yml file.
 cat >docker-compose.yml << COMPOSE
@@ -92,6 +111,10 @@ services:
     restart: unless-stopped
     depends_on:
       vamp_fun_db:
+        condition: service_started
+      vamp_fun_request_registrator:
+        condition: service_started
+      vamp_fun_orchestrator:
         condition: service_started
     environment:
       - MYSQL_USER=${MYSQL_USER}
@@ -124,6 +147,43 @@ services:
     ports:
       - 3306:3306
 
+  vamp_fun_request_registrator:
+    container_name: vamp_fun_request_registrator
+    image: ${REQUEST_REGISTRATOR_DOCKER_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      vamp_fun_redis:
+        condition: service_started
+    environment:
+      - REQUEST_REGISTRATOR_ETHEREUM_RPC_URL=${REQUEST_REGISTRATOR_ETHEREUM_RPC_URL}
+      - REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS=${REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS}
+      - REQUEST_REGISTRATOR_GRPC_ADDRESS=${REQUEST_REGISTRATOR_GRPC_ADDRESS}
+      - REQUEST_REGISTRATOR_STORAGE_REDIS_URL=${REQUEST_REGISTRATOR_STORAGE_REDIS_URL}
+    ports:
+      - 50051:50051
+
+  vamp_fun_orchestrator:
+    container_name: vamp_fun_registrator
+    image: ${ORCHESTRATOR_DOCKER_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      vamp_fun_redis:
+        condition: service_started
+    environment:
+      - ORCHESTRATOR_SOLANA_RPC_URL=${ORCHESTRATOR_SOLANA_RPC_URL}
+      - ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS=${ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS}
+      - ORCHESTRATOR_GRPC_ADDRESS=${ORCHESTRATOR_GRPC_ADDRESS}
+      - ORCHESTRATOR_STORAGE_REDIS_URL=${ORCHESTRATOR_STORAGE_REDIS_URL}
+    ports:
+      - 50052:50052
+  
+  vamp_fun_redis:
+    container_name: vamp_fun_redis
+    image: ${REDIS_DOCKER_IMAGE}
+    restart: unless-stopped
+    ports:
+      - 6379:6379
+
 volumes:
   mysql:
 
@@ -134,6 +194,9 @@ set -e
 # Pull images:
 docker pull ${SOLVER_DOCKER_IMAGE}
 docker pull ${DB_DOCKER_IMAGE}
+docker pull ${ORCHESTRATOR_DOCKER_IMAGE}
+docker pull ${REQUEST_REGISTRATOR_DOCKER_IMAGE}
+docker pull ${REDIS_DOCKER_IMAGE}
 
 # Start our docker images.
 ./up.sh

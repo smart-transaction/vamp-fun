@@ -1,0 +1,9 @@
+[solana]
+rpc_url = "${ORCHESTRATOR_SOLANA_RPC_URL}"
+program_address = "${ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS}"
+
+[grpc]
+address = "${ORCHESTRATOR_GRPC_ADDRESS}"
+
+[storage]
+redis_url = "${ORCHESTRATOR_STORAGE_REDIS_URL}"

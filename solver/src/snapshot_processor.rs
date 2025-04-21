@@ -92,6 +92,8 @@ pub async fn process_and_send_snapshot(
         amounts: snapshot.iter().map(|(_, v)| *v).collect(),
     };
 
+    let salt = Utc::now().timestamp() as u64;
+
     let token_vamping_info = TokenVampingInfoProto {
         merkle_root: root.to_vec(),
         token_name: request_data.token_full_name,
@@ -101,6 +103,8 @@ pub async fn process_and_send_snapshot(
         amount,
         decimal: decimals as u32,
         token_mapping: Some(token_mapping),
+        chain_id: request_data.chain_id,
+        salt,
     };
 
     let mut encoded_vamping_info = Vec::new();
@@ -112,7 +116,7 @@ pub async fn process_and_send_snapshot(
         generic_solution: encoded_vamping_info.into(),
         chain_id: request_data.chain_id,
         token_ers20_address: request_data.erc20_address.as_bytes().to_vec(),
-        salt: Utc::now().timestamp() as u64,
+        salt,
     };
 
     let mut client = OrchestratorServiceClient::connect(orchestrator_url.clone()).await?;

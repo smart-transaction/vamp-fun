@@ -23,6 +23,7 @@ stderrlog = "0.6.0"
 tokio = { version = "1.44.1", features = ["full"] }
 tonic = "0.13.0"
 tower-http = { version = "0.6.2", features = ["cors"] }
+chrono = "0.4.40"
 
 [build-dependencies]
 tonic-build = "0.13.0"

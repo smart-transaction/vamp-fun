@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::error::Error;
 
+use chrono::Utc;
 use ethers::types::{Address, U256};
 use ethers::utils::keccak256;
 use log::info;
@@ -109,6 +110,9 @@ pub async fn process_and_send_snapshot(
         app_id: keccak256(VAMPING_APP_ID.as_bytes()).to_vec(),
         request_sequence_id: request_data.sequence_id,
         generic_solution: encoded_vamping_info.into(),
+        chain_id: request_data.chain_id,
+        token_ers20_address: request_data.erc20_address.as_bytes().to_vec(),
+        salt: Utc::now().timestamp() as u64,
     };
 
     let mut client = OrchestratorServiceClient::connect(orchestrator_url.clone()).await?;

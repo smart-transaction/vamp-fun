@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use chrono::Utc;
 use ethers::types::H160;
 use merkle_tree::{Leaf, MerkleTree};
 use prost::Message;
@@ -12,6 +13,8 @@ use vamp_fun::TokenVampingInfoProto;
 
 fn prepare_vamping_info_sample() -> Vec<u8> {
     let mut result = Vec::new();
+
+    println!("Current timestamp: {}", Utc::now().timestamp() as u64);
 
     let mut vamping_info = TokenVampingInfoProto::default();
     vamping_info.token_name = "Vamping Token".to_string();
@@ -69,6 +72,8 @@ fn prepare_vamping_info_sample() -> Vec<u8> {
         addresses: leaves.iter().map(|leaf| leaf.account.to_vec()).collect(),
         amounts: leaves.iter().map(|leaf| leaf.amount).collect(),
     });
+
+    println!("Vamping info: {:?}", vamping_info);
 
     TokenVampingInfoProto::encode(&vamping_info, &mut result).unwrap();
 

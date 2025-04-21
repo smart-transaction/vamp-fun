@@ -28,4 +28,8 @@ message TokenVampingInfoProto {
   uint32 decimal = 7;
   // Token mapping.
   TokenMappingProto token_mapping = 8;
+  // Chain ID of the source Ethereum chain.
+  uint64 chain_id = 9;
+  // The salt for the vamp.fun vamping.
+  uint64 salt = 10;
 }

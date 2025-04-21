@@ -16,7 +16,7 @@ solana_vamp_program = "AUDLhnapssdhniThkMoBy23aRbZreL1gnXbeBmtfXADH"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

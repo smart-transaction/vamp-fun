@@ -10,7 +10,7 @@ use anchor_spl::{
 };
 
 #[derive(Accounts)]
-#[instruction(_token_decimals: u8)]
+#[instruction(_token_decimals: u8, salt: u64)]
 pub struct Initialize<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -20,15 +20,13 @@ pub struct Initialize<'info> {
         payer = authority,
         mint::decimals = _token_decimals,
         mint::authority = mint_authority.key(),
-        seeds = [b"mint"],
-        bump,
     )]
     pub mint_account: Account<'info, Mint>,
 
     /// CHECK: This is safe because we're deriving the PDA
     #[account(
         mut,
-        seeds = [b"metadata", token_metadata_program.key().as_ref(), mint_account.key().as_ref()],
+        seeds = [&salt.to_le_bytes()[..], b"metadata", token_metadata_program.key().as_ref(), mint_account.key().as_ref()],
         bump,
         seeds::program = token_metadata_program.key(),
     )]
@@ -37,7 +35,7 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [b"vamp", authority.key().as_ref()],
+        seeds = [&salt.to_le_bytes()[..], b"vamp", authority.key().as_ref()],
         bump,
         space = 10000 // space = ANCHOR_DISCRIMINATOR + VampState::INIT_SPACE
     )]
@@ -48,14 +46,14 @@ pub struct Initialize<'info> {
         payer = authority,
         token::mint = mint_account,
         token::authority = vamp_state,
-        seeds = [b"vault", mint_account.key().as_ref()],
+        seeds = [&salt.to_le_bytes()[..], b"vault", mint_account.key().as_ref()],
         bump,
     )]
     pub vault: Account<'info, TokenAccount>, // Vamp's token vault
 
-    /// CHECK: This is safe because we're deriving the PDA
+    /// CHECK: PDA for mint authority (unique seeds)
     #[account(
-        seeds = [b"mint"],
+        seeds = [b"mint_authority"],
         bump,
     )]
     pub mint_authority: UncheckedAccount<'info>,
@@ -76,11 +74,13 @@ impl<'info> Initialize<'info> {
         token_uri: String,
         amount: u64,
         _token_decimals: u8,
+        salt: u64,
         bumps: &InitializeBumps,
     ) -> Result<()> {
-        let seeds = b"mint";
+        let mut seeds = salt.to_le_bytes().to_vec();
+        seeds.extend_from_slice(b"mint");
         let bump = bumps.mint_authority;
-        let signer_seeds_inner: &[&[u8]] = &[seeds, &[bump]];
+        let signer_seeds_inner: &[&[u8]] = &[&seeds, &[bump]];
         let signer_seeds: &[&[&[u8]]] = &[signer_seeds_inner];        
 
         create_metadata_accounts_v3(

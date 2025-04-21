@@ -7,16 +7,16 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-solana-vamp-program = "5Jntwox2qV5D3gKiUVG1NVRRvPBFZJP8wFLNmQAYBtVr"
+solana-vamp-program = "AUDLhnapssdhniThkMoBy23aRbZreL1gnXbeBmtfXADH"
 
 [programs.localnet]
-solana_vamp_program = "2H9LS3EhsRqjjTwoe8QwGHCNKACQbVnU396b2Q1BsiQE"
+solana_vamp_program = "AUDLhnapssdhniThkMoBy23aRbZreL1gnXbeBmtfXADH"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

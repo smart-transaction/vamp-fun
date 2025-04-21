@@ -6,34 +6,40 @@ import { SolanaVampProgram } from "../target/types/solana_vamp_program";
 import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddress,
 } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
+const PROGRAM_ID = new PublicKey("AUDLhnapssdhniThkMoBy23aRbZreL1gnXbeBmtfXADH");
+
+// Generate a keypair for the mint account (not a PDA)
+const mintKeypair = anchor.web3.Keypair.generate();
 
 describe("solana-vamp-project", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
   const program = anchor.workspace.solanaVampProgram as Program<SolanaVampProgram>;
   const authority = provider.wallet.publicKey;
+  const salt = new BN(1);
 
   it("Initializes Vamp State and Mints Token", async () => {
-    // Find mint account PDA
-    const [mintAccount] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("mint")],
-      program.programId
-    );
+    // // Find mint account PDA
+    // const [mintAccount] = anchor.web3.PublicKey.findProgramAddressSync(
+    //   [salt.toArrayLike(Buffer, 'le', 8), Buffer.from("mint")],
+    //   PROGRAM_ID
+    // );
+    const mintAccount = mintKeypair.publicKey;
 
     // Find mint authority PDA
     const [mintAuthority] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("mint")],
-      program.programId
-    );
+      [Buffer.from("mint_authority")],
+      PROGRAM_ID
+    );    
 
     const [metadataAccount] = anchor.web3.PublicKey.findProgramAddressSync(
       [
-        Buffer.from("mint"),
+        salt.toArrayLike(Buffer, 'le', 8),
+        Buffer.from("metadata"),
         TOKEN_METADATA_PROGRAM_ID.toBuffer(),
         mintAccount.toBuffer(),
       ],
@@ -59,19 +65,20 @@ describe("solana-vamp-project", () => {
     );
 
     // Find vamp state PDA
-    const [vampState] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("vamp"), authority.toBuffer()],
-      program.programId
+    const [vampState, vampStateBump] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        salt.toArrayLike(Buffer, 'le', 8), 
+        Buffer.from("vamp"), 
+        authority.toBuffer()
+      ],
+      PROGRAM_ID
     );
     
-    // Create a keypair for the vault
-    const vault = await getAssociatedTokenAddress(
-      mintAccount,
-      authority,
-      false,
-      TOKEN_PROGRAM_ID,
-      ASSOCIATED_TOKEN_PROGRAM_ID
-    );    
+    // Find vault PDA
+    const [vault] = anchor.web3.PublicKey.findProgramAddressSync(
+      [salt.toArrayLike(Buffer, 'le', 8), Buffer.from("vault"), mintAccount.toBuffer()],
+      PROGRAM_ID
+    );
 
     console.log("Authority:", authority.toBase58());
     console.log("Mint Account:", mintAccount.toBase58());
@@ -82,7 +89,7 @@ describe("solana-vamp-project", () => {
 
     try {
       const tx = await program.methods
-        .createTokenMint(genericSolution)
+        .createTokenMint(genericSolution, salt)
         .accounts({
           authority,
           mintAccount,
@@ -96,7 +103,7 @@ describe("solana-vamp-project", () => {
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           rent: anchor.web3.SYSVAR_RENT_PUBKEY,
         })
-        .signers([provider.wallet.payer])
+        .signers([provider.wallet.payer, mintKeypair])
         .preInstructions([
           ComputeBudgetProgram.setComputeUnitLimit({
             units: 2_000_000,

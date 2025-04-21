@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use prost::Message;
 
-declare_id!("2H9LS3EhsRqjjTwoe8QwGHCNKACQbVnU396b2Q1BsiQE");
+declare_id!("AUDLhnapssdhniThkMoBy23aRbZreL1gnXbeBmtfXADH");
 
 // Module declarations
 mod constants;
@@ -25,7 +25,7 @@ pub mod solana_vamp_program {
 
     use super::*;
 
-    pub fn create_token_mint(ctx: Context<Initialize>, vamping_data: Vec<u8>) -> Result<()> {
+    pub fn create_token_mint(ctx: Context<Initialize>, vamping_data: Vec<u8>, salt: u64) -> Result<()> {
         let vamping_info = TokenVampingInfoProto::decode(&vamping_data[..]).unwrap();
         let merkle_root: [u8; 32] = vamping_info.merkle_root[..]
             .try_into()
@@ -61,6 +61,7 @@ pub mod solana_vamp_program {
             vamping_info.token_uri.unwrap_or_default(),
             vamping_info.amount,
             vamping_info.decimal as u8,
+            salt,
             &ctx.bumps,
         )?;
 

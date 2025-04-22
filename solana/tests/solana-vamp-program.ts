@@ -10,7 +10,7 @@ import {
 import { BN } from "@coral-xyz/anchor";
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
-const PROGRAM_ID = new PublicKey("AUDLhnapssdhniThkMoBy23aRbZreL1gnXbeBmtfXADH");
+const PROGRAM_ID = new PublicKey("AdcKTPCt4egfRT7LryV5WbZajTSDf9Ncb7RavZ6dWLPi");
 
 // Generate a keypair for the mint account (not a PDA)
 const mintKeypair = anchor.web3.Keypair.generate();

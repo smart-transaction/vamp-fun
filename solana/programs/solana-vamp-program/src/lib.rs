@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use prost::Message;
 
-declare_id!("AUDLhnapssdhniThkMoBy23aRbZreL1gnXbeBmtfXADH");
+declare_id!("AdcKTPCt4egfRT7LryV5WbZajTSDf9Ncb7RavZ6dWLPi");
 
 // Module declarations
 mod constants;

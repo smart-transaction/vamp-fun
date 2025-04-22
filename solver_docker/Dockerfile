@@ -8,6 +8,7 @@ RUN apt-get update \
 WORKDIR /usr/src/vamp-fun-solver
 COPY target/solver solver
 COPY target/proto proto
+COPY target/crates crates
 RUN cargo install --path ./solver
 
 FROM --platform=linux/amd64 ubuntu:22.04

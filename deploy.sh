@@ -24,13 +24,13 @@ do
         REQUEST_REGISTRATOR_URL="http://vamp_fun_request_registrator:50051"
         ORCHESTRATOR_URL="http://vamp_fun_orchestrator:50052"
         POLL_FREQUENCY_SECS=5
-        REQUEST_REGISTRATOR_ETHEREUM_RPC_URL="wss://service.lestnet.org:8888/"
+        REQUEST_REGISTRATOR_ETHEREUM_RPC_URL="wss://service.lestnet.org:8888"
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x81D0da49057BCC8b2f5c57bfb43A298C2f634362"
-        REQUEST_REGISTRATOR_GRPC_ADDRESS="127.0.0.1:50051"
+        REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         ORCHESTRATOR_SOLANA_RPC_URL="https://api.devnet.solana.com"
         ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="7X4L5K2URU5qLjCawXpNfbszVZViZSGXSCcXM4eBKSrL"
-        ORCHESTRATOR_GRPC_ADDRESS="127.0.0.1:50052"
+        ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
         ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         break
         ;;
@@ -45,13 +45,13 @@ do
         REQUEST_REGISTRATOR_URL="http://vamp_fun_request_registrator:50051"
         ORCHESTRATOR_URL="http://vamp_fun_orchestrator:50052"
         POLL_FREQUENCY_SECS=5
-        REQUEST_REGISTRATOR_ETHEREUM_RPC_URL="wss://service.lestnet.org:8888/"
+        REQUEST_REGISTRATOR_ETHEREUM_RPC_URL="wss://service.lestnet.org:8888"
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x81D0da49057BCC8b2f5c57bfb43A298C2f634362"
-        REQUEST_REGISTRATOR_GRPC_ADDRESS="127.0.0.1:50051"
+        REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         ORCHESTRATOR_SOLANA_RPC_URL="https://api.devnet.solana.com"
         ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="7X4L5K2URU5qLjCawXpNfbszVZViZSGXSCcXM4eBKSrL"
-        ORCHESTRATOR_GRPC_ADDRESS="127.0.0.1:50052"
+        ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
         ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         break
         ;;
@@ -102,7 +102,6 @@ REDIS_DOCKER_IMAGE=redis/redis-stack-server:latest
 
 # Create docker-compose.yml file.
 cat >docker-compose.yml << COMPOSE
-version: '3'
 
 services:
   vamp_fun_solver:
@@ -149,7 +148,7 @@ services:
 
   vamp_fun_request_registrator:
     container_name: vamp_fun_request_registrator
-    image: ${REQUEST_REGISTRATOR_DOCKER_IMAGE}
+    image: request-registrator-updated-image
     restart: unless-stopped
     depends_on:
       vamp_fun_redis:
@@ -163,8 +162,8 @@ services:
       - 50051:50051
 
   vamp_fun_orchestrator:
-    container_name: vamp_fun_registrator
-    image: ${ORCHESTRATOR_DOCKER_IMAGE}
+    container_name: vamp_fun_orchestrator
+    image: orchestrator-updated-image
     restart: unless-stopped
     depends_on:
       vamp_fun_redis:
@@ -176,7 +175,7 @@ services:
       - ORCHESTRATOR_STORAGE_REDIS_URL=${ORCHESTRATOR_STORAGE_REDIS_URL}
     ports:
       - 50052:50052
-  
+
   vamp_fun_redis:
     container_name: vamp_fun_redis
     image: ${REDIS_DOCKER_IMAGE}
@@ -197,6 +196,45 @@ docker pull ${DB_DOCKER_IMAGE}
 docker pull ${ORCHESTRATOR_DOCKER_IMAGE}
 docker pull ${REQUEST_REGISTRATOR_DOCKER_IMAGE}
 docker pull ${REDIS_DOCKER_IMAGE}
+
+# Push configs into docker images.
+# Request registrator
+cat >request_registrator_config.toml << REQUEST_REGISTRATOR_CONFIG
+[ethereum]
+rpc_url = "${REQUEST_REGISTRATOR_ETHEREUM_RPC_URL}"
+contract_address = "${REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS}"
+
+[grpc]
+address = "${REQUEST_REGISTRATOR_GRPC_ADDRESS}"
+
+[storage]
+redis_url = "${REQUEST_REGISTRATOR_STORAGE_REDIS_URL}"
+
+REQUEST_REGISTRATOR_CONFIG
+
+TMP_CONTAINER=$(docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
+docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
+docker commit request-registrator-temp-container request-registrator-updated-image
+docker rm ${TMP_CONTAINER}
+
+# Orchestrator
+cat >orchestrator_config.toml << ORCHESTRATOR_CONFIG
+[solana]
+rpc_url = "${ORCHESTRATOR_SOLANA_RPC_URL}"
+program_address = "${ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS}"
+
+[grpc]
+address = "${ORCHESTRATOR_GRPC_ADDRESS}"
+
+[storage]
+redis_url = "${ORCHESTRATOR_STORAGE_REDIS_URL}"
+
+ORCHESTRATOR_CONFIG
+
+TMP_CONTAINER=$(docker create --name orchestrator-temp-container ${ORCHESTRATOR_DOCKER_IMAGE})
+docker cp orchestrator_config.toml orchestrator-temp-container:/config/orchestrator.toml
+docker commit orchestrator-temp-container orchestrator-updated-image
+docker rm ${TMP_CONTAINER}
 
 # Start our docker images.
 ./up.sh

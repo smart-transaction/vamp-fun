@@ -42,10 +42,14 @@ impl RequestRegistratorListener {
         mysql_password: String,
         mysql_database: String,
     ) -> Result<Self, Box<dyn Error>> {
+        info!(
+            "Connecting to request registrator at {}",
+            request_registrator_url
+        );
         let client =
             RequestRegistratorServiceClient::connect(request_registrator_url.clone()).await?;
         info!(
-            "Connected to request registrator at {}",
+            "Connected successfully to request registrator at {}",
             request_registrator_url
         );
         Ok(Self {
@@ -118,7 +122,8 @@ impl RequestRegistratorListener {
                         if user_objective.app_id.as_slice() == vamping_app_id {
                             let handler = deploy_token_handler.clone();
                             spawn(async move {
-                                if let Err(err) = handler.handle(sequence_id, event_to_handle).await {
+                                if let Err(err) = handler.handle(sequence_id, event_to_handle).await
+                                {
                                     error!("Failed to handle event: {:?}", err);
                                 }
                             });

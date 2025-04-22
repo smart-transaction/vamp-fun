@@ -23,11 +23,6 @@ describe("solana-vamp-project", () => {
   const salt = new BN(1);
 
   it("Initializes Vamp State and Mints Token", async () => {
-    // // Find mint account PDA
-    // const [mintAccount] = anchor.web3.PublicKey.findProgramAddressSync(
-    //   [salt.toArrayLike(Buffer, 'le', 8), Buffer.from("mint")],
-    //   PROGRAM_ID
-    // );
     const mintAccount = mintKeypair.publicKey;
 
     // Find mint authority PDA
@@ -38,7 +33,6 @@ describe("solana-vamp-project", () => {
 
     const [metadataAccount] = anchor.web3.PublicKey.findProgramAddressSync(
       [
-        salt.toArrayLike(Buffer, 'le', 8),
         Buffer.from("metadata"),
         TOKEN_METADATA_PROGRAM_ID.toBuffer(),
         mintAccount.toBuffer(),
@@ -67,16 +61,15 @@ describe("solana-vamp-project", () => {
     // Find vamp state PDA
     const [vampState, vampStateBump] = anchor.web3.PublicKey.findProgramAddressSync(
       [
-        salt.toArrayLike(Buffer, 'le', 8), 
         Buffer.from("vamp"), 
-        authority.toBuffer()
+        mintAccount.toBuffer()
       ],
       PROGRAM_ID
     );
     
     // Find vault PDA
     const [vault] = anchor.web3.PublicKey.findProgramAddressSync(
-      [salt.toArrayLike(Buffer, 'le', 8), Buffer.from("vault"), mintAccount.toBuffer()],
+      [Buffer.from("vault"), mintAccount.toBuffer()],
       PROGRAM_ID
     );
 
@@ -89,7 +82,7 @@ describe("solana-vamp-project", () => {
 
     try {
       const tx = await program.methods
-        .createTokenMint(genericSolution, salt)
+        .createTokenMint(genericSolution)
         .accounts({
           authority,
           mintAccount,
@@ -112,6 +105,23 @@ describe("solana-vamp-project", () => {
         .rpc();
 
       console.log("Transaction signature:", tx);
+
+      // Fetch and verify the vamp state account
+      const vampStateAccount = await program.account.vampState.fetch(vampState);
+      console.log("Vamp State Account:", vampStateAccount);
+
+      // Verify the mint account matches
+      assert.equal(vampStateAccount.mint.toBase58(), mintAccount.toBase58(), "Mint account mismatch");
+      
+      // Verify the authority matches
+      assert.equal(vampStateAccount.authority.toBase58(), authority.toBase58(), "Authority mismatch");
+      
+      // Verify the bump matches
+      assert.equal(vampStateAccount.bump, vampStateBump, "Bump mismatch");
+
+      // Verify token mappings
+      assert.isArray(vampStateAccount.tokenMappings, "Token mappings should be an array");
+      console.log("Token Mappings:", vampStateAccount.tokenMappings);
     } catch(error) {
       console.error("Transaction error:", error);
       throw error;

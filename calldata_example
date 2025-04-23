@@ -24,7 +24,7 @@ Token URI
 
 Token decimal
 0x20a6978212c5fa41beb42fd29d8826078dd2b88b83f88ade3eae8c84da25b492
-0x12
+0x09
 
         userObjective:
                 app_id: keccak256("VampFunVamping"),

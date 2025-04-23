@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use prost::Message;
 
-declare_id!("AdcKTPCt4egfRT7LryV5WbZajTSDf9Ncb7RavZ6dWLPi");
+declare_id!("5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc");
 
 // Module declarations
 mod constants;
@@ -35,6 +35,8 @@ pub mod solana_vamp_program {
 
         msg!("Token mapping accounts: {}", token_mapping_proto.addresses.len());
         msg!("Token mapping amounts: {}", token_mapping_proto.amounts.len());
+
+        msg!("Decimal: {}", vamping_info.decimal);
 
         require!(
             token_mapping_proto.addresses.len() == token_mapping_proto.amounts.len(),

@@ -148,6 +148,14 @@ impl SnapshotIndexer {
                     total_amount = total_amount.checked_add(value).unwrap();
                 }
             }
+
+            // Create a temporarily truncated token supply, due to a limited transaction size
+            let tmp_limit = 16usize;
+            if token_supply.len() > tmp_limit {
+                error!("Token supply exceeds the limit of {} entries", tmp_limit);
+                return;
+            }
+
             // Writing the token supply to the database
             if let Err(err) = Self::write_token_supply(
                 mysql_conn,

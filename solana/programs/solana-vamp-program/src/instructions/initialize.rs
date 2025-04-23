@@ -10,7 +10,6 @@ use anchor_spl::{
 };
 
 #[derive(Accounts)]
-#[instruction(_token_decimals: u8)]
 pub struct Initialize<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -18,7 +17,7 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = authority,
-        mint::decimals = _token_decimals,
+        mint::decimals = 9,
         mint::authority = mint_authority.key(),
     )]
     pub mint_account: Account<'info, Mint>,
@@ -57,7 +56,6 @@ pub struct Initialize<'info> {
         bump,
     )]
     pub mint_authority: UncheckedAccount<'info>,
-
     pub token_program: Program<'info, Token>,
     pub token_metadata_program: Program<'info, Metadata>,
     pub system_program: Program<'info, System>,

@@ -12,7 +12,7 @@ import { keccak_256 } from "js-sha3";
 import * as protobuf from "protobufjs";
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
-const PROGRAM_ID = new PublicKey("AdcKTPCt4egfRT7LryV5WbZajTSDf9Ncb7RavZ6dWLPi");
+const PROGRAM_ID = new PublicKey("5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc");
 const TokenMappingProto = `
   syntax = "proto3";
   message TokenMappingProto {

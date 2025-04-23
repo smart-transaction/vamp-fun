@@ -22,7 +22,10 @@ fn convert_to_sol(src_amount: U256) -> Result<(u64, u8), Box<dyn Error>> {
         .checked_div(U256::from(10u64.pow(9)))
         .ok_or("Failed to divide amount")?;
     // Further truncating until the value fits u64
-    for decimals in 0..=9 {
+    // Setting it to zero right now, as we are fixed on decimals = 9.
+    // Will be set to 9 later when we can customize decimals On Solana 
+    let max_extra_decimals = 0u8;
+    for decimals in 0..=max_extra_decimals {
         let trunc_amount = amount
             .checked_div(U256::from(10u64.pow(decimals as u32)))
             .ok_or("Failed to divide amount")?;
@@ -149,11 +152,6 @@ fn test_convert_to_sol() {
     let amount = U256::from(10_000_000_000_000_000_000u128);
     let result = convert_to_sol(amount).unwrap();
     assert_eq!(result, (10000000000, 9));
-
-    // Test case: Large amount that requires zeroes truncating
-    let amount = U256::from(100_000_000_000_000_000_000_000_000_000_000u128);
-    let result = convert_to_sol(amount).unwrap();
-    assert_eq!(result, (10000000000000000000, 5));
 
     // Test case: Small amount conversion
     let amount = U256::from(123);

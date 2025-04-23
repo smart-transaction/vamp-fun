@@ -216,6 +216,7 @@ TMP_CONTAINER=$(docker create --name request-registrator-temp-container ${REQUES
 docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
 docker commit request-registrator-temp-container request-registrator-updated-image
 docker rm ${TMP_CONTAINER}
+rm request_registrator_config.toml
 
 # Orchestrator
 cat >orchestrator_config.toml << ORCHESTRATOR_CONFIG
@@ -232,9 +233,10 @@ redis_url = "${ORCHESTRATOR_STORAGE_REDIS_URL}"
 ORCHESTRATOR_CONFIG
 
 TMP_CONTAINER=$(docker create --name orchestrator-temp-container ${ORCHESTRATOR_DOCKER_IMAGE})
-docker cp orchestrator_config.toml orchestrator-temp-container:/config/orchestrator.toml
+docker cp orchestrator_config.toml orchestrator-temp-container:/config/.orchestrator.toml
 docker commit orchestrator-temp-container orchestrator-updated-image
 docker rm ${TMP_CONTAINER}
+rm orchestrator_config.toml
 
 # Start our docker images.
 ./up.sh

@@ -1,6 +1,6 @@
 [solana]
 rpc_url = "https://api.devnet.solana.com"
-program_address = "7X4L5K2URU5qLjCawXpNfbszVZViZSGXSCcXM4eBKSrL"
+program_address = "5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc"
 
 [grpc]
 address = "127.0.0.1:50052"

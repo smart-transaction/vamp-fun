@@ -16,6 +16,7 @@ pub struct EthereumListener {
 impl EthereumListener {
     pub async fn new(storage: Storage, cfg: &config::Config) -> anyhow::Result<Self> {
         let provider_url: String = cfg.get("ethereum.rpc_url")?;
+        log::info!("Connecting to Ethereum provider at {}", provider_url);
         let provider = Provider::<Ws>::connect(provider_url).await?;
         let contract_address = cfg.get::<String>("ethereum.contract_address")?.parse()?;
         Ok(Self { storage, provider, contract_address })

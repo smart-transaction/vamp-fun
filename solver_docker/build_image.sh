@@ -58,6 +58,7 @@ if [ "${OPT}" == "dev" ]; then
   mkdir -p target
   cp -rf ../solver target
   cp -rf ../proto target
+  cp -rf ../crates target
   rm -rf target/solver/target
   gcloud builds submit \
     --region=${CLOUD_REGION} \

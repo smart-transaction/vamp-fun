@@ -79,7 +79,7 @@ impl<'info> Initialize<'info> {
         let seeds = b"mint_authority";
         let bump = bumps.mint_authority;
         let signer_seeds_inner: &[&[u8]] = &[seeds, &[bump]];
-        let signer_seeds: &[&[&[u8]]] = &[signer_seeds_inner];        
+        let signer_seeds: &[&[&[u8]]] = &[signer_seeds_inner];
 
         create_metadata_accounts_v3(
             CpiContext::new_with_signer(

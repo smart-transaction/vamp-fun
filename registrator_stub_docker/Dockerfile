@@ -23,26 +23,17 @@ USER root
 
 RUN apt-get update
 RUN apt-get install -y ca-certificates
-RUN apt-get install -y gettext-base
 
 # Copy certificates to connect to the ethereum network
 COPY certificates/* /usr/local/share/ca-certificates/
 RUN update-ca-certificates
 
 COPY --from=builder /usr/local/cargo/bin/vamp_fun_registrator_stub /usr/local/bin/vamp_fun_registrator_stub
+RUN mkdir -p src
+COPY --from=builder /usr/src/vamp-fun-registrator-stub/registrator_stub/src/generated src/generated
 
-# Set environment variables
-ENV REQUEST_REGISTRATOR_ETHEREUM_RPC_URL=${REQUEST_REGISTRATOR_ETHEREUM_RPC_URL}
-ENV REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS=${REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS}
-ENV REQUEST_REGISTRATOR_GRPC_ADDRESS=${REQUEST_REGISTRATOR_GRPC_ADDRESS}
-ENV REQUEST_REGISTRATOR_STORAGE_REDIS_URL=${REQUEST_REGISTRATOR_STORAGE_REDIS_URL}
+# Required for future copying of the config before running the container
+RUN mkdir -p config
 
-# Copy the template into the container
-RUN mkdir -p /usr/local/bin/config
-COPY config/config_template.toml /usr/local/bin/config/config_template.toml
-
-# Create final config by substituting env variables
-RUN envsubst < /usr/local/bin/config/config_template.toml > /usr/local/bin/config/config.toml
-
-EXPOSE 50051/tcp
+EXPOSE 50051
 CMD "vamp_fun_registrator_stub"

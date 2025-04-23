@@ -91,12 +91,14 @@ pub async fn start_grpc_server(storage: Storage, cfg: &config::Config) -> anyhow
 
     let service = OrchestratorGrpcService { storage };
 
+    log::info!("Reading the proto descriptor");
     let descriptor_bytes = fs::read("src/generated/user_descriptor.pb")?;
 
     let reflection_service = ReflectionBuilder::configure()
         .register_encoded_file_descriptor_set(&*descriptor_bytes)
         .build_v1()?;
 
+    log::info!("Starting gRPC server on {}", addr);
     Server::builder()
         .add_service(OrchestratorServiceServer::new(service))
         .add_service(reflection_service)

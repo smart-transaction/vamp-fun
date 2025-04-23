@@ -27,6 +27,7 @@ impl Storage {
 
     pub async fn new(cfg: &config::Config) -> anyhow::Result<Self> {
         let redis_url: String = cfg.get("storage.redis_url")?;
+        log::info!("Connecting to Redis at {}", redis_url);
         let client = redis::Client::open(redis_url)?;
         Ok(Self { client: Arc::new(client) })
     }

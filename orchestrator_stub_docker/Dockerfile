@@ -23,26 +23,17 @@ USER root
 
 RUN apt-get update
 RUN apt-get install -y ca-certificates
-RUN apt-get install -y gettext-base
 
 # Copy certificates to connect to the ethereum network
 COPY certificates/* /usr/local/share/ca-certificates/
 RUN update-ca-certificates
 
 COPY --from=builder /usr/local/cargo/bin/vamp_fun_orchestrator_stub /usr/local/bin/vamp_fun_orchestrator_stub
+RUN mkdir -p src
+COPY --from=builder /usr/src/vamp-fun-orchestrator-stub/orchestrator_stub/src/generated src/generated
 
-# Set environment variables
-ENV ORCHESTRATOR_SOLANA_RPC_URL=${ORCHESTRATOR_SOLANA_RPC_URL}
-ENV ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS=${ORCHESTRATOR_SOLANA_CONTRACT_ADDRESS}
-ENV ORCHESTRATOR_GRPC_ADDRESS=${ORCHESTRATOR_GRPC_ADDRESS}
-ENV ORCHESTRATOR_STORAGE_REDIS_URL=${ORCHESTRATOR_STORAGE_REDIS_URL}
+# Required for future copying of the config before running the container
+RUN mkdir -p config
 
-# Copy the template into the container
-RUN mkdir -p /usr/local/bin/config
-COPY config/config_template.toml /usr/local/bin/config/config_template.toml
-
-# Create final config by substituting env variables
-RUN envsubst < /usr/local/bin/config/config_template.toml > /usr/local/bin/config/config.toml
-
-EXPOSE 50052/tcp
+EXPOSE 50052
 CMD "vamp_fun_orchestrator_stub"

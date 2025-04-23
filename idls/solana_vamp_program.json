@@ -1,5 +1,5 @@
 {
-  "address": "AUDLhnapssdhniThkMoBy23aRbZreL1gnXbeBmtfXADH",
+  "address": "AdcKTPCt4egfRT7LryV5WbZajTSDf9Ncb7RavZ6dWLPi",
   "metadata": {
     "name": "solana_vamp_program",
     "version": "0.1.0",
@@ -118,19 +118,7 @@
         {
           "name": "mint_account",
           "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  109,
-                  105,
-                  110,
-                  116
-                ]
-              }
-            ]
-          }
+          "signer": true
         },
         {
           "name": "metadata_account",
@@ -181,7 +169,7 @@
               },
               {
                 "kind": "account",
-                "path": "authority"
+                "path": "mint_account"
               }
             ]
           }
@@ -218,7 +206,17 @@
                   109,
                   105,
                   110,
-                  116
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
                 ]
               }
             ]

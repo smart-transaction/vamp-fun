@@ -17,7 +17,10 @@ use solana_vamp_program::{client::accounts, client::args};
 pub struct SolanaOrchestrator;
 
 impl SolanaOrchestrator {
-    pub async fn submit_to_solana(vamping_data_bytes: Vec<u8>) -> Result<()> {
+    pub async fn submit_to_solana(vamping_data_bytes: Vec<u8>, tmp_source_token_address: Vec<u8>,
+                                  tmp_chain_id: u64,
+                                  tmp_salt: u64) -> Result<
+        ()> {
         //TODO: Will be replaced with signing on the solver side
         let key_str = "61jm122Tk5xu67ruvsHXK6fZZptmcEWFD2XRjMtCqUPr8NJqwbAkcvsREJigRVbzpNpACrE7ts2RhBapXtRxFJ3P"; // Hardcoded PoC testnet key
         let key_bytes = bs58::decode(key_str).into_vec()?; // decode base58
@@ -32,24 +35,37 @@ impl SolanaOrchestrator {
         );
         let program = client.program(solana_vamp_program::ID)?;
 
-        // log::info!("solana_vamp_program::ID: {}", solana_vamp_program::ID);
-        // log::info!("token_program::ID: {}", TOKEN_PROGRAM_ID);
-        // log::info!("token_metadata_program::ID: {}", TOKEN_METADATA_PROGRAM_ID);
-        // log::info!("associated_token_program::ID: {}", ASSOCIATED_TOKEN_PROGRAM_ID);
-        // log::info!("system_program::ID: {}", system_program::ID);
-        // log::info!("sysvar::rent::ID: {}", sysvar::rent::ID);
+        log::info!("solana_vamp_program::ID: {}", solana_vamp_program::ID);
+        log::info!("token_program::ID: {}", TOKEN_PROGRAM_ID);
+        log::info!("token_metadata_program::ID: {}", TOKEN_METADATA_PROGRAM_ID);
+        log::info!("associated_token_program::ID: {}", ASSOCIATED_TOKEN_PROGRAM_ID);
+        log::info!("system_program::ID: {}", system_program::ID);
+        log::info!("sysvar::rent::ID: {}", sysvar::rent::ID);
 
-        let (mint_account, _bump) =
-            Pubkey::find_program_address(&[b"mint"], &solana_vamp_program::ID);
-        log::info!("mint_account: {}", mint_account);
+        // let seeds:&[&[u8]] = &[
+        //     b"clone",
+        //     &tmp_source_token_address, // Unique per ERC-20
+        //     &tmp_chain_id.to_le_bytes(), // Cross-chain uniqueness
+        //     &tmp_salt.to_le_bytes(),  // Optional extra entropy/versioning (multiple clones of same token at least for our development testing stage)
+        // ];
+        // let (destination_token_address, _bump) = Pubkey::find_program_address(seeds,
+        //                                                                       &solana_vamp_program::ID);
+        //
+        // let (mint_account, _bump) =
+        //     Pubkey::find_program_address(&[b"mint"], &solana_vamp_program::ID);
+        // log::info!("mint_account: {}", mint_account);
+
+        let mint_keypair = Arc::new(Keypair::new());
+        log::info!("mint_keypair.pubkey: {}", mint_keypair.pubkey());
+        let mint_account = mint_keypair.pubkey();
 
         let (mint_authority, _bump) =
-            Pubkey::find_program_address(&[b"mint"], &solana_vamp_program::ID);
-        log::info!("mint_authority: {}", mint_account);
+            Pubkey::find_program_address(&[b"mint_authority"], &solana_vamp_program::ID);
+        log::info!("mint_authority: {}", mint_authority);
 
         let (metadata_account, _bump) = Pubkey::find_program_address(
             &[
-                b"mint",
+                b"metadata",
                 TOKEN_METADATA_PROGRAM_ID.as_ref(),
                 mint_account.as_ref(),
             ],
@@ -58,7 +74,7 @@ impl SolanaOrchestrator {
         log::info!("metadata_account: {}", metadata_account);
 
         let (vamp_state, _bump) = Pubkey::find_program_address(
-            &[b"vamp", payer_keypair.pubkey().as_ref()],
+            &[b"vamp", mint_account.as_ref()],
             &solana_vamp_program::ID,
         );
         log::info!("vamp_state: {}", vamp_state);
@@ -73,6 +89,7 @@ impl SolanaOrchestrator {
             .request()
             .accounts(accounts::CreateTokenMint {
                 authority: payer_keypair.pubkey(),
+                // mint_account: destination_token_address,
                 mint_account,
                 metadata_account,
                 vamp_state,
@@ -99,7 +116,8 @@ impl SolanaOrchestrator {
         let tx = Transaction::new_signed_with_payer(
             &all_instructions,
             Some(&payer_keypair.pubkey()),
-            &[&*payer_keypair],
+            // &[&*payer_keypair],
+            &[&*payer_keypair, &*mint_keypair],
             recent_blockhash,
         );
 

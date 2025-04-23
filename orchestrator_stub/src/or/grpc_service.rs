@@ -1,4 +1,3 @@
-use std::fs;
 use crate::or::solana_orchestrator::SolanaOrchestrator;
 use crate::or::storage::Storage;
 use crate::proto::orchestrator_service_server::{OrchestratorService, OrchestratorServiceServer};
@@ -6,6 +5,7 @@ use crate::proto::{
     AppChainResultProto, AppChainResultStatus, SubmitSolutionRequestProto,
     SubmitSolutionResponseProto,
 };
+use std::fs;
 use tonic::{Request, Response, Status, transport::Server};
 use tonic_reflection::server::Builder as ReflectionBuilder;
 
@@ -31,19 +31,36 @@ impl OrchestratorService for OrchestratorGrpcService {
         {
             Some(_stored_request) => {
                 // Forward request data to Solana program
-                log::info!("Submitting solution to Solana program for sequence_id: {}",
-                    req.request_sequence_id);
-                SolanaOrchestrator::submit_to_solana(req.generic_solution).await
-                    .map_err(|e| Status::internal(format!("Failed to execute solana transaction: \
-                    {}", e)))?;
+                log::info!(
+                    "Submitting solution to Solana program for sequence_id: {}",
+                    req.request_sequence_id
+                );
+                SolanaOrchestrator::submit_to_solana(
+                    req.generic_solution,
+                    req.token_ers20_address,
+                    req.chain_id,
+                    req.salt,
+                )
+                .await
+                .map_err(|e| {
+                    Status::internal(format!(
+                        "Failed to execute solana transaction: \
+                    {}",
+                        e
+                    ))
+                })?;
 
                 // Update state to UnderExecution
-                log::info!("Updating request state to UnderExecution for sequence_id: {}",
-                    req.request_sequence_id);
+                log::info!(
+                    "Updating request state to UnderExecution for sequence_id: {}",
+                    req.request_sequence_id
+                );
                 self.storage
                     .update_request_state_to_under_execution(req.request_sequence_id)
                     .await
-                .map_err(|e| Status::internal(format!("failed to update request state: {}", e)))?;
+                    .map_err(|e| {
+                        Status::internal(format!("failed to update request state: {}", e))
+                    })?;
 
                 Ok(Response::new(SubmitSolutionResponseProto {
                     result: AppChainResultProto {
@@ -68,16 +85,11 @@ impl OrchestratorService for OrchestratorGrpcService {
     }
 }
 
-pub async fn start_grpc_server(
-    storage: Storage,
-    cfg: &config::Config,
-) -> anyhow::Result<()> {
+pub async fn start_grpc_server(storage: Storage, cfg: &config::Config) -> anyhow::Result<()> {
     let addr: String = cfg.get("grpc.address")?;
     let addr = addr.parse()?;
 
-    let service = OrchestratorGrpcService {
-        storage,
-    };
+    let service = OrchestratorGrpcService { storage };
 
     let descriptor_bytes = fs::read("src/generated/user_descriptor.pb")?;
 

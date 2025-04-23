@@ -15,7 +15,7 @@ pub struct Claim<'info> {
 
     #[account(
         mut,
-        seeds = [b"vamp", vamp_state.authority.as_ref()],
+        seeds = [b"vamp", mint.key().as_ref()],
         bump = vamp_state.bump
     )]
     pub vamp_state: Account<'info, VampState>,
@@ -93,13 +93,14 @@ pub fn claim_tokens(
     // Verify the Ethereum signature
     verify_ethereum_signature(&amount.to_string(), &eth_signature, eth_address)?;
 
-    // Transfer tokens
+    let mint_key = ctx.accounts.mint.key();
     let seeds = &[
         b"vamp",
-        ctx.accounts.vamp_state.authority.as_ref(),
+        mint_key.as_ref(),
         &[ctx.accounts.vamp_state.bump],
     ];
 
+    // Transfer from vault to claimer
     anchor_spl::token::transfer(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),

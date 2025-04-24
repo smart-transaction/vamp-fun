@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use prost::Message;
 
-declare_id!("5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc");
+declare_id!("CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH");
 
 // Module declarations
 mod constants;
@@ -70,7 +70,7 @@ pub mod solana_vamp_program {
     }
 
     // TDOD: add logic to avoid double claim
-    pub fn claim(ctx: Context<Claim>, eth_address: [u8; 20], eth_signature: String) -> Result<()> {
-        claim_tokens(ctx, eth_address, eth_signature)
+    pub fn claim(ctx: Context<Claim>, amount: u64, eth_address: [u8; 20], eth_signature: String) -> Result<()> {
+        claim_tokens(ctx, amount, eth_address, eth_signature)
     }
 }

@@ -169,7 +169,7 @@ describe("solana-vamp-project", () => {
     };
   }
 
-  async function signMessage(message, privateKey) {
+  async function signMessage(message: string, privateKey: string) {
     try {
       // Create a wallet instance from the private key
       const wallet = new ethers.Wallet(privateKey);
@@ -183,7 +183,7 @@ describe("solana-vamp-project", () => {
     }
   }
 
-  function hexToBytes(hex) {
+  function hexToBytes(hex: string) {
     if (hex.length % 2 !== 0) {
       throw new Error("Invalid hex string");
     }

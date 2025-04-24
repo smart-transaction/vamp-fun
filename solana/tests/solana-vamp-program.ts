@@ -1,4 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
+import { ethers } from "ethers";
 import { Program } from "@coral-xyz/anchor";
 import { ComputeBudgetProgram, PublicKey } from "@solana/web3.js";
 import { assert } from "chai";
@@ -12,7 +13,7 @@ import {
 import { BN } from "@coral-xyz/anchor";
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
-const PROGRAM_ID = new PublicKey("CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH");
+const PROGRAM_ID = new PublicKey("5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc");
 
 // Generate a keypair for the mint account (not a PDA)
 const mintKeypair = anchor.web3.Keypair.generate();
@@ -54,7 +55,7 @@ describe("solana-vamp-project", () => {
         ])
         .rpc();
       await verifyVampState(accounts.vampState, accounts.vampStateBump, mintAccount1);
-    } catch(error) {
+    } catch (error) {
       console.error("Transaction error:", error);
       throw error;
     }
@@ -62,49 +63,47 @@ describe("solana-vamp-project", () => {
 
   it("Claims tokens for a user based on ETH address mapping", async () => {
     const mintAccount2 = mintKeypair2.publicKey;
-    
+
     const accounts = await setupInitAccounts(mintAccount2);
     const vampingData = await getVampingData();
 
     await program.methods
-        .createTokenMint(vampingData)
-        .accounts({
-          authority,
-          mintAccount: mintKeypair2.publicKey,
-          metadataAccount: accounts.metadataAccount,
-          vampState: accounts.vampState,
-          vault: accounts.vault,
-          mintAuthority: accounts.mintAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
-          systemProgram: anchor.web3.SystemProgram.programId,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-        } as any)
-        .signers([provider.wallet.payer, mintKeypair2])
-        .preInstructions([
-          ComputeBudgetProgram.setComputeUnitLimit({
-            units: 2_000_000,
-          })
-        ])
-        .rpc();
-    
+      .createTokenMint(vampingData)
+      .accounts({
+        authority,
+        mintAccount: mintKeypair2.publicKey,
+        metadataAccount: accounts.metadataAccount,
+        vampState: accounts.vampState,
+        vault: accounts.vault,
+        mintAuthority: accounts.mintAuthority,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      } as any)
+      .signers([provider.wallet.payer, mintKeypair2])
+      .preInstructions([
+        ComputeBudgetProgram.setComputeUnitLimit({
+          units: 2_000_000,
+        })
+      ])
+      .rpc();
+
     // Verify the vamp state was created correctly
     const vampStateAccount = await program.account.vampState.fetch(accounts.vampState);
-    
+
     // Use the first address from the token mappings
-    const ethAddress = vampStateAccount.tokenMappings[0].ethAddress;
-    const amount = vampStateAccount.tokenMappings[0].tokenAmount;
-    
-    // Signature is mocked since verification is not implemented yet
-    const ethSignature = "0x5d4c3f6e9a8d45a3f3e70c2e2b2a1fc9e6b4fa4d6d3b41d20b0bda0fa";
+
+    const amount = 1000000000;
+    const [ethAddress, ethSignature] = await signMessage(amount.toString(), "94eb3102993b41ec55c241060f47daa0f6372e2e3ad7e91612ae36c364042e44");
 
     const claimerTokenAccount = await getAssociatedTokenAddress(mintAccount2, claimerKeypair.publicKey);
-  
+
     // Airdrop SOL to the claimer and create the ATA
     const sig = await provider.connection.requestAirdrop(claimerKeypair.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL);
     await provider.connection.confirmTransaction(sig);
-  
+
     const ataIx = createAssociatedTokenAccountInstruction(
       claimerKeypair.publicKey,
       claimerTokenAccount,
@@ -113,10 +112,12 @@ describe("solana-vamp-project", () => {
     );
     const ataTx = new anchor.web3.Transaction().add(ataIx);
     await provider.sendAndConfirm(ataTx, [claimerKeypair]);
-  
+
     // Call claim
+    const ethAddressBytes: number[] = hexToBytes(ethAddress);
+    const ethSignatureBytes = hexToBytes(ethSignature);
     const tx = await program.methods
-      .claim(new BN(amount), ethAddress, ethSignature)
+      .claim(new BN(amount), ethAddressBytes, ethSignatureBytes)
       .accounts({
         authority: claimerKeypair.publicKey,
         vampState: accounts.vampState,
@@ -127,7 +128,7 @@ describe("solana-vamp-project", () => {
       } as any)
       .signers([claimerKeypair])
       .rpc();
-  
+
     // Check if tokens were transferred
     const claimerAta = await provider.connection.getTokenAccountBalance(claimerTokenAccount);
     console.log("Claimer token balance:", claimerAta.value.amount);
@@ -166,6 +167,31 @@ describe("solana-vamp-project", () => {
       vampStateBump,
       vault
     };
+  }
+
+  async function signMessage(message, privateKey) {
+    try {
+      // Create a wallet instance from the private key
+      const wallet = new ethers.Wallet(privateKey);
+
+      // Sign the message using Ethereum's prefixed message hashing
+      const signature = await wallet.signMessage(message);
+      return [wallet.address, signature];
+    } catch (error) {
+      console.error('Error signing message:', error);
+      throw error;
+    }
+  }
+
+  function hexToBytes(hex) {
+    if (hex.length % 2 !== 0) {
+      throw new Error("Invalid hex string");
+    }
+    const bytes = [];
+    for (let i = 2; i < hex.length; i += 2) {
+      bytes[(i - 2) / 2] = parseInt(hex.substr(i, 2), 16);
+    }
+    return bytes;
   }
 
   async function verifyVampState(vampState: PublicKey, vampStateBump: number, mintAccount: PublicKey) {

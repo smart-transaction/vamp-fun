@@ -233,7 +233,7 @@ redis_url = "${ORCHESTRATOR_STORAGE_REDIS_URL}"
 ORCHESTRATOR_CONFIG
 
 TMP_CONTAINER=$(docker create --name orchestrator-temp-container ${ORCHESTRATOR_DOCKER_IMAGE})
-docker cp orchestrator_config.toml orchestrator-temp-container:/config/.orchestrator.toml
+docker cp orchestrator_config.toml orchestrator-temp-container:/config/orchestrator.toml
 docker commit orchestrator-temp-container orchestrator-updated-image
 docker rm ${TMP_CONTAINER}
 rm orchestrator_config.toml

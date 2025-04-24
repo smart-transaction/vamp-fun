@@ -57,7 +57,6 @@ pub fn handle_get_claim_amount(
         Ok(amount) => {
             let amount: Option<String> = amount;
             if amount.is_none() {
-                log::warn!("No claim amount found for user: {}", user_address);
                 return Ok(Json(TokenClaimData {
                     token_address,
                     user_address,

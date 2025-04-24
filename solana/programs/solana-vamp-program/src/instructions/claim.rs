@@ -48,7 +48,7 @@ fn verify_ethereum_signature(
 
     {
         let signature =
-            libsecp256k1::Signature::parse_standard_slice(&signature[..64]).map_err(|e| {
+            Signature::parse_standard_slice(&signature[..64]).map_err(|e| {
                 msg!("Failed to parse signature: {:?}", e);
                 ProgramError::InvalidArgument
             })?;

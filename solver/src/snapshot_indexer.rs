@@ -6,12 +6,11 @@ use ethers::{
     utils::keccak256,
 };
 use log::{error, info};
-use mysql::{Pool, PooledConn, TxOpts, prelude::Queryable};
+use mysql::{PooledConn, TxOpts, prelude::Queryable};
 use tokio::spawn;
 
 use crate::{
-    chain_info::{ChainInfo, fetch_chains},
-    snapshot_processor::process_and_send_snapshot,
+    chain_info::{fetch_chains, ChainInfo}, mysql_conn::create_db_conn, snapshot_processor::process_and_send_snapshot
 };
 
 #[derive(Default)]
@@ -56,19 +55,6 @@ impl SnapshotIndexer {
         }
     }
 
-    pub fn create_db_conn(&self) -> Result<PooledConn, Box<dyn Error>> {
-        let mysql_url = format!(
-            "mysql://{}:{}@{}:{}/{}",
-            self.mysql_user,
-            self.mysql_password,
-            self.mysql_host,
-            self.mysql_port,
-            self.mysql_database
-        );
-        let db_conn = Pool::new(mysql_url.as_str())?.get_conn()?;
-        Ok(db_conn)
-    }
-
     pub async fn init_chain_info(&mut self) -> Result<(), Box<dyn Error>> {
         let chains = fetch_chains().await?;
         self.chain_info = chains;
@@ -86,7 +72,13 @@ impl SnapshotIndexer {
 
         let provider = Arc::new(self.connect_chain(request_data.chain_id).await?);
 
-        let mysql_conn = self.create_db_conn()?;
+        let mysql_conn = create_db_conn(
+            &self.mysql_host,
+            &self.mysql_port.to_string(),
+            &self.mysql_user,
+            &self.mysql_password,
+            &self.mysql_database,
+        )?;
         let (mut token_supply, prev_block_number) = Self::read_token_supply(
             mysql_conn,
             request_data.chain_id,
@@ -97,7 +89,13 @@ impl SnapshotIndexer {
             .map(|(_, v)| *v)
             .fold(U256::zero(), |acc, x| acc.checked_add(x).unwrap());
 
-        let mysql_conn = self.create_db_conn()?;
+        let mysql_conn = create_db_conn(
+            &self.mysql_host,
+            &self.mysql_port.to_string(),
+            &self.mysql_user,
+            &self.mysql_password,
+            &self.mysql_database,
+        )?;
         let orchestrator_url = self.orchestrator_url.clone();
         spawn(async move {
             let blocks_step = 10000;

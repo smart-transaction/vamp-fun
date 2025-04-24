@@ -17,6 +17,8 @@ use tokio::{net::TcpListener, spawn};
 use tower_http::cors::{Any, CorsLayer};
 
 mod chain_info;
+mod http_handler;
+mod mysql_conn;
 mod request_handler;
 mod request_registrator_listener;
 mod snapshot_indexer;
@@ -79,12 +81,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Initialize SnapshotIndexer
     let mut indexer = SnapshotIndexer::new(
-        args.mysql_host,
-        args.mysql_port,
-        args.mysql_user,
-        args.mysql_password,
-        args.mysql_database,
-        args.orchestrator_url,
+        args.mysql_host.clone(),
+        args.mysql_port.clone(),
+        args.mysql_user.clone(),
+        args.mysql_password.clone(),
+        args.mysql_database.clone(),
+        args.orchestrator_url.clone(),
     );
     indexer.init_chain_info().await?;
 
@@ -106,6 +108,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let app = Router::new()
         .route("/", get(|| async { "Vamp.fun Solver" }))
+        .route(
+            "/get_claim_amount",
+            get({
+                async move |params| {
+                    http_handler::handle_get_claim_amount(
+                        params,
+                        args.mysql_host,
+                        args.mysql_port.to_string(),
+                        args.mysql_user,
+                        args.mysql_password,
+                        args.mysql_database,
+                    )
+                }
+            }),
+        )
         .layer(cors);
 
     let tcp_listener = TcpListener::bind(format!("0.0.0.0:{}", args.port))

@@ -1,5 +1,5 @@
 {
-  "address": "AdcKTPCt4egfRT7LryV5WbZajTSDf9Ncb7RavZ6dWLPi",
+  "address": "5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc",
   "metadata": {
     "name": "solana_vamp_program",
     "version": "0.1.0",
@@ -41,8 +41,7 @@
               },
               {
                 "kind": "account",
-                "path": "vamp_state.authority",
-                "account": "VampState"
+                "path": "mint"
               }
             ]
           }

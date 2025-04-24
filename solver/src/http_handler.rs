@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use axum::{Json, extract::Query, http::StatusCode};
+use ethers::types::U256;
 use mysql::prelude::Queryable;
 use serde::{Deserialize, Serialize};
 
@@ -11,6 +12,7 @@ pub struct TokenClaimData {
     pub token_address: String,
     pub user_address: String,
     pub amount: String,
+    pub decimals: u8,
 }
 
 pub fn handle_get_claim_amount(
@@ -60,13 +62,19 @@ pub fn handle_get_claim_amount(
                     token_address,
                     user_address,
                     amount: "0".to_string(),
+                    decimals: 9,
                 }));
             }
             let amount = amount.unwrap();
+            let num_amount = U256::from_dec_str(&amount)
+                .unwrap_or_default()
+                .checked_div(U256::from(10u64.pow(9)))
+                .unwrap_or_default();
             return Ok(Json(TokenClaimData {
                 token_address,
                 user_address,
-                amount,
+                amount: num_amount.to_string(),
+                decimals: 9,
             }));
         }
         Err(err) => {

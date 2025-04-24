@@ -27,50 +27,50 @@ fn prepare_vamping_info_sample() -> Vec<u8> {
     vamping_info.decimal = 9;
 
     // Merkle tree computation
-    let leaves = vec![
-        Leaf {
-            account: H160::from_str("0xc3913d4D8bAb4914328651C2EAE817C8b78E1f4c")
-                .unwrap()
-                .to_fixed_bytes(),
-            amount: 1000000000,
-            decimals: 9,
-        },
-        Leaf {
-            account: H160::from_str("0x65D08a056c17Ae13370565B04cF77D2AfA1cB9FA")
-                .unwrap()
-                .to_fixed_bytes(),
-            amount: 2000000000,
-            decimals: 9,
-        },
-        Leaf {
-            account: H160::from_str("0x5918b2e647464d4743601a865753e64C8059Dc4F")
-                .unwrap()
-                .to_fixed_bytes(),
-            amount: 3000000000,
-            decimals: 9,
-        },
-        Leaf {
-            account: H160::from_str("0xF5504cE2BcC52614F121aff9b93b2001d92715CA")
-                .unwrap()
-                .to_fixed_bytes(),
-            amount: 4000000000,
-            decimals: 9,
-        },
-        Leaf {
-            account: H160::from_str("0xfDCe42116f541fc8f7b0776e2B30832bD5621C85")
-                .unwrap()
-                .to_fixed_bytes(),
-            amount: 5000000000,
-            decimals: 9,
-        },
-    ];
+    // let leaves = vec![
+    //     Leaf {
+    //         account: H160::from_str("0xc3913d4D8bAb4914328651C2EAE817C8b78E1f4c")
+    //             .unwrap()
+    //             .to_fixed_bytes(),
+    //         amount: 1000000000,
+    //         decimals: 9,
+    //     },
+    //     Leaf {
+    //         account: H160::from_str("0x65D08a056c17Ae13370565B04cF77D2AfA1cB9FA")
+    //             .unwrap()
+    //             .to_fixed_bytes(),
+    //         amount: 2000000000,
+    //         decimals: 9,
+    //     },
+    //     Leaf {
+    //         account: H160::from_str("0x5918b2e647464d4743601a865753e64C8059Dc4F")
+    //             .unwrap()
+    //             .to_fixed_bytes(),
+    //         amount: 3000000000,
+    //         decimals: 9,
+    //     },
+    //     Leaf {
+    //         account: H160::from_str("0xF5504cE2BcC52614F121aff9b93b2001d92715CA")
+    //             .unwrap()
+    //             .to_fixed_bytes(),
+    //         amount: 4000000000,
+    //         decimals: 9,
+    //     },
+    //     Leaf {
+    //         account: H160::from_str("0xfDCe42116f541fc8f7b0776e2B30832bD5621C85")
+    //             .unwrap()
+    //             .to_fixed_bytes(),
+    //         amount: 5000000000,
+    //         decimals: 9,
+    //     },
+    // ];
 
-    let merkle_tree = MerkleTree::new(&leaves);
-    vamping_info.merkle_root = merkle_tree.root.to_vec();
+    // let merkle_tree = MerkleTree::new(&leaves);
+    // vamping_info.merkle_root = merkle_tree.root.to_vec();
     vamping_info.amount = 15000000000;
     vamping_info.token_mapping = Some(vamp_fun::TokenMappingProto {
-        addresses: leaves.iter().map(|leaf| leaf.account.to_vec()).collect(),
-        amounts: leaves.iter().map(|leaf| leaf.amount).collect(),
+        addresses: Vec::new(),
+        amounts: Vec::new(),
     });
 
     println!("Vamping info: {:?}", vamping_info);

@@ -87,7 +87,8 @@ pub async fn process_and_send_snapshot(
     let mut user_event = UserEventProto::default();
     user_event.app_id = keccak256(VAMPING_APP_ID.as_bytes()).to_vec();
 
-    let token_mapping = TokenMappingProto {
+    // Temporarily disable the token mapping on Solana.
+    let _ = TokenMappingProto {
         addresses: snapshot
             .iter()
             .map(|(k, _)| k.as_bytes().to_vec())
@@ -105,7 +106,7 @@ pub async fn process_and_send_snapshot(
         token_uri: Some(request_data.token_uri),
         amount,
         decimal: decimals as u32,
-        token_mapping: Some(token_mapping),
+        token_mapping: Some(TokenMappingProto { addresses: Vec::new(), amounts: Vec::new() }),
         chain_id: request_data.chain_id,
         salt,
     };

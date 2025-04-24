@@ -1,12 +1,6 @@
-// File: src/instructions/claim.rs
-
 use anchor_lang::prelude::*;
-// use anchor_lang::solana_program::keccak;
 use anchor_spl::token::{Mint, Token, TokenAccount, Transfer};
 use crate::state::vamp_state::VampState;
-use crate::event::ErrorCode;
-// use secp256k1::{ecdsa::{RecoverableSignature, RecoveryId}, Message, Secp256k1};
-// use hex;
 
 #[derive(Accounts)]
 pub struct Claim<'info> {
@@ -80,15 +74,16 @@ fn verify_ethereum_signature(
 
 pub fn claim_tokens(
     ctx: Context<Claim>,
+    amount: u64,
     eth_address: [u8; 20],
     eth_signature: String,
 ) -> Result<()> {
     // Find the token amount for the given ETH address
-    let amount = ctx.accounts.vamp_state.token_mappings
-        .iter()
-        .find(|mapping| mapping.eth_address == eth_address)
-        .ok_or(ErrorCode::InvalidAddress)?
-        .token_amount;
+    // let amount = ctx.accounts.vamp_state.token_mappings
+    //     .iter()
+    //     .find(|mapping| mapping.eth_address == eth_address)
+    //     .ok_or(ErrorCode::InvalidAddress)?
+    //     .token_amount;
 
     // Verify the Ethereum signature
     verify_ethereum_signature(&amount.to_string(), &eth_signature, eth_address)?;

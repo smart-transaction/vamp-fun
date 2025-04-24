@@ -10,28 +10,9 @@ import {
   createAssociatedTokenAccountInstruction
 } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
-import { keccak_256 } from "js-sha3";
-import * as protobuf from "protobufjs";
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
-const PROGRAM_ID = new PublicKey("5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc");
-const TokenMappingProto = `
-  syntax = "proto3";
-  message TokenMappingProto {
-    repeated bytes addresses = 1;
-    repeated uint64 amounts = 2;
-  }
-
-  message TokenVampingInfoProto {
-    bytes merkle_root = 1;
-    string token_name = 2;
-    string token_symbol = 3;
-    string token_uri = 4;
-    uint64 amount = 5;
-    uint32 decimal = 6;
-    TokenMappingProto token_mapping = 7;
-  }
-`;
+const PROGRAM_ID = new PublicKey("CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH");
 
 // Generate a keypair for the mint account (not a PDA)
 const mintKeypair = anchor.web3.Keypair.generate();
@@ -113,6 +94,7 @@ describe("solana-vamp-project", () => {
     
     // Use the first address from the token mappings
     const ethAddress = vampStateAccount.tokenMappings[0].ethAddress;
+    const amount = vampStateAccount.tokenMappings[0].tokenAmount;
     
     // Signature is mocked since verification is not implemented yet
     const ethSignature = "0x5d4c3f6e9a8d45a3f3e70c2e2b2a1fc9e6b4fa4d6d3b41d20b0bda0fa";
@@ -134,7 +116,7 @@ describe("solana-vamp-project", () => {
   
     // Call claim
     const tx = await program.methods
-      .claim(ethAddress, ethSignature)
+      .claim(new BN(amount), ethAddress, ethSignature)
       .accounts({
         authority: claimerKeypair.publicKey,
         vampState: accounts.vampState,
@@ -149,7 +131,7 @@ describe("solana-vamp-project", () => {
     // Check if tokens were transferred
     const claimerAta = await provider.connection.getTokenAccountBalance(claimerTokenAccount);
     console.log("Claimer token balance:", claimerAta.value.amount);
-    assert.equal(claimerAta.value.amount, vampStateAccount.tokenMappings[0].tokenAmount.toString(), "Token amount mismatch");
+    assert.equal(claimerAta.value.amount, amount.toString(), "Token amount mismatch");
   });
 
   async function setupInitAccounts(mintAccount: PublicKey) {

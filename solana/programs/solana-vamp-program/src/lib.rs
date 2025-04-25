@@ -1,10 +1,9 @@
 use anchor_lang::prelude::*;
 use prost::Message;
 
-declare_id!("5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc");
+declare_id!("CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH");
 
 // Module declarations
-mod constants;
 mod event;
 mod instructions;
 mod state;
@@ -12,7 +11,7 @@ mod use_proto;
 mod util;
 
 // Re-exports
-pub use constants::*;
+use event::TokenMintCreated;
 use event::ErrorCode;
 use instructions::*;
 
@@ -39,14 +38,23 @@ pub mod solana_vamp_program {
 
         ctx.accounts.create_token_mint(
             token_mapping,
-            vamping_info.token_name,
-            vamping_info.token_symbol,
+            vamping_info.token_name.clone(),
+            vamping_info.token_symbol.clone(),
             vamping_info.token_uri.unwrap_or_default(),
             vamping_info.amount,
             vamping_info.decimal as u8,
             &ctx.bumps,
         )?;
 
+        let token_name = vamping_info.token_name.clone();
+        let token_symbol = vamping_info.token_symbol.clone();
+        
+        emit!(TokenMintCreated {
+            mint_account: ctx.accounts.mint_account.key(),
+            token_name,
+            token_symbol,
+            amount: vamping_info.amount
+        });
         Ok(())
     }
 

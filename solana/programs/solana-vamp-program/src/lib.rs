@@ -27,30 +27,11 @@ pub mod solana_vamp_program {
 
     pub fn create_token_mint(ctx: Context<Initialize>, vamping_data: Vec<u8>) -> Result<()> {
         let vamping_info = TokenVampingInfoProto::decode(&vamping_data[..]).unwrap();
-        let merkle_root: [u8; 32] = vamping_info.merkle_root[..]
-            .try_into()
-            .expect("Merkle root should be 32 bytes");
-
         let token_mapping_proto = vamping_info.token_mapping.unwrap_or_default();
-
-        msg!("Token mapping accounts: {}", token_mapping_proto.addresses.len());
-        msg!("Token mapping amounts: {}", token_mapping_proto.amounts.len());
-
-        msg!("Decimal: {}", vamping_info.decimal);
 
         require!(
             token_mapping_proto.addresses.len() == token_mapping_proto.amounts.len(),
             ErrorCode::InvalidTokenMapping,
-        );
-
-        require!(
-            verify_merkle_root(
-                &token_mapping_proto,
-                vamping_info.decimal as u8,
-                &merkle_root
-            )
-            .map_err(|_| { ErrorCode::InvalidMerkleProof })?,
-            ErrorCode::InvalidMerkleProof
         );
 
         let token_mapping = convert_token_mapping(&token_mapping_proto, vamping_info.decimal as u8)

@@ -41,7 +41,7 @@
               },
               {
                 "kind": "account",
-                "path": "mint"
+                "path": "mint_account"
               }
             ]
           }
@@ -63,7 +63,7 @@
               },
               {
                 "kind": "account",
-                "path": "mint"
+                "path": "mint_account"
               }
             ]
           }
@@ -73,7 +73,7 @@
           "writable": true
         },
         {
-          "name": "mint"
+          "name": "mint_account"
         },
         {
           "name": "token_program",
@@ -81,6 +81,10 @@
         }
       ],
       "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
         {
           "name": "eth_address",
           "type": {
@@ -92,7 +96,12 @@
         },
         {
           "name": "eth_signature",
-          "type": "string"
+          "type": {
+            "array": [
+              "u8",
+              65
+            ]
+          }
         }
       ]
     },

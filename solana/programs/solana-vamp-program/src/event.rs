@@ -15,3 +15,11 @@ pub enum ErrorCode {
     #[msg("Invalid token mapping provided.")]
     InvalidTokenMapping,
 }
+
+#[event]
+pub struct TokenMintCreated {
+    pub mint_account: Pubkey,
+    pub token_name: String,
+    pub token_symbol: String,
+    pub amount: u64,
+}

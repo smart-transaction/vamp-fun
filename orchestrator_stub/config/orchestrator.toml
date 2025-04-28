@@ -1,5 +1,5 @@
 [solana]
-rpc_url = "https://api.devnet.solana.com"
+cluster = "Devnet"
 program_address = "5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc"
 
 [grpc]

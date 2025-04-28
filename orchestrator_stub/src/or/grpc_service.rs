@@ -12,6 +12,7 @@ use tonic_reflection::server::Builder as ReflectionBuilder;
 #[derive(Clone)]
 pub struct OrchestratorGrpcService {
     storage: Storage,
+    solana_cluster: String,
     solana_private_key: String,
 }
 
@@ -39,6 +40,7 @@ impl OrchestratorService for OrchestratorGrpcService {
                 SolanaOrchestrator::submit_to_solana(
                     req.generic_solution,
                     req.token_ers20_address,
+                    self.solana_cluster.clone(),
                     self.solana_private_key.clone(),
                     req.chain_id,
                     req.salt,
@@ -90,8 +92,9 @@ impl OrchestratorService for OrchestratorGrpcService {
 pub async fn start_grpc_server(storage: Storage, cfg: &config::Config, solana_private_key: String) -> anyhow::Result<()> {
     let addr: String = cfg.get("grpc.address")?;
     let addr = addr.parse()?;
+    let solana_cluster = cfg.get("solana.cluster")?;
 
-    let service = OrchestratorGrpcService { storage, solana_private_key };
+    let service = OrchestratorGrpcService { storage, solana_cluster, solana_private_key };
 
     log::info!("Reading the proto descriptor");
     let descriptor_bytes = fs::read("src/generated/user_descriptor.pb")?;

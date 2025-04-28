@@ -1,7 +1,7 @@
 use anchor_client::anchor_lang::declare_program;
 use anchor_client::solana_sdk::commitment_config::CommitmentConfig;
 use anchor_client::{Client, Cluster};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use mpl_token_metadata::ID as TOKEN_METADATA_PROGRAM_ID;
 use solana_sdk::compute_budget::ComputeBudgetInstruction;
 use solana_sdk::pubkey::Pubkey;
@@ -17,9 +17,21 @@ use solana_vamp_program::{client::accounts, client::args};
 pub struct SolanaOrchestrator;
 
 impl SolanaOrchestrator {
+    fn get_solana_cluster(cluster: &str) -> Result<Cluster> {
+        match cluster {
+            "Devnet" => Ok(Cluster::Devnet),
+            "Testnet" => Ok(Cluster::Testnet),
+            "Localnet" => Ok(Cluster::Localnet),
+            "Mainnet" => Ok(Cluster::Mainnet),
+            "Debug" => Ok(Cluster::Debug),
+            _ => Err(anyhow!("Unknown Solana cluster type"))
+        }
+    }
+
     pub async fn submit_to_solana(
         vamping_data_bytes: Vec<u8>,
         tmp_source_token_address: Vec<u8>,
+        cluster: String,
         private_key: String,
         tmp_chain_id: u64,
         tmp_salt: u64,
@@ -31,7 +43,7 @@ impl SolanaOrchestrator {
         log::info!("payer_keypair.pubkey: {}", payer_keypair.pubkey());
 
         let client = Client::new_with_options(
-            Cluster::Devnet,
+            Self::get_solana_cluster(cluster.as_str())?,
             payer_keypair.clone(),
             CommitmentConfig::confirmed(),
         );

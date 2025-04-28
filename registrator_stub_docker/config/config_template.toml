@@ -1,9 +1,0 @@
-[ethereum]
-rpc_url = "${REQUEST_REGISTRATOR_ETHEREUM_RPC_URL}"
-contract_address = "${REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS}"
-
-[grpc]
-address = "${REQUEST_REGISTRATOR_GRPC_ADDRESS}"
-
-[storage]
-redis_url = "${REQUEST_REGISTRATOR_STORAGE_REDIS_URL}"

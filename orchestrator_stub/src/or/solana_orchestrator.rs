@@ -5,11 +5,11 @@ use anyhow::Result;
 use mpl_token_metadata::ID as TOKEN_METADATA_PROGRAM_ID;
 use solana_sdk::compute_budget::ComputeBudgetInstruction;
 use solana_sdk::pubkey::Pubkey;
+use solana_sdk::transaction::Transaction;
 use solana_sdk::{bs58, signature::Keypair, signer::Signer, system_program, sysvar};
 use spl_associated_token_account::ID as ASSOCIATED_TOKEN_PROGRAM_ID;
 use spl_token::ID as TOKEN_PROGRAM_ID;
 use std::sync::Arc;
-use solana_sdk::transaction::Transaction;
 
 declare_program!(solana_vamp_program);
 use solana_vamp_program::{client::accounts, client::args};
@@ -17,13 +17,15 @@ use solana_vamp_program::{client::accounts, client::args};
 pub struct SolanaOrchestrator;
 
 impl SolanaOrchestrator {
-    pub async fn submit_to_solana(vamping_data_bytes: Vec<u8>, tmp_source_token_address: Vec<u8>,
-                                  tmp_chain_id: u64,
-                                  tmp_salt: u64) -> Result<
-        ()> {
+    pub async fn submit_to_solana(
+        vamping_data_bytes: Vec<u8>,
+        tmp_source_token_address: Vec<u8>,
+        private_key: String,
+        tmp_chain_id: u64,
+        tmp_salt: u64,
+    ) -> Result<()> {
         //TODO: Will be replaced with signing on the solver side
-        let key_str = "61jm122Tk5xu67ruvsHXK6fZZptmcEWFD2XRjMtCqUPr8NJqwbAkcvsREJigRVbzpNpACrE7ts2RhBapXtRxFJ3P"; // Hardcoded PoC testnet key
-        let key_bytes = bs58::decode(key_str).into_vec()?; // decode base58
+        let key_bytes = bs58::decode(private_key).into_vec()?; // decode base58
         log::debug!("Decoded len: {}", key_bytes.len());
         let payer_keypair = Arc::new(Keypair::from_bytes(&key_bytes)?);
         log::info!("payer_keypair.pubkey: {}", payer_keypair.pubkey());
@@ -38,7 +40,10 @@ impl SolanaOrchestrator {
         log::info!("solana_vamp_program::ID: {}", solana_vamp_program::ID);
         log::info!("token_program::ID: {}", TOKEN_PROGRAM_ID);
         log::info!("token_metadata_program::ID: {}", TOKEN_METADATA_PROGRAM_ID);
-        log::info!("associated_token_program::ID: {}", ASSOCIATED_TOKEN_PROGRAM_ID);
+        log::info!(
+            "associated_token_program::ID: {}",
+            ASSOCIATED_TOKEN_PROGRAM_ID
+        );
         log::info!("system_program::ID: {}", system_program::ID);
         log::info!("sysvar::rent::ID: {}", sysvar::rent::ID);
 

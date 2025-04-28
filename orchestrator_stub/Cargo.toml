@@ -1,6 +1,6 @@
 [package]
 name = "vamp_fun_orchestrator_stub"
-version = "1.0.12"
+version = "1.0.13"
 edition = "2024"
 build = "build.rs"
 
@@ -27,6 +27,7 @@ config = "0.15.11"
 futures-util = "0.3.31"
 prost = "0.13.5"
 prost-reflect = "0.14.7"
+clap = { version = "4.5.37", features = ["derive"] }
 
 [build-dependencies]
 tonic-build = "0.13.0"

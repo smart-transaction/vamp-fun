@@ -36,4 +36,4 @@ COPY --from=builder /usr/src/vamp-fun-orchestrator-stub/orchestrator_stub/src/ge
 RUN mkdir -p config
 
 EXPOSE 50052
-CMD "vamp_fun_orchestrator_stub"
+CMD "vamp_fun_orchestrator_stub" "--solana-private-key=${SOLANA_PRIVATE_KEY}"

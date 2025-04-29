@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use prost::Message;
 
-declare_id!("5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc");
+declare_id!("2tpiLJn7K3PcsGbT3A5MReKMcaLzBxK65cxapmHFJMom");
 
 // Module declarations
 mod event;
@@ -53,13 +53,14 @@ pub mod solana_vamp_program {
             mint_account: ctx.accounts.mint_account.key(),
             token_name,
             token_symbol,
+            token_erc20_address: vamping_info.token_erc20_address,
             amount: vamping_info.amount
         });
         Ok(())
     }
 
     // TDOD: add logic to avoid double claim
-    pub fn claim(ctx: Context<Claim>, amount: u64, eth_address: [u8; 20], eth_signature: [u8; 65]) -> Result<()> {
-        claim_tokens(ctx, amount, eth_address, eth_signature)
+    pub fn claim(ctx: Context<Claim>,eth_address: [u8; 20], amount: u64, eth_signature: [u8; 65]) -> Result<()> {
+        claim_tokens(ctx, eth_address, amount,  eth_signature)
     }
 }

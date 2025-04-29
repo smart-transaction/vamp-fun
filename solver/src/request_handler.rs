@@ -1,7 +1,8 @@
 use std::error::Error;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::snapshot_indexer::{SnapshotIndexer, TokenRequestData};
+use crate::stats::{IndexerProcesses, VampingStatus};
 use crate::use_proto::proto::UserEventProto;
 use ethers::types::Address;
 use ethers::utils::keccak256;
@@ -14,6 +15,7 @@ pub struct DeployTokenHandler {
     pub token_symbol_name: [u8; 32],
     pub token_uri_name: [u8; 32],
     pub token_decimal_name: [u8; 32],
+    pub stats: Arc<Mutex<IndexerProcesses>>
 }
 
 const CONTRACT_ADDRESS_NAME: &str = "ERC20ContractAddress";
@@ -23,7 +25,7 @@ const TOKEN_URI_NAME: &str = "TokenURI";
 const TOKEN_DECIMAL_NAME: &str = "TokenDecimal";
 
 impl DeployTokenHandler {
-    pub fn new(indexer: Arc<SnapshotIndexer>) -> Self {
+    pub fn new(indexer: Arc<SnapshotIndexer>, indexing_stats: Arc<Mutex<IndexerProcesses>>) -> Self {
         Self {
             indexer,
             contract_address_name: keccak256(CONTRACT_ADDRESS_NAME.as_bytes()),
@@ -31,6 +33,7 @@ impl DeployTokenHandler {
             token_symbol_name: keccak256(TOKEN_SYMBOL_NAME.as_bytes()),
             token_uri_name: keccak256(TOKEN_URI_NAME.as_bytes()),
             token_decimal_name: keccak256(TOKEN_DECIMAL_NAME.as_bytes()),
+            stats: indexing_stats,
         }
     }
 
@@ -57,8 +60,20 @@ impl DeployTokenHandler {
                 request_data.token_decimal = add_data.value[0];
             }
         }
-        self.indexer.index_snapshot(request_data).await?;
-
-        Ok(())
+        let stats = self.stats.clone();
+        let chain_id = request_data.chain_id;
+        let erc20_address = request_data.erc20_address;
+        match self.indexer.index_snapshot(request_data, stats.clone()).await {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                if let Ok(mut stats) = stats.lock() {
+                    if let Some(item) = stats.get_mut(&(chain_id, erc20_address)) {
+                        item.status = VampingStatus::Failure;
+                        item.message = err.to_string();
+                    }
+                }
+                return Err(err);
+            }
+        }
     }
 }

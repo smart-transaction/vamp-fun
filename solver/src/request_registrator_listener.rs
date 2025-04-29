@@ -7,7 +7,7 @@ use std::{
 use ethers::utils::keccak256;
 use log::{error, info};
 use mysql::{Pool, PooledConn, prelude::Queryable};
-use tokio::{spawn, time::sleep};
+use tokio::time::sleep;
 use tonic::{Request, transport::Channel};
 
 use crate::{
@@ -121,12 +121,10 @@ impl RequestRegistratorListener {
                         let user_objective = event.user_objective.unwrap();
                         if user_objective.app_id.as_slice() == vamping_app_id {
                             let handler = deploy_token_handler.clone();
-                            spawn(async move {
-                                if let Err(err) = handler.handle(sequence_id, event_to_handle).await
-                                {
-                                    error!("Failed to handle event: {:?}", err);
-                                }
-                            });
+                            if let Err(err) = handler.handle(sequence_id, event_to_handle).await
+                            {
+                                error!("Failed to handle event: {:?}", err);
+                            }
                         }
                         self.write_request_id(sequence_id)?;
                     }

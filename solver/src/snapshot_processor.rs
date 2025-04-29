@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::error::Error;
+use std::sync::{Arc, Mutex};
 
 use chrono::Utc;
 use ethers::types::{Address, U256};
@@ -10,6 +11,7 @@ use prost::Message;
 
 use crate::request_registrator_listener::VAMPING_APP_ID;
 use crate::snapshot_indexer::TokenRequestData;
+use crate::stats::{IndexerProcesses, VampingStatus};
 use crate::use_proto::proto::AppChainResultStatus;
 use crate::use_proto::proto::{
     SubmitSolutionRequestProto, TokenMappingProto, TokenVampingInfoProto, UserEventProto,
@@ -58,8 +60,17 @@ pub async fn process_and_send_snapshot(
     amount: U256,
     snapshot: HashMap<Address, U256>,
     orchestrator_url: String,
+    indexing_stats: Arc<Mutex<IndexerProcesses>>
 ) -> Result<(), Box<dyn std::error::Error>> {
     info!("Received indexed snapshot");
+    {
+        if let Ok(mut stats) = indexing_stats.lock() {
+            if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address)) {
+                item.current_timestamp = Utc::now().timestamp();
+                item.status = VampingStatus::SendingToSolana;
+            }
+        }
+    }
     // Convert the amount into a Solana format
     let (amount, decimals) = convert_to_sol(amount)?;
     let snapshot = snapshot
@@ -127,14 +138,23 @@ pub async fn process_and_send_snapshot(
     info!("Connected to orchestrator at {}", orchestrator_url);
     let response = client.solver_decision(request_proto).await?;
     let response_proto = response.into_inner();
+    let stats = indexing_stats.lock();
     if let Some(result) = response_proto.result.to_owned() {
         if result.status == AppChainResultStatus::Error as i32 {
-            if let Some(message) = result.message {
-                return Err(format!("Error in orchestrator response: {}", message).into());
-            } else {
-                return Err("Error in orchestrator response: Unknown error".into());
+            let message = result.message.unwrap_or("Unknown error".to_string());
+            if let Ok(mut stats) = stats {
+                if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address)) {
+                    item.status = VampingStatus::Failure;
+                    item.message = message.clone();
+                }
             }
+            return Err(format!("Error in orchestrator response: {}", message).into());
         } else {
+            if let Ok(mut stats) = stats {
+                if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address)) {
+                    item.status = VampingStatus::Success;
+                }
+            }
             info!("The solver decision is successfully sent to the orchestrator.");
         }
     }

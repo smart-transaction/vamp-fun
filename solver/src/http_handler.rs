@@ -1,11 +1,18 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use axum::{Json, extract::Query, http::StatusCode};
 use ethers::types::U256;
+use log::error;
 use mysql::prelude::Queryable;
 use serde::{Deserialize, Serialize};
 
-use crate::mysql_conn;
+use crate::{
+    mysql_conn,
+    stats::{IndexerProcesses, IndexerStats},
+};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TokenClaimData {
@@ -79,6 +86,37 @@ pub fn handle_get_claim_amount(
         Err(err) => {
             log::error!("Failed to execute query: {:?}", err);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
+}
+
+pub fn handle_get_stats(
+    params: Query<HashMap<String, String>>,
+    stats: Arc<Mutex<IndexerProcesses>>,
+) -> Result<Json<IndexerStats>, StatusCode> {
+    let mut stats = stats
+        .lock()
+        .map_err(|err| {
+            error!("Lock error: {}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    let chain_id = params.get("chain_id");
+    let erc20_address = params.get("erc20_address");
+    if chain_id == None || erc20_address == None {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let chain_id = u64::from_str_radix(chain_id.unwrap(), 10);
+    let erc20_address = erc20_address.unwrap().as_str().parse();
+    if chain_id.is_err() || erc20_address.is_err() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    match stats.get_mut(&(chain_id.unwrap(), erc20_address.unwrap())) {
+        Some(item) => {
+            return Ok(Json(item.clone()));
+        }
+        None => {
+            return Err(StatusCode::NOT_FOUND);
         }
     }
 }

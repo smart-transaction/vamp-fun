@@ -1,5 +1,12 @@
-use std::{cmp::min, collections::HashMap, error::Error, str::FromStr, sync::Arc};
+use std::{
+    cmp::{max, min},
+    collections::HashMap,
+    error::Error,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 
+use chrono::Utc;
 use ethers::{
     providers::{Http, Middleware, Provider},
     types::{Address, Filter, H256, U256},
@@ -10,7 +17,10 @@ use mysql::{PooledConn, TxOpts, prelude::Queryable};
 use tokio::spawn;
 
 use crate::{
-    chain_info::{fetch_chains, ChainInfo}, mysql_conn::create_db_conn, snapshot_processor::process_and_send_snapshot
+    chain_info::{ChainInfo, fetch_chains},
+    mysql_conn::create_db_conn,
+    snapshot_processor::process_and_send_snapshot,
+    stats::{IndexerProcesses, IndexerStats, VampingStatus},
 };
 
 #[derive(Default)]
@@ -64,6 +74,7 @@ impl SnapshotIndexer {
     pub async fn index_snapshot(
         &self,
         request_data: TokenRequestData,
+        stats: Arc<Mutex<IndexerProcesses>>,
     ) -> Result<(), Box<dyn Error>> {
         info!(
             "Indexing snapshot for token address: {:?} at block number: {:?}",
@@ -85,7 +96,8 @@ impl SnapshotIndexer {
             request_data.erc20_address,
         )?;
 
-        let mut total_amount = token_supply.iter()
+        let mut total_amount = token_supply
+            .iter()
             .map(|(_, v)| *v)
             .fold(U256::zero(), |acc, x| acc.checked_add(x).unwrap());
 
@@ -97,10 +109,31 @@ impl SnapshotIndexer {
             &self.mysql_database,
         )?;
         let orchestrator_url = self.orchestrator_url.clone();
+
+        {
+            if let Ok(mut stats) = stats.lock() {
+                let mut item = IndexerStats::default();
+                item.chain_id = request_data.chain_id;
+                item.token_address = request_data.erc20_address;
+                item.status = VampingStatus::Indexing;
+                item.current_timestamp = Utc::now().timestamp();
+                stats.insert((request_data.chain_id, request_data.erc20_address), item);
+            }
+        }
         spawn(async move {
             let blocks_step = 10000;
             let first_block = prev_block_number.unwrap_or(0) + 1;
             let latest_block = request_data.block_number as usize;
+            {
+                if let Ok(mut stats) = stats.lock() {
+                    let item = stats
+                        .get_mut(&(request_data.chain_id, request_data.erc20_address))
+                        .unwrap();
+                    item.current_timestamp = Utc::now().timestamp();
+                    item.start_block = first_block as u64;
+                    item.end_block = max(latest_block, first_block) as u64;
+                }
+            }
 
             let event_signature = H256::from_slice(&keccak256("Transfer(address,address,uint256)"));
 
@@ -145,6 +178,16 @@ impl SnapshotIndexer {
                     }
                     total_amount = total_amount.checked_add(value).unwrap();
                 }
+                // Update stats
+                {
+                    if let Ok(mut stats) = stats.lock() {
+                        let item = stats
+                            .get_mut(&(request_data.chain_id, request_data.erc20_address))
+                            .unwrap();
+                        item.current_timestamp = Utc::now().timestamp();
+                        item.blocks_done = block_to as u64;
+                    }
+                }
             }
 
             // Writing the token supply to the database
@@ -165,8 +208,23 @@ impl SnapshotIndexer {
             );
 
             // Sending the token supply to processor
-            if let Err(err) = process_and_send_snapshot(request_data, total_amount, token_supply, orchestrator_url).await {
+            let chain_id = request_data.chain_id.clone();
+            let erc20_address = request_data.erc20_address.clone();
+            if let Err(err) = process_and_send_snapshot(
+                request_data,
+                total_amount,
+                token_supply,
+                orchestrator_url,
+                stats.clone(),
+            )
+            .await
+            {
                 error!("Failed to process and send snapshot: {:?}", err);
+                if let Ok(mut stats) = stats.lock() {
+                    let item = stats.get_mut(&(chain_id, erc20_address)).unwrap();
+                    item.status = VampingStatus::Failure;
+                    item.message = err.to_string();
+                }
             }
         });
 

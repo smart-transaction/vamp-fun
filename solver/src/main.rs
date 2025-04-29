@@ -1,4 +1,7 @@
-use std::{error::Error, sync::Arc};
+use std::{
+    error::Error,
+    sync::{Arc, Mutex},
+};
 
 use axum::{
     Router,
@@ -12,6 +15,7 @@ use axum::{
 use clap::Parser;
 use log::{Level, error, info};
 use snapshot_indexer::SnapshotIndexer;
+use stats::{cleanup_stats, IndexerProcesses};
 use stderrlog::Timestamp;
 use tokio::{net::TcpListener, spawn};
 use tower_http::cors::{Any, CorsLayer};
@@ -23,6 +27,7 @@ mod request_handler;
 mod request_registrator_listener;
 mod snapshot_indexer;
 mod snapshot_processor;
+mod stats;
 mod use_proto;
 
 #[derive(Parser, Debug)]
@@ -92,12 +97,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let indexer = Arc::new(indexer);
 
-    let deploy_token_handler = Arc::new(request_handler::DeployTokenHandler::new(indexer.clone()));
+    let indexing_stats = Arc::new(Mutex::new(IndexerProcesses::new()));
+    let deploy_token_handler = Arc::new(request_handler::DeployTokenHandler::new(
+        indexer.clone(),
+        indexing_stats.clone(),
+    ));
 
     spawn(async move {
         if let Err(err) = deploy_token_listener.listen(deploy_token_handler).await {
             error!("Failed to listen to request registrator: {:?}", err);
         }
+    });
+
+    // Set up stats cleanup
+    let indexing_stats_copy = indexing_stats.clone();
+    spawn(async move {
+        cleanup_stats(indexing_stats_copy).await;
     });
 
     // Start HTTP server
@@ -123,6 +138,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             }),
         )
+        .route("/vamping_stats", get({ async move |params| {
+            http_handler::handle_get_stats(params, indexing_stats)
+        } }))
         .layer(cors);
 
     let tcp_listener = TcpListener::bind(format!("0.0.0.0:{}", args.port))

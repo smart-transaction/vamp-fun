@@ -21,7 +21,7 @@ pub struct StoredRequest {
 }
 
 impl Storage {
-    const REQUEST_KEY_PREFIX: &'static str = "vamp:intents:by_sequence_id";
+    const REQUESTS_HASH_KEY: &'static str = "vamp:orchestrator:requests_by_sequence_id";
 
     pub async fn new(cfg: &config::Config) -> anyhow::Result<Self> {
         let redis_url: String = cfg.get("storage.redis_url")?;
@@ -31,8 +31,7 @@ impl Storage {
 
     pub async fn get_new_request(&self, sequence_id: u64) -> anyhow::Result<Option<StoredRequest>> {
         let mut conn = self.client.get_multiplexed_async_connection().await?;
-        let key = Self::request_key(sequence_id);
-        let serialized: Option<String> = conn.get(&key).await.ok();
+        let serialized: Option<String> = conn.hget(Self::REQUESTS_HASH_KEY, sequence_id.to_string()).await.ok();
 
         if let Some(data) = serialized {
             let request: StoredRequest = serde_json::from_str(&data)?;
@@ -45,21 +44,14 @@ impl Storage {
 
     pub async fn update_request_state_to_under_execution(&self, sequence_id: u64) -> anyhow::Result<()> {
         let mut conn = self.client.get_multiplexed_async_connection().await?;
-        let key = Self::request_key(sequence_id);
-
-        let serialized: String = conn.get(&key).await?;
+        let serialized: String = conn.hget(Self::REQUESTS_HASH_KEY, sequence_id.to_string()).await?;
         let mut request: StoredRequest = serde_json::from_str(&serialized)?;
 
         request.state = RequestState::UnderExecution;
 
         let updated_serialized = serde_json::to_string(&request)?;
-        let _: () = conn.set(key, updated_serialized).await?;
+        let _: () = conn.hset(Self::REQUESTS_HASH_KEY, sequence_id.to_string(), updated_serialized).await?;
 
         Ok(())
-    }
-
-    #[inline]
-    fn request_key(sequence_id: u64) -> String {
-        format!("{}:{}", Self::REQUEST_KEY_PREFIX, sequence_id)
     }
 }

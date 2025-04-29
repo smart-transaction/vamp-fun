@@ -6,9 +6,10 @@ use solana_program::{
     secp256k1_recover::secp256k1_recover,
 };
 
-use crate::{event::ErrorCode, state::vamp_state::VampState};
+use crate::{event::ErrorCode, state::vamp_state::{ClaimState, VampState}};
 
 #[derive(Accounts)]
+#[instruction(eth_address: [u8; 20])]
 pub struct Claim<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -19,6 +20,15 @@ pub struct Claim<'info> {
         bump = vamp_state.bump
     )]
     pub vamp_state: Account<'info, VampState>,
+
+    #[account(
+        init,
+        payer = authority,
+        seeds = [b"claim", vamp_state.key().as_ref(), &eth_address],
+        bump,
+        space = 8 + ClaimState::INIT_SPACE,
+    )]
+    pub claim_state: Account<'info, ClaimState>,
 
     #[account(
         mut,
@@ -33,8 +43,8 @@ pub struct Claim<'info> {
     pub claimer_token_account: Account<'info, TokenAccount>,
 
     pub mint_account: Account<'info, Mint>,
-
     pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 fn verify_ethereum_signature(
@@ -80,8 +90,8 @@ fn verify_ethereum_signature(
 
 pub fn claim_tokens(
     ctx: Context<Claim>,
-    amount: u64,
     eth_address: [u8; 20],
+    amount: u64,
     eth_signature: [u8; 65],
 ) -> Result<()> {
     // Find the token amount for the given ETH address
@@ -93,6 +103,8 @@ pub fn claim_tokens(
 
     // Verify the Ethereum signature
     verify_ethereum_signature(&amount.to_string(), eth_signature, eth_address)?;
+
+    require!(ctx.accounts.claim_state.is_claimed == false, ErrorCode::InvalidAddress);
 
     let mint_key = ctx.accounts.mint_account.key();
     let seeds = &[
@@ -116,5 +128,6 @@ pub fn claim_tokens(
         amount,
     )?;
 
+    ctx.accounts.claim_state.is_claimed = true;
     Ok(())
 }

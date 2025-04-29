@@ -21,13 +21,14 @@ do
         MYSQL_PORT=3306
         MYSQL_DATABASE="vampfun"
         PORT=8000
-        REQUEST_REGISTRATOR_URL="http://vamp_fun_request_registrator:50051"
+        REQUEST_REGISTRATOR_URL="http://vamp_fun_request_registrator_ethereum:50051"
         ORCHESTRATOR_URL="http://vamp_fun_orchestrator:50052"
         POLL_FREQUENCY_SECS=5
         REQUEST_REGISTRATOR_ETHEREUM_RPC_URL="wss://service.lestnet.org:8888"
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x81D0da49057BCC8b2f5c57bfb43A298C2f634362"
         REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
+        BASE_RPC_URL_WSS="wss://service.lestnet.org:8888"
         ORCHESTRATOR_SOLANA_CLUSTER="Devnet"
         ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
@@ -42,13 +43,14 @@ do
         MYSQL_PORT=3306
         MYSQL_DATABASE="vampfun"
         PORT=8000
-        REQUEST_REGISTRATOR_URL="http://vamp_fun_request_registrator:50051"
+        REQUEST_REGISTRATOR_URL="http://vamp_fun_request_registrator_ethereum:50051"
         ORCHESTRATOR_URL="http://vamp_fun_orchestrator:50052"
         POLL_FREQUENCY_SECS=5
         REQUEST_REGISTRATOR_ETHEREUM_RPC_URL="wss://service.lestnet.org:8888"
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x81D0da49057BCC8b2f5c57bfb43A298C2f634362"
         REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
+        BASE_RPC_URL_WSS="wss://service.lestnet.org:8888"
         ORCHESTRATOR_SOLANA_CLUSTER="Devnet"
         ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
@@ -112,7 +114,9 @@ services:
     depends_on:
       vamp_fun_db:
         condition: service_started
-      vamp_fun_request_registrator:
+      vamp_fun_request_registrator_ethereum:
+        condition: service_started
+      vamp_fun_request_registrator_base:
         condition: service_started
       vamp_fun_orchestrator:
         condition: service_started
@@ -147,15 +151,24 @@ services:
     ports:
       - 3306:3306
 
-  vamp_fun_request_registrator:
-    container_name: vamp_fun_request_registrator
-    image: request-registrator-updated-image
+  # Ethereum + only single exposed grpc rr
+  vamp_fun_request_registrator_ethereum:
+    container_name: vamp_fun_request_registrator_ethereum
+    image: request-registrator-ethereum-updated-image
     restart: unless-stopped
     depends_on:
       vamp_fun_redis:
         condition: service_started
     ports:
       - 50051:50051
+
+  vamp_fun_request_registrator_base:
+    container_name: vamp_fun_request_registrator_base
+    image: request-registrator-base-updated-image
+    restart: unless-stopped
+    depends_on:
+      vamp_fun_redis:
+        condition: service_started
 
   vamp_fun_orchestrator:
     container_name: vamp_fun_orchestrator
@@ -192,6 +205,7 @@ docker pull ${REDIS_DOCKER_IMAGE}
 
 # Push configs into docker images.
 # Request registrator
+# Ethereum + only single exposed grpc rr
 cat >request_registrator_config.toml << REQUEST_REGISTRATOR_CONFIG
 [ethereum]
 rpc_url = "${REQUEST_REGISTRATOR_ETHEREUM_RPC_URL}"
@@ -207,7 +221,27 @@ REQUEST_REGISTRATOR_CONFIG
 
 TMP_CONTAINER=$(docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
 docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
-docker commit request-registrator-temp-container request-registrator-updated-image
+docker commit request-registrator-temp-container request-registrator-ethereum-updated-image
+docker rm ${TMP_CONTAINER}
+rm request_registrator_config.toml
+
+#Base
+cat >request_registrator_config.toml << REQUEST_REGISTRATOR_CONFIG
+[ethereum]
+rpc_url = "${BASE_RPC_URL_WSS}"
+contract_address = "${REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS}"
+
+[grpc]
+address = "${REQUEST_REGISTRATOR_GRPC_ADDRESS}"
+
+[storage]
+redis_url = "${REQUEST_REGISTRATOR_STORAGE_REDIS_URL}"
+
+REQUEST_REGISTRATOR_CONFIG
+
+TMP_CONTAINER=$(docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
+docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
+docker commit request-registrator-temp-container request-registrator-base-updated-image
 docker rm ${TMP_CONTAINER}
 rm request_registrator_config.toml
 

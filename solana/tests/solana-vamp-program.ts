@@ -12,8 +12,9 @@ import {
 } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 
+const program = anchor.workspace.solanaVampProgram as Program<SolanaVampProgram>;
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
-const PROGRAM_ID = new PublicKey("5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc");
+const PROGRAM_ID = program.programId;
 
 // Generate a keypair for the mint account (not a PDA)
 const mintKeypair = anchor.web3.Keypair.generate();
@@ -23,7 +24,6 @@ const claimerKeypair = anchor.web3.Keypair.generate();
 describe("solana-vamp-project", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
-  const program = anchor.workspace.solanaVampProgram as Program<SolanaVampProgram>;
   const authority = provider.wallet.publicKey;
 
   it("Initializes Vamp State and Mints Token", async () => {
@@ -67,6 +67,16 @@ describe("solana-vamp-project", () => {
     const accounts = await setupInitAccounts(mintAccount2);
     const vampingData = await getVampingData();
 
+    // Use the first address from the token mappings
+
+    const amount = 1000000000;
+    const [ethAddress, ethSignature] = await signMessage(amount.toString(),"94eb3102993b41ec55c241060f47daa0f6372e2e3ad7e91612ae36c364042e44");
+
+    const [claimState] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("claim"), accounts.vampState.toBuffer(),   Buffer.from(ethAddress.slice(2), "hex")],
+      PROGRAM_ID
+    );
+
     await program.methods
       .createTokenMint(vampingData)
       .accounts({
@@ -93,11 +103,6 @@ describe("solana-vamp-project", () => {
     // Verify the vamp state was created correctly
     const vampStateAccount = await program.account.vampState.fetch(accounts.vampState);
 
-    // Use the first address from the token mappings
-
-    const amount = 1000000000;
-    const [ethAddress, ethSignature] = await signMessage(amount.toString(), "94eb3102993b41ec55c241060f47daa0f6372e2e3ad7e91612ae36c364042e44");
-
     const claimerTokenAccount = await getAssociatedTokenAddress(mintAccount2, claimerKeypair.publicKey);
 
     // Airdrop SOL to the claimer and create the ATA
@@ -114,13 +119,14 @@ describe("solana-vamp-project", () => {
     await provider.sendAndConfirm(ataTx, [claimerKeypair]);
 
     // Call claim
-    const ethAddressBytes: number[] = hexToBytes(ethAddress);
+    const ethAddressBytes = new Uint8Array(hexToBytes(ethAddress)); 
     const ethSignatureBytes = hexToBytes(ethSignature);
     const tx = await program.methods
-      .claim(new BN(amount), ethAddressBytes, ethSignatureBytes)
+      .claim(ethAddressBytes, new BN(amount), ethSignatureBytes)
       .accounts({
         authority: claimerKeypair.publicKey,
         vampState: accounts.vampState,
+        claimState,
         vault: accounts.vault,
         claimerTokenAccount: claimerTokenAccount,
         mintAccount: mintAccount2,
@@ -133,7 +139,27 @@ describe("solana-vamp-project", () => {
     const claimerAta = await provider.connection.getTokenAccountBalance(claimerTokenAccount);
     console.log("Claimer token balance:", claimerAta.value.amount);
     assert.equal(claimerAta.value.amount, amount.toString(), "Token amount mismatch");
-  });
+
+    try {
+      await program.methods
+        .claim(ethAddressBytes, new BN(amount), ethSignatureBytes)
+        .accounts({
+          authority: claimerKeypair.publicKey,
+          vampState: accounts.vampState,
+          claimState,
+          vault: accounts.vault,
+          claimerTokenAccount,
+          mintAccount: mintAccount2,
+          token_program: TOKEN_PROGRAM_ID,
+        } as any)
+        .signers([claimerKeypair])
+        .rpc();
+
+      assert.fail("Second claim should have failed but succeeded");
+    } catch (err) {
+      assert.include(err.message, "Simulation failed");
+    }
+  })
 
   async function setupInitAccounts(mintAccount: PublicKey) {
     const [mintAuthority] = anchor.web3.PublicKey.findProgramAddressSync(

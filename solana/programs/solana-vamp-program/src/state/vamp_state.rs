@@ -19,5 +19,11 @@ pub struct TokenMapping {
 }
 
 impl Space for TokenMapping {
-    const INIT_SPACE: usize = 32 + 8 + 20; // Pubkey (32) + u64 (8) + eth_address (20)
+    const INIT_SPACE: usize = 32 + 8 + 20 + 1; // Pubkey (32) + u64 (8) + eth_address (20) + decimals (1)
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct ClaimState {
+    pub is_claimed: bool,
 }

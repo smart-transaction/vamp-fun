@@ -90,8 +90,8 @@ fn verify_ethereum_signature(
 
 pub fn claim_tokens(
     ctx: Context<Claim>,
-    amount: u64,
     eth_address: [u8; 20],
+    amount: u64,
     eth_signature: [u8; 65],
 ) -> Result<()> {
     // Find the token amount for the given ETH address

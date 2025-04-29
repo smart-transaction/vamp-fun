@@ -1,6 +1,6 @@
 [package]
 name = "vamp-fun-solver"
-version = "1.0.19"
+version = "1.0.21"
 edition = "2024"
 
 [dependencies]

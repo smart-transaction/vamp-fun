@@ -116,6 +116,7 @@ impl SnapshotIndexer {
                 item.chain_id = request_data.chain_id;
                 item.token_address = request_data.erc20_address;
                 item.status = VampingStatus::Indexing;
+                item.start_timestamp = Utc::now().timestamp();
                 item.current_timestamp = Utc::now().timestamp();
                 stats.insert((request_data.chain_id, request_data.erc20_address), item);
             }

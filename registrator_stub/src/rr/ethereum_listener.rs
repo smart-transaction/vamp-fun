@@ -30,7 +30,7 @@ impl EthereumListener {
 
         log::info!("Starting Ethereum listener for UserObjectivePushed...");
 
-        let last_processed_block = self.storage.get_last_processed_block().await.unwrap_or(0);
+        let mut last_processed_block = self.storage.get_last_processed_block().await.unwrap_or(0);
         log::info!("Last processed block from Redis: {}", last_processed_block);
 
         let mut latest_block = self.provider.get_block_number().await?.as_u64();
@@ -38,6 +38,10 @@ impl EthereumListener {
             latest_block += 1;
         }
         log::info!("Current chain head block: {}", latest_block);
+        if latest_block - last_processed_block > 10000 {
+            last_processed_block = latest_block - 9999;
+            log::info!("Reindexing from block {}", last_processed_block);
+        }
 
         // Catch-up mode (batch fetch)
         let logs = self.provider.get_logs(&Filter::new()

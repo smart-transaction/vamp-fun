@@ -21,7 +21,7 @@ use util::verify_merkle_root;
 #[program]
 pub mod solana_vamp_program {
     use crate::util::convert_token_mapping;
-
+    use hex::ToHex;
     use super::*;
 
     pub fn create_token_mint(ctx: Context<Initialize>, vamping_data: Vec<u8>) -> Result<()> {
@@ -49,11 +49,13 @@ pub mod solana_vamp_program {
         let token_name = vamping_info.token_name.clone();
         let token_symbol = vamping_info.token_symbol.clone();
         
+        let hex_address = format!("0x{}",  vamping_info.token_erc20_address.encode_hex::<String>());
+        
         emit!(TokenMintCreated {
             mint_account: ctx.accounts.mint_account.key(),
             token_name,
             token_symbol,
-            token_erc20_address: vamping_info.token_erc20_address,
+            token_erc20_address:hex_address,
             amount: vamping_info.amount
         });
         Ok(())

@@ -1,5 +1,5 @@
 {
-  "address": "5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc",
+  "address": "CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH",
   "metadata": {
     "name": "solana_vamp_program",
     "version": "0.1.0",
@@ -47,6 +47,32 @@
           }
         },
         {
+          "name": "claim_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  108,
+                  97,
+                  105,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vamp_state"
+              },
+              {
+                "kind": "arg",
+                "path": "eth_address"
+              }
+            ]
+          }
+        },
+        {
           "name": "vault",
           "writable": true,
           "pda": {
@@ -78,13 +104,13 @@
         {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
-        {
-          "name": "amount",
-          "type": "u64"
-        },
         {
           "name": "eth_address",
           "type": {
@@ -93,6 +119,10 @@
               20
             ]
           }
+        },
+        {
+          "name": "amount",
+          "type": "u64"
         },
         {
           "name": "eth_signature",
@@ -261,6 +291,19 @@
   ],
   "accounts": [
     {
+      "name": "ClaimState",
+      "discriminator": [
+        71,
+        73,
+        19,
+        83,
+        53,
+        228,
+        242,
+        53
+      ]
+    },
+    {
       "name": "VampState",
       "discriminator": [
         222,
@@ -271,6 +314,21 @@
         96,
         192,
         196
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "TokenMintCreated",
+      "discriminator": [
+        158,
+        52,
+        171,
+        143,
+        62,
+        205,
+        222,
+        38
       ]
     }
   ],
@@ -308,6 +366,18 @@
   ],
   "types": [
     {
+      "name": "ClaimState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "is_claimed",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
       "name": "TokenMapping",
       "type": {
         "kind": "struct",
@@ -332,6 +402,34 @@
           {
             "name": "decimals",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenMintCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_name",
+            "type": "string"
+          },
+          {
+            "name": "token_symbol",
+            "type": "string"
+          },
+          {
+            "name": "token_erc20_address",
+            "type": "bytes"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
           }
         ]
       }

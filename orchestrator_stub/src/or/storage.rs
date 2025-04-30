@@ -21,7 +21,7 @@ pub struct StoredRequest {
 }
 
 impl Storage {
-    const REQUESTS_HASH_KEY: &'static str = "vamp:orchestrator:requests_by_sequence_id";
+    const REQUESTS_HASH_KEY: &'static str = "vamp:intents:by_sequence_id";
 
     pub async fn new(cfg: &config::Config) -> anyhow::Result<Self> {
         let redis_url: String = cfg.get("storage.redis_url")?;
@@ -32,8 +32,11 @@ impl Storage {
     pub async fn get_new_request(&self, sequence_id: u64) -> anyhow::Result<Option<StoredRequest>> {
         let mut conn = self.client.get_multiplexed_async_connection().await?;
         let serialized: Option<String> = conn.hget(Self::REQUESTS_HASH_KEY, sequence_id.to_string()).await.ok();
-
         if let Some(data) = serialized {
+            log::debug!(
+                    "Found intent by sequence_id: {}. Checking the state...",
+                    sequence_id
+                );
             let request: StoredRequest = serde_json::from_str(&data)?;
             if let RequestState::New = request.state {
                 return Ok(Some(request));

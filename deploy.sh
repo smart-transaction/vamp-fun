@@ -24,7 +24,10 @@ do
         REQUEST_REGISTRATOR_URL="http://vamp_fun_request_registrator_ethereum:50051"
         ORCHESTRATOR_URL="http://vamp_fun_orchestrator:50052"
         POLL_FREQUENCY_SECS=5
-        REQUEST_REGISTRATOR_ETHEREUM_RPC_URL="wss://service.lestnet.org:8888"
+        ETHEREUM_RPC_URL_WSS="wss://service.lestnet.org:8888"
+        BASE_RPC_URL_WSS="wss://service.lestnet.org:8888"
+        POLYGON_RPC_URL_WSS="wss://service.lestnet.org:8888"
+        ARBITRUM_RPC_URL_WSS="wss://service.lestnet.org:8888"
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0xC178dD16546400C0802c22512B4c8EE1925F167C"
         REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
@@ -46,11 +49,13 @@ do
         REQUEST_REGISTRATOR_URL="http://vamp_fun_request_registrator_ethereum:50051"
         ORCHESTRATOR_URL="http://vamp_fun_orchestrator:50052"
         POLL_FREQUENCY_SECS=5
-        REQUEST_REGISTRATOR_ETHEREUM_RPC_URL="wss://service.lestnet.org:8888"
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0xC178dD16546400C0802c22512B4c8EE1925F167C"
         REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
-        BASE_RPC_URL_WSS="wss://service.lestnet.org:8888"
+        ETHEREUM_RPC_URL_WSS="wss://red-burned-rain.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
+        BASE_RPC_URL_WSS="wss://red-burned-rain.base-mainnet.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
+        POLYGON_RPC_URL_WSS="wss://red-burned-rain.matic.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
+        ARBITRUM_RPC_URL_WSS="wss://red-burned-rain.arbitrum-mainnet.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
         ORCHESTRATOR_SOLANA_CLUSTER="Devnet"
         ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
@@ -118,6 +123,10 @@ services:
         condition: service_started
       vamp_fun_request_registrator_base:
         condition: service_started
+      vamp_fun_request_registrator_polygon:
+        condition: service_started
+      vamp_fun_request_registrator_arbitrum:
+        condition: service_started
       vamp_fun_orchestrator:
         condition: service_started
     environment:
@@ -169,6 +178,20 @@ services:
     depends_on:
       vamp_fun_redis:
         condition: service_started
+  vamp_fun_request_registrator_polygon:
+    container_name: vamp_fun_request_registrator_polygon
+    image: request-registrator-polygon-updated-image
+    restart: unless-stopped
+    depends_on:
+      vamp_fun_redis:
+        condition: service_started
+  vamp_fun_request_registrator_arbitrum:
+    container_name: vamp_fun_request_registrator_arbitrum
+    image: request-registrator-arbitrum-updated-image
+    restart: unless-stopped
+    depends_on:
+      vamp_fun_redis:
+        condition: service_started
 
   vamp_fun_orchestrator:
     container_name: vamp_fun_orchestrator
@@ -207,9 +230,11 @@ sudo docker pull ${REDIS_DOCKER_IMAGE}
 # Push configs into docker images.
 # Request registrator
 # Ethereum + only single exposed grpc rr
+# TODO-KG: Some loop would be nice here :)
+# TODO-KG: If XXX__RPC_URL_WSS is empty - skip the deployment (also skip it in compose)
 cat >request_registrator_config.toml << REQUEST_REGISTRATOR_CONFIG
 [ethereum]
-rpc_url = "${REQUEST_REGISTRATOR_ETHEREUM_RPC_URL}"
+rpc_url = "${ETHEREUM_RPC_URL_WSS}"
 contract_address = "${REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS}"
 
 [grpc]
@@ -226,7 +251,7 @@ sudo docker commit request-registrator-temp-container request-registrator-ethere
 sudo docker rm ${TMP_CONTAINER}
 rm request_registrator_config.toml
 
-#Base
+# Base
 cat >request_registrator_config.toml << REQUEST_REGISTRATOR_CONFIG
 [ethereum]
 rpc_url = "${BASE_RPC_URL_WSS}"
@@ -243,6 +268,46 @@ REQUEST_REGISTRATOR_CONFIG
 TMP_CONTAINER=$(sudo docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
 sudo docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
 sudo docker commit request-registrator-temp-container request-registrator-base-updated-image
+sudo docker rm ${TMP_CONTAINER}
+rm request_registrator_config.toml
+
+# Polygon
+cat >request_registrator_config.toml << REQUEST_REGISTRATOR_CONFIG
+[ethereum]
+rpc_url = "${POLYGON_RPC_URL_WSS}"
+contract_address = "${REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS}"
+
+[grpc]
+address = "${REQUEST_REGISTRATOR_GRPC_ADDRESS}"
+
+[storage]
+redis_url = "${REQUEST_REGISTRATOR_STORAGE_REDIS_URL}"
+
+REQUEST_REGISTRATOR_CONFIG
+
+TMP_CONTAINER=$(sudo docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
+sudo docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
+sudo docker commit request-registrator-temp-container request-registrator-polygon-updated-image
+sudo docker rm ${TMP_CONTAINER}
+rm request_registrator_config.toml
+
+# Arbitrum
+cat >request_registrator_config.toml << REQUEST_REGISTRATOR_CONFIG
+[ethereum]
+rpc_url = "${ARBITRUM_RPC_URL_WSS}"
+contract_address = "${REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS}"
+
+[grpc]
+address = "${REQUEST_REGISTRATOR_GRPC_ADDRESS}"
+
+[storage]
+redis_url = "${REQUEST_REGISTRATOR_STORAGE_REDIS_URL}"
+
+REQUEST_REGISTRATOR_CONFIG
+
+TMP_CONTAINER=$(sudo docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
+sudo docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
+sudo docker commit request-registrator-temp-container request-registrator-arbitrum-updated-image
 sudo docker rm ${TMP_CONTAINER}
 rm request_registrator_config.toml
 

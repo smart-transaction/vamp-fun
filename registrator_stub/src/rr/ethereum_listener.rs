@@ -33,7 +33,10 @@ impl EthereumListener {
         let last_processed_block = self.storage.get_last_processed_block().await.unwrap_or(0);
         log::info!("Last processed block from Redis: {}", last_processed_block);
 
-        let latest_block = self.provider.get_block_number().await?.as_u64();
+        let mut latest_block = self.provider.get_block_number().await?.as_u64();
+        if latest_block == last_processed_block {
+            latest_block += 1;
+        }
         log::info!("Current chain head block: {}", latest_block);
 
         // Catch-up mode (batch fetch)

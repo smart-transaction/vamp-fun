@@ -60,3 +60,9 @@ pub async fn fetch_chains() -> Result<HashMap<u64, ChainInfo>, Box<dyn Error>> {
 
     Ok(chains_map)
 }
+
+pub fn get_quicknode_mapping() -> HashMap<u64, String> {
+    let ret = HashMap::new();
+
+    ret
+}

@@ -22,7 +22,10 @@ impl OrchestratorService for OrchestratorGrpcService {
         &self,
         request: Request<SubmitSolutionRequestProto>,
     ) -> Result<Response<SubmitSolutionResponseProto>, Status> {
+        let metadata = request.metadata();
+        log::info!("Incoming gRPC SubmitSolution request: metadata = {:?}, remote_addr = {:?}", metadata, request.remote_addr());
         let req = request.into_inner();
+        log::info!("Request payload: sequence_id = {}, solution_len = {}", req.request_sequence_id, req.generic_solution.len());
 
         // Fetch request from storage, only if state is New
         match self

@@ -33,7 +33,7 @@ do
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         BASE_RPC_URL_WSS="wss://service.lestnet.org:8888"
         ORCHESTRATOR_SOLANA_CLUSTER="Devnet"
-        ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc"
+        ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
         ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         QUICKNODE_API_KEY=""
@@ -59,7 +59,7 @@ do
         POLYGON_RPC_URL_WSS="wss://red-burned-rain.matic.quiknode.pro/${QUICKNODE_API_KEY}"
         ARBITRUM_RPC_URL_WSS="wss://red-burned-rain.arbitrum-mainnet.quiknode.pro/${QUICKNODE_API_KEY}"
         ORCHESTRATOR_SOLANA_CLUSTER="Devnet"
-        ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc"
+        ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
         ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         break

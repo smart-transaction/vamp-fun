@@ -58,6 +58,9 @@ pub struct Args {
 
     #[arg(long)]
     pub mysql_database: String,
+
+    #[arg(long)]
+    pub quicknode_api_key: Option<String>,
 }
 
 #[tokio::main]
@@ -93,7 +96,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         args.mysql_database.clone(),
         args.orchestrator_url.clone(),
     );
-    indexer.init_chain_info().await?;
+    if let Some(quicknode_api_key) = args.quicknode_api_key {
+        if quicknode_api_key.len() == 0 {
+            indexer.init_chain_info(None).await?;
+        } else {
+            indexer.init_chain_info(Some(quicknode_api_key)).await?;
+        }
+    } else {
+        indexer.init_chain_info(None).await?;
+    }
 
     let indexer = Arc::new(indexer);
 

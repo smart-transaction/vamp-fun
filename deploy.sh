@@ -36,6 +36,7 @@ do
         ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
         ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
+        QUICKNODE_API_KEY=""
         break
         ;;
     "prod")
@@ -52,10 +53,11 @@ do
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0xC178dD16546400C0802c22512B4c8EE1925F167C"
         REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
-        ETHEREUM_RPC_URL_WSS="wss://red-burned-rain.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
-        BASE_RPC_URL_WSS="wss://red-burned-rain.base-mainnet.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
-        POLYGON_RPC_URL_WSS="wss://red-burned-rain.matic.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
-        ARBITRUM_RPC_URL_WSS="wss://red-burned-rain.arbitrum-mainnet.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
+        QUICKNODE_API_KEY=$(gcloud secrets versions access 1 --secret="QUICKNODE_API_KEY")
+        ETHEREUM_RPC_URL_WSS="wss://red-burned-rain.quiknode.pro/${QUICKNODE_API_KEY}"
+        BASE_RPC_URL_WSS="wss://red-burned-rain.base-mainnet.quiknode.pro/${QUICKNODE_API_KEY}"
+        POLYGON_RPC_URL_WSS="wss://red-burned-rain.matic.quiknode.pro/${QUICKNODE_API_KEY}"
+        ARBITRUM_RPC_URL_WSS="wss://red-burned-rain.arbitrum-mainnet.quiknode.pro/${QUICKNODE_API_KEY}"
         ORCHESTRATOR_SOLANA_CLUSTER="Devnet"
         ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="5zKTcVqXKk1vYGZpK47BvMo8fwtUrofroCdzSK931wVc"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
@@ -139,6 +141,7 @@ services:
       - REQUEST_REGISTRATOR_URL=${REQUEST_REGISTRATOR_URL}
       - ORCHESTRATOR_URL=${ORCHESTRATOR_URL}
       - POLL_FREQUENCY_SECS=${POLL_FREQUENCY_SECS}
+      - QUICKNODE_API_KEY=${QUICKNODE_API_KEY}
     ports:
       - 8000:8000
     logging:

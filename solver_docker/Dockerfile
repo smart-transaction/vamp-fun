@@ -41,4 +41,5 @@ CMD \
    "--mysql-database=${MYSQL_DATABASE}" \
    "--request-registrator-url=${REQUEST_REGISTRATOR_URL}" \
    "--orchestrator-url=${ORCHESTRATOR_URL}" \
-   "--poll-frequency-secs=${POLL_FREQUENCY_SECS}"
+   "--poll-frequency-secs=${POLL_FREQUENCY_SECS}" \
+   "--quicknode-api-key=${QUICKNODE_API_KEY}"

@@ -17,7 +17,7 @@ use mysql::{PooledConn, TxOpts, prelude::Queryable};
 use tokio::spawn;
 
 use crate::{
-    chain_info::{ChainInfo, fetch_chains},
+    chain_info::{fetch_chains, get_quicknode_mapping, ChainInfo},
     mysql_conn::create_db_conn,
     snapshot_processor::process_and_send_snapshot,
     stats::{IndexerProcesses, IndexerStats, VampingStatus},
@@ -37,6 +37,7 @@ pub struct TokenRequestData {
 
 pub struct SnapshotIndexer {
     chain_info: HashMap<u64, ChainInfo>,
+    quicknode_chains: HashMap<u64, String>,
     mysql_host: String,
     mysql_port: u16,
     mysql_user: String,
@@ -44,6 +45,8 @@ pub struct SnapshotIndexer {
     mysql_database: String,
     orchestrator_url: String,
 }
+
+const BLOCK_STEP: usize = 9990;
 
 impl SnapshotIndexer {
     pub fn new(
@@ -56,6 +59,7 @@ impl SnapshotIndexer {
     ) -> Self {
         Self {
             chain_info: HashMap::new(),
+            quicknode_chains: HashMap::new(),
             mysql_host,
             mysql_port,
             mysql_user,
@@ -65,9 +69,14 @@ impl SnapshotIndexer {
         }
     }
 
-    pub async fn init_chain_info(&mut self) -> Result<(), Box<dyn Error>> {
+    pub async fn init_chain_info(&mut self, quicknode_api_key: Option<String>) -> Result<(), Box<dyn Error>> {
         let chains = fetch_chains().await?;
         self.chain_info = chains;
+
+        if let Some(api_key) = quicknode_api_key {
+            self.quicknode_chains = get_quicknode_mapping(&api_key);
+        }
+
         Ok(())
     }
 
@@ -122,7 +131,6 @@ impl SnapshotIndexer {
             }
         }
         spawn(async move {
-            let blocks_step = 10000;
             let first_block = prev_block_number.unwrap_or(0) + 1;
             let latest_block = request_data.block_number as usize;
             {
@@ -138,9 +146,9 @@ impl SnapshotIndexer {
 
             let event_signature = H256::from_slice(&keccak256("Transfer(address,address,uint256)"));
 
-            for b in (first_block..latest_block + 1).step_by(blocks_step) {
+            for b in (first_block..latest_block + 1).step_by(BLOCK_STEP) {
                 let block_from = b;
-                let block_to = min(b + blocks_step - 1, latest_block);
+                let block_to = min(b + BLOCK_STEP - 1, latest_block);
                 info!("Processing blocks from {} to {}", block_from, block_to);
                 // Creating a filter for the Transfer event
                 let filter = Filter::new()
@@ -233,7 +241,12 @@ impl SnapshotIndexer {
     }
 
     async fn connect_chain(&self, chain_id: u64) -> Result<Provider<Http>, Box<dyn Error>> {
-        // TODO: Add specific chains that require special handling.
+        if let Some(quicknode_url) = self.quicknode_chains.get(&chain_id) {
+            let provider = Provider::<Http>::try_from(quicknode_url.as_str())?;
+            let _ = provider.get_block_number().await?;
+            return Ok(provider);
+        }
+        
         let chain_info = self.chain_info.get(&chain_id).ok_or(format!(
             "Chain ID {} is not registered in the chainid network",
             chain_id

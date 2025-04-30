@@ -61,8 +61,18 @@ pub async fn fetch_chains() -> Result<HashMap<u64, ChainInfo>, Box<dyn Error>> {
     Ok(chains_map)
 }
 
-pub fn get_quicknode_mapping() -> HashMap<u64, String> {
-    let ret = HashMap::new();
+const ETHEREUM_RPC_URL_WSS: &str = "https://red-burned-rain.quiknode.pro/";
+const BASE_RPC_URL_WSS: &str = "https://red-burned-rain.base-mainnet.quiknode.pro/";
+const POLYGON_RPC_URL_WSS: &str = "https://red-burned-rain.matic.quiknode.pro/";
+const ARBITRUM_RPC_URL_WSS: &str = "https://red-burned-rain.arbitrum-mainnet.quiknode.pro/";
+
+pub fn get_quicknode_mapping(api_key: &str) -> HashMap<u64, String> {
+    let mut ret = HashMap::new();
+
+    ret.insert(1, format!("{}{}", ETHEREUM_RPC_URL_WSS, api_key));
+    ret.insert(8453, format!("{}{}", BASE_RPC_URL_WSS, api_key));
+    ret.insert(137, format!("{}{}", POLYGON_RPC_URL_WSS, api_key));
+    ret.insert(42161, format!("{}{}", ARBITRUM_RPC_URL_WSS, api_key));
 
     ret
 }

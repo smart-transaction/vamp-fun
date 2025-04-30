@@ -40,7 +40,7 @@ impl SolanaOrchestrator {
         let key_bytes = bs58::decode(private_key).into_vec()?; // decode base58
         log::debug!("Decoded len: {}", key_bytes.len());
         let payer_keypair = Arc::new(Keypair::from_bytes(&key_bytes)?);
-        log::info!("payer_keypair.pubkey: {}", payer_keypair.pubkey());
+        log::debug!("payer_keypair.pubkey: {}", payer_keypair.pubkey());
 
         let client = Client::new_with_options(
             Self::get_solana_cluster(cluster.as_str())?,
@@ -49,15 +49,15 @@ impl SolanaOrchestrator {
         );
         let program = client.program(solana_vamp_program::ID)?;
 
-        log::info!("solana_vamp_program::ID: {}", solana_vamp_program::ID);
-        log::info!("token_program::ID: {}", TOKEN_PROGRAM_ID);
-        log::info!("token_metadata_program::ID: {}", TOKEN_METADATA_PROGRAM_ID);
-        log::info!(
+        log::debug!("solana_vamp_program::ID: {}", solana_vamp_program::ID);
+        log::debug!("token_program::ID: {}", TOKEN_PROGRAM_ID);
+        log::debug!("token_metadata_program::ID: {}", TOKEN_METADATA_PROGRAM_ID);
+        log::debug!(
             "associated_token_program::ID: {}",
             ASSOCIATED_TOKEN_PROGRAM_ID
         );
-        log::info!("system_program::ID: {}", system_program::ID);
-        log::info!("sysvar::rent::ID: {}", sysvar::rent::ID);
+        log::debug!("system_program::ID: {}", system_program::ID);
+        log::debug!("sysvar::rent::ID: {}", sysvar::rent::ID);
 
         // let seeds:&[&[u8]] = &[
         //     b"clone",
@@ -73,12 +73,12 @@ impl SolanaOrchestrator {
         // log::info!("mint_account: {}", mint_account);
 
         let mint_keypair = Arc::new(Keypair::new());
-        log::info!("mint_keypair.pubkey: {}", mint_keypair.pubkey());
+        log::debug!("mint_keypair.pubkey: {}", mint_keypair.pubkey());
         let mint_account = mint_keypair.pubkey();
 
         let (mint_authority, _bump) =
             Pubkey::find_program_address(&[b"mint_authority"], &solana_vamp_program::ID);
-        log::info!("mint_authority: {}", mint_authority);
+        log::debug!("mint_authority: {}", mint_authority);
 
         let (metadata_account, _bump) = Pubkey::find_program_address(
             &[
@@ -88,19 +88,19 @@ impl SolanaOrchestrator {
             ],
             &TOKEN_METADATA_PROGRAM_ID,
         );
-        log::info!("metadata_account: {}", metadata_account);
+        log::debug!("metadata_account: {}", metadata_account);
 
         let (vamp_state, _bump) = Pubkey::find_program_address(
             &[b"vamp", mint_account.as_ref()],
             &solana_vamp_program::ID,
         );
-        log::info!("vamp_state: {}", vamp_state);
+        log::debug!("vamp_state: {}", vamp_state);
 
         let (vault, _bump) = Pubkey::find_program_address(
             &[b"vault", mint_account.as_ref()],
             &solana_vamp_program::ID,
         );
-        log::info!("vault: {}", vault);
+        log::debug!("vault: {}", vault);
 
         let program_instructions = program
             .request()

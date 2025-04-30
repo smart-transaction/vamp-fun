@@ -19,7 +19,11 @@ impl RequestRegistratorService for RRService {
         &self,
         request: Request<PollRequestProto>,
     ) -> Result<Response<PollResponseProto>, Status> {
-        let last_sequence_id = request.into_inner().last_sequence_id;
+        let metadata = request.metadata();
+        log::info!("Incoming gRPC PollRequest request: metadata = {:?}, remote_addr = {:?}", metadata, request.remote_addr());
+        let req = request.into_inner();
+        let last_sequence_id = req.last_sequence_id;
+        log::info!("Request payload: last_sequence_id = {}", last_sequence_id);
 
         // Increment to check the next expected sequence id
         let next_sequence_id = last_sequence_id + 1;

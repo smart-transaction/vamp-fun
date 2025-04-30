@@ -123,7 +123,8 @@ impl<'info> Initialize<'info> {
             ),
             amount * 10u64.pow(self.mint_account.decimals as u32),
         )?;
-
+        // increment count
+        self.counter_account.counter += 1;
         self.vamp_state.set_inner(VampState {
             token_mappings,
             authority: self.authority.key(),

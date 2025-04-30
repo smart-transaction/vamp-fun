@@ -140,22 +140,36 @@ pub async fn process_and_send_snapshot(
     let response_proto = response.into_inner();
     let stats = indexing_stats.lock();
     if let Some(result) = response_proto.result.to_owned() {
-        if result.status == AppChainResultStatus::Error as i32 {
-            let message = result.message.unwrap_or("Unknown error".to_string());
-            if let Ok(mut stats) = stats {
-                if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address)) {
-                    item.status = VampingStatus::Failure;
-                    item.message = message.clone();
+        let status: AppChainResultStatus = AppChainResultStatus::try_from(result.status)?;
+        match status {
+            AppChainResultStatus::Error => {
+                let message = result.message.unwrap_or("Unknown error".to_string());
+                if let Ok(mut stats) = stats {
+                    if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address)) {
+                        item.status = VampingStatus::Failure;
+                        item.message = message.clone();
+                    }
                 }
+                return Err(format!("Error in orchestrator response: {}", message).into());
             }
-            return Err(format!("Error in orchestrator response: {}", message).into());
-        } else {
-            if let Ok(mut stats) = stats {
-                if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address)) {
-                    item.status = VampingStatus::Success;
+            AppChainResultStatus::Ok => {
+                if let Ok(mut stats) = stats {
+                    if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address)) {
+                        item.status = VampingStatus::Success;
+                    }
                 }
+                info!("The solver decision is successfully sent to the orchestrator.");
             }
-            info!("The solver decision is successfully sent to the orchestrator.");
+            AppChainResultStatus::EventNotFound => {
+                let message = format!("Orchestrator error: event {} not found", request_data.sequence_id);
+                if let Ok(mut stats) = stats {
+                    if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address)) {
+                        item.status = VampingStatus::Failure;
+                        item.message = "Orchestrator error: event not found".to_string();
+                    }
+                }
+                return Err(format!("Error in orchestrator response: {}", message).into());
+            }
         }
     }
 

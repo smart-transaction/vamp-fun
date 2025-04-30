@@ -6,11 +6,12 @@ use std::{
 
 use ethers::utils::keccak256;
 use log::{error, info};
-use mysql::{Pool, PooledConn, prelude::Queryable};
+use mysql::prelude::Queryable;
 use tokio::time::sleep;
 use tonic::{Request, transport::Channel};
 
 use crate::{
+    mysql_conn::create_db_conn,
     request_handler::DeployTokenHandler,
     use_proto::proto::{
         AppChainResultStatus, PollRequestProto,
@@ -25,7 +26,7 @@ pub struct RequestRegistratorListener {
     client: RequestRegistratorServiceClient<Channel>,
     poll_frequency: Duration,
     mysql_host: String,
-    mysql_port: u16,
+    mysql_port: String,
     mysql_user: String,
     mysql_password: String,
     mysql_database: String,
@@ -37,7 +38,7 @@ impl RequestRegistratorListener {
         request_registrator_url: String,
         poll_frequency: Duration,
         mysql_host: String,
-        mysql_port: u16,
+        mysql_port: String,
         mysql_user: String,
         mysql_password: String,
         mysql_database: String,
@@ -121,8 +122,7 @@ impl RequestRegistratorListener {
                         let user_objective = event.user_objective.unwrap();
                         if user_objective.app_id.as_slice() == vamping_app_id {
                             let handler = deploy_token_handler.clone();
-                            if let Err(err) = handler.handle(sequence_id, event_to_handle).await
-                            {
+                            if let Err(err) = handler.handle(sequence_id, event_to_handle).await {
                                 error!("Failed to handle event: {:?}", err);
                             }
                         }
@@ -141,21 +141,14 @@ impl RequestRegistratorListener {
         }
     }
 
-    fn create_db_conn(&self) -> Result<PooledConn, Box<dyn Error>> {
-        let mysql_url = format!(
-            "mysql://{}:{}@{}:{}/{}",
-            self.mysql_user,
-            self.mysql_password,
-            self.mysql_host,
-            self.mysql_port,
-            self.mysql_database
-        );
-        let db_conn = Pool::new(mysql_url.as_str())?.get_conn()?;
-        Ok(db_conn)
-    }
-
     fn read_last_request_id(&self) -> Result<Option<u64>, Box<dyn Error>> {
-        let mut conn = self.create_db_conn()?;
+        let mut conn = create_db_conn(
+            &self.mysql_host,
+            &self.mysql_port,
+            &self.mysql_user,
+            &self.mysql_password,
+            &self.mysql_database,
+        )?;
 
         let stmt = "SELECT sequence_id FROM request_logs ORDER BY ts DESC LIMIT 1";
         let seq_id: Option<u64> = conn.exec_first(stmt, ())?;
@@ -164,7 +157,13 @@ impl RequestRegistratorListener {
     }
 
     fn write_request_id(&self, sequence_id: u64) -> Result<(), Box<dyn Error>> {
-        let mut conn = self.create_db_conn()?;
+        let mut conn = create_db_conn(
+            &self.mysql_host,
+            &self.mysql_port,
+            &self.mysql_user,
+            &self.mysql_password,
+            &self.mysql_database,
+        )?;
 
         let stmt = "INSERT INTO request_logs (sequence_id) VALUES (?)";
         conn.exec_drop(stmt, (sequence_id,))?;

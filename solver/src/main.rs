@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         args.request_registrator_url,
         poll_frequency,
         args.mysql_host.clone(),
-        args.mysql_port.clone(),
+        args.mysql_port.to_string(),
         args.mysql_user.clone(),
         args.mysql_password.clone(),
         args.mysql_database.clone(),

@@ -32,9 +32,9 @@ CREATE TABLE IF NOT EXISTS request_logs(
 -- 1. Remove '%' user
 --    if the server and mysql run on the same instance.
 --    (still needed if run from two images)
-CREATE USER IF NOT EXISTS 'server'@'localhost' IDENTIFIED BY 'secret2';
-CREATE USER IF NOT EXISTS 'server'@'%' IDENTIFIED BY 'secret2';
-CREATE USER IF NOT EXISTS 'importer'@'%' IDENTIFIED BY 'secret_3';
+CREATE USER IF NOT EXISTS 'server'@'localhost' IDENTIFIED BY 'secret_app';
+CREATE USER IF NOT EXISTS 'server'@'%' IDENTIFIED BY 'secret_app';
+CREATE USER IF NOT EXISTS 'importer'@'%' IDENTIFIED BY 'secret_importer';
 SELECT User, Host FROM mysql.user;
 
 -- Grant rights to the user.

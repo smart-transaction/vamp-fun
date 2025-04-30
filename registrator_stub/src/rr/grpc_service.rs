@@ -19,6 +19,7 @@ impl RequestRegistratorService for RRService {
         &self,
         request: Request<PollRequestProto>,
     ) -> Result<Response<PollResponseProto>, Status> {
+        log::info!("Got a request");
         let last_sequence_id = request.into_inner().last_sequence_id;
 
         // Increment to check the next expected sequence id

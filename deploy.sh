@@ -191,17 +191,18 @@ services:
 
 volumes:
   mysql:
+    name: vamp_fun_mysql
 
 COMPOSE
 
 set -e
 
 # Pull images:
-docker pull ${SOLVER_DOCKER_IMAGE}
-docker pull ${DB_DOCKER_IMAGE}
-docker pull ${ORCHESTRATOR_DOCKER_IMAGE}
-docker pull ${REQUEST_REGISTRATOR_DOCKER_IMAGE}
-docker pull ${REDIS_DOCKER_IMAGE}
+sudo docker pull ${SOLVER_DOCKER_IMAGE}
+sudo docker pull ${DB_DOCKER_IMAGE}
+sudo docker pull ${ORCHESTRATOR_DOCKER_IMAGE}
+sudo docker pull ${REQUEST_REGISTRATOR_DOCKER_IMAGE}
+sudo docker pull ${REDIS_DOCKER_IMAGE}
 
 # Push configs into docker images.
 # Request registrator
@@ -219,10 +220,10 @@ redis_url = "${REQUEST_REGISTRATOR_STORAGE_REDIS_URL}"
 
 REQUEST_REGISTRATOR_CONFIG
 
-TMP_CONTAINER=$(docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
-docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
-docker commit request-registrator-temp-container request-registrator-ethereum-updated-image
-docker rm ${TMP_CONTAINER}
+TMP_CONTAINER=$(sudo docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
+sudo docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
+sudo docker commit request-registrator-temp-container request-registrator-ethereum-updated-image
+sudo docker rm ${TMP_CONTAINER}
 rm request_registrator_config.toml
 
 #Base
@@ -239,10 +240,10 @@ redis_url = "${REQUEST_REGISTRATOR_STORAGE_REDIS_URL}"
 
 REQUEST_REGISTRATOR_CONFIG
 
-TMP_CONTAINER=$(docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
-docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
-docker commit request-registrator-temp-container request-registrator-base-updated-image
-docker rm ${TMP_CONTAINER}
+TMP_CONTAINER=$(sudo docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
+sudo docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
+sudo docker commit request-registrator-temp-container request-registrator-base-updated-image
+sudo docker rm ${TMP_CONTAINER}
 rm request_registrator_config.toml
 
 # Orchestrator
@@ -259,10 +260,10 @@ redis_url = "${ORCHESTRATOR_STORAGE_REDIS_URL}"
 
 ORCHESTRATOR_CONFIG
 
-TMP_CONTAINER=$(docker create --name orchestrator-temp-container ${ORCHESTRATOR_DOCKER_IMAGE})
-docker cp orchestrator_config.toml orchestrator-temp-container:/config/orchestrator.toml
-docker commit orchestrator-temp-container orchestrator-updated-image
-docker rm ${TMP_CONTAINER}
+TMP_CONTAINER=$(sudo docker create --name orchestrator-temp-container ${ORCHESTRATOR_DOCKER_IMAGE})
+sudo docker cp orchestrator_config.toml orchestrator-temp-container:/config/orchestrator.toml
+sudo docker commit orchestrator-temp-container orchestrator-updated-image
+sudo docker rm ${TMP_CONTAINER}
 rm orchestrator_config.toml
 
 # Start our docker images.

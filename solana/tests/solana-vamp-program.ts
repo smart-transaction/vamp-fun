@@ -16,8 +16,6 @@ const program = anchor.workspace.solanaVampProgram as Program<SolanaVampProgram>
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 const PROGRAM_ID = program.programId;
 
-// Generate a keypair for the mint account (not a PDA)
-const mintKeypair = anchor.web3.Keypair.generate();
 const mintKeypair2 = anchor.web3.Keypair.generate();
 const claimerKeypair = anchor.web3.Keypair.generate();
 
@@ -27,8 +25,7 @@ describe("solana-vamp-project", () => {
   const authority = provider.wallet.publicKey;
 
   it("Initializes Vamp State and Mints Token", async () => {
-    const mintAccount1 = mintKeypair.publicKey;
-    const accounts = await setupInitAccounts(mintAccount1);
+    const accounts = await setupInitAccounts(authority);
     const vampingData = await getVampingData();
 
     try {
@@ -36,25 +33,25 @@ describe("solana-vamp-project", () => {
         .createTokenMint(vampingData)
         .accounts({
           authority,
-          mintAccount: mintKeypair.publicKey,
+          counterAccount: accounts.counter,
+          mintAccount: accounts.mintAccount,
           metadataAccount: accounts.metadataAccount,
           vampState: accounts.vampState,
           vault: accounts.vault,
-          mintAuthority: accounts.mintAuthority,
           tokenProgram: TOKEN_PROGRAM_ID,
           tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
           systemProgram: anchor.web3.SystemProgram.programId,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           rent: anchor.web3.SYSVAR_RENT_PUBKEY,
         })
-        .signers([provider.wallet.payer, mintKeypair])
+        .signers([provider.wallet.payer])
         .preInstructions([
           ComputeBudgetProgram.setComputeUnitLimit({
             units: 2_000_000,
           })
         ])
         .rpc();
-      await verifyVampState(accounts.vampState, accounts.vampStateBump, mintAccount1);
+      await verifyVampState(accounts.vampState, accounts.vampStateBump, accounts.mintAccount);
     } catch (error) {
       console.error("Transaction error:", error);
       throw error;
@@ -62,9 +59,8 @@ describe("solana-vamp-project", () => {
   });
 
   it("Claims tokens for a user based on ETH address mapping", async () => {
-    const mintAccount2 = mintKeypair2.publicKey;
-
-    const accounts = await setupInitAccounts(mintAccount2);
+    const accounts = await setupInitAccounts(authority);
+    const mintAccount2 = accounts.mintAccount2;
     const vampingData = await getVampingData();
 
     // Use the first address from the token mappings
@@ -73,7 +69,7 @@ describe("solana-vamp-project", () => {
     const [ethAddress, ethSignature] = await signMessage(amount.toString(),"94eb3102993b41ec55c241060f47daa0f6372e2e3ad7e91612ae36c364042e44");
 
     const [claimState] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("claim"), accounts.vampState.toBuffer(),   Buffer.from(ethAddress.slice(2), "hex")],
+      [Buffer.from("claim"), accounts.vampState2.toBuffer(),   Buffer.from(ethAddress.slice(2), "hex")],
       PROGRAM_ID
     );
 
@@ -81,18 +77,18 @@ describe("solana-vamp-project", () => {
       .createTokenMint(vampingData)
       .accounts({
         authority,
-        mintAccount: mintKeypair2.publicKey,
-        metadataAccount: accounts.metadataAccount,
-        vampState: accounts.vampState,
-        vault: accounts.vault,
-        mintAuthority: accounts.mintAuthority,
+        counterAccount: accounts.counter,
+        mintAccount: mintAccount2,
+        metadataAccount: accounts.metadataAccount2,
+        vampState: accounts.vampState2,
+        vault: accounts.vault2,
         tokenProgram: TOKEN_PROGRAM_ID,
         tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
         systemProgram: anchor.web3.SystemProgram.programId,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         rent: anchor.web3.SYSVAR_RENT_PUBKEY,
       } as any)
-      .signers([provider.wallet.payer, mintKeypair2])
+      .signers([provider.wallet.payer])
       .preInstructions([
         ComputeBudgetProgram.setComputeUnitLimit({
           units: 2_000_000,
@@ -125,9 +121,9 @@ describe("solana-vamp-project", () => {
       .claim(ethAddressBytes, new BN(amount), ethSignatureBytes)
       .accounts({
         authority: claimerKeypair.publicKey,
-        vampState: accounts.vampState,
+        vampState: accounts.vampState2,
         claimState,
-        vault: accounts.vault,
+        vault: accounts.vault2,
         claimerTokenAccount: claimerTokenAccount,
         mintAccount: mintAccount2,
         token_program: TOKEN_PROGRAM_ID,
@@ -145,9 +141,9 @@ describe("solana-vamp-project", () => {
         .claim(ethAddressBytes, new BN(amount), ethSignatureBytes)
         .accounts({
           authority: claimerKeypair.publicKey,
-          vampState: accounts.vampState,
+          vampState: accounts.vampState2,
           claimState,
-          vault: accounts.vault,
+          vault: accounts.vault2,
           claimerTokenAccount,
           mintAccount: mintAccount2,
           token_program: TOKEN_PROGRAM_ID,
@@ -161,11 +157,17 @@ describe("solana-vamp-project", () => {
     }
   })
 
-  async function setupInitAccounts(mintAccount: PublicKey) {
-    const [mintAuthority] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("mint_authority")],
+  async function setupInitAccounts(authority: PublicKey) {
+    let count = new BN(0);
+    const [mintAccount] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from('mint'), authority.toBuffer(), count.toArrayLike(Buffer, "le", 8),], program.programId);
+
+    const [counter] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("counter")],
       PROGRAM_ID
     );
+
+    count = new BN(1);
+    const [mintAccount2] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from('mint'), authority.toBuffer(), count.toArrayLike(Buffer, "le", 8),], program.programId);
 
     const [metadataAccount] = anchor.web3.PublicKey.findProgramAddressSync(
       [
@@ -176,8 +178,23 @@ describe("solana-vamp-project", () => {
       TOKEN_METADATA_PROGRAM_ID
     );
 
+    const [metadataAccount2] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("metadata"),
+        TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+        mintAccount2.toBuffer(),
+      ],
+      TOKEN_METADATA_PROGRAM_ID
+    );
+
+
     const [vampState, vampStateBump] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("vamp"), mintAccount.toBuffer()],
+      PROGRAM_ID
+    );
+
+    const [vampState2, vampStateBump2] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("vamp"), mintAccount2.toBuffer()],
       PROGRAM_ID
     );
 
@@ -186,12 +203,23 @@ describe("solana-vamp-project", () => {
       PROGRAM_ID
     );
 
+    const [vault2] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), mintAccount2.toBuffer()],
+      PROGRAM_ID
+    );
+
     return {
-      mintAuthority,
       metadataAccount,
       vampState,
       vampStateBump,
-      vault
+      vault,
+      mintAccount,
+      counter,
+      mintAccount2,
+      vampState2,
+      vampStateBump2,
+      vault2,
+      metadataAccount2
     };
   }
 

@@ -48,7 +48,8 @@ message AppChainResultProto {
 
 message AppChainPayloadProto {
   // A workaround, will be formalised for the appchain later
-  string solana_mint_address = 1;
+  // The solana transaction ID
+  string solana_txid = 1;
 }
 
 message PollRequestProto {

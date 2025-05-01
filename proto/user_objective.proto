@@ -46,6 +46,11 @@ message AppChainResultProto {
   optional string message = 2;
 }
 
+message AppChainPayloadProto {
+  // A workaround, will be formalised for the appchain later
+  string solana_mint_address = 1;
+}
+
 message PollRequestProto {
   uint64 last_sequence_id = 1;
 }
@@ -69,6 +74,7 @@ message SubmitSolutionRequestProto {
 
 message SubmitSolutionResponseProto {
   AppChainResultProto result = 1;
+  AppChainPayloadProto payload = 2;
 }
 
 service RequestRegistratorService {

@@ -136,7 +136,7 @@ pub async fn process_and_send_snapshot(
 
     let mut client = OrchestratorServiceClient::connect(orchestrator_url.clone()).await?;
     info!("Connected to orchestrator at {}", orchestrator_url);
-    let response = client.solver_decision(request_proto).await?;
+    let response = client.submit_solution(request_proto).await?;
     let response_proto = response.into_inner();
     let stats = indexing_stats.lock();
     if let Some(result) = response_proto.result.to_owned() {

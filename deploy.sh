@@ -205,6 +205,7 @@ services:
         condition: service_started
     environment:
       - SOLANA_PRIVATE_KEY=\${SOLANA_PRIVATE_KEY}
+      - RUST_LOG=debug
     ports:
       - 50052:50052
 

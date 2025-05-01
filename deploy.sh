@@ -83,7 +83,7 @@ cat >.env << ENV
 MYSQL_ROOT_PASSWORD=\$(gcloud secrets versions access ${MYSQL_PASSWORD_VERSION} --secret="VAMP_FUN_MYSQL_ROOT_PASSWORD_${SECRET_SUFFIX}")
 MYSQL_APP_PASSWORD=\$(gcloud secrets versions access ${MYSQL_PASSWORD_VERSION} --secret="VAMP_FUN_MYSQL_APP_PASSWORD_${SECRET_SUFFIX}")
 MYSQL_READER_PASSWORD=\$(gcloud secrets versions access ${MYSQL_PASSWORD_VERSION} --secret="VAMP_FUN_MYSQL_READER_PASSWORD_${SECRET_SUFFIX}")
-SOLANA_PRIVATE_KEY=\$(gcloud secrets versions access 1 --secret="VAMP_FUN_SOLANA_PRIVATE_KEY_${SECRET_SUFFIX}")
+SOLANA_PRIVATE_KEY=\$(gcloud secrets versions access 2 --secret="VAMP_FUN_SOLANA_PRIVATE_KEY_${SECRET_SUFFIX}")
 
 ENV
 

@@ -4580,7 +4580,7 @@ checksum = "458f7a779bf54acc9f347480ac654f68407d3aab21269a6e3c9f922acd9e2da9"
 
 [[package]]
 name = "vamp-fun-solver"
-version = "1.0.28"
+version = "1.0.29"
 dependencies = [
  "axum",
  "chrono",

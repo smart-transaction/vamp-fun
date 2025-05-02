@@ -7,8 +7,10 @@ use ethers::types::{Address, U256};
 use ethers::utils::keccak256;
 use log::info;
 use merkle_tree::{Leaf, MerkleTree};
+use mysql::prelude::Queryable;
 use prost::Message;
 
+use crate::mysql_conn::DbConn;
 use crate::request_registrator_listener::VAMPING_APP_ID;
 use crate::snapshot_indexer::TokenRequestData;
 use crate::stats::{IndexerProcesses, VampingStatus};
@@ -25,7 +27,7 @@ fn convert_to_sol(src_amount: U256) -> Result<(u64, u8), Box<dyn Error>> {
         .ok_or("Failed to divide amount")?;
     // Further truncating until the value fits u64
     // Setting it to zero right now, as we are fixed on decimals = 9.
-    // Will be set to 9 later when we can customize decimals On Solana 
+    // Will be set to 9 later when we can customize decimals On Solana
     let max_extra_decimals = 0u8;
     for decimals in 0..=max_extra_decimals {
         let trunc_amount = amount
@@ -55,17 +57,34 @@ fn convert_to_sol(src_amount: U256) -> Result<(u64, u8), Box<dyn Error>> {
     .into())
 }
 
+fn write_cloning(
+    db_conn: DbConn,
+    chain_id: u64,
+    erc20_address: Address,
+    target_txid: String,
+) -> Result<(), Box<dyn Error>> {
+    let mut conn = db_conn.create_db_conn()?;
+    let addr_str = format!("{:#x}", erc20_address);
+    conn.exec_drop(
+        "INSERT INTO clonings (chain_id, erc20_address, target_txid) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE target_txid = ?",
+        (chain_id, &addr_str, &target_txid, &target_txid),
+    )?;
+    Ok(())
+}
+
 pub async fn process_and_send_snapshot(
     request_data: TokenRequestData,
     amount: U256,
     snapshot: HashMap<Address, U256>,
     orchestrator_url: String,
-    indexing_stats: Arc<Mutex<IndexerProcesses>>
-) -> Result<(), Box<dyn std::error::Error>> {
+    indexing_stats: Arc<Mutex<IndexerProcesses>>,
+    db_conn: DbConn,
+) -> Result<(), Box<dyn Error>> {
     info!("Received indexed snapshot");
     {
         if let Ok(mut stats) = indexing_stats.lock() {
-            if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address)) {
+            if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address))
+            {
                 item.current_timestamp = Utc::now().timestamp();
                 item.status = VampingStatus::SendingToSolana;
             }
@@ -117,7 +136,10 @@ pub async fn process_and_send_snapshot(
         token_uri: Some(request_data.token_uri),
         amount,
         decimal: decimals as u32,
-        token_mapping: Some(TokenMappingProto { addresses: Vec::new(), amounts: Vec::new() }),
+        token_mapping: Some(TokenMappingProto {
+            addresses: Vec::new(),
+            amounts: Vec::new(),
+        }),
         chain_id: request_data.chain_id,
         salt,
     };
@@ -145,7 +167,9 @@ pub async fn process_and_send_snapshot(
             AppChainResultStatus::Error => {
                 let message = result.message.unwrap_or("Unknown error".to_string());
                 if let Ok(mut stats) = stats {
-                    if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address)) {
+                    if let Some(item) =
+                        stats.get_mut(&(request_data.chain_id, request_data.erc20_address))
+                    {
                         item.status = VampingStatus::Failure;
                         item.message = message.clone();
                     }
@@ -153,17 +177,34 @@ pub async fn process_and_send_snapshot(
                 return Err(format!("Error in orchestrator response: {}", message).into());
             }
             AppChainResultStatus::Ok => {
+                if let Some(payload) = response_proto.payload {
+                    write_cloning(
+                        db_conn,
+                        request_data.chain_id,
+                        request_data.erc20_address,
+                        payload.solana_txid,
+                    )?;
+                } else {
+                    return Err("Payload not found in orchestrator response".into());
+                }
                 if let Ok(mut stats) = stats {
-                    if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address)) {
+                    if let Some(item) =
+                        stats.get_mut(&(request_data.chain_id, request_data.erc20_address))
+                    {
                         item.status = VampingStatus::Success;
                     }
                 }
                 info!("The solver decision is successfully sent to the orchestrator.");
             }
             AppChainResultStatus::EventNotFound => {
-                let message = format!("Orchestrator error: event {} not found", request_data.sequence_id);
+                let message = format!(
+                    "Orchestrator error: event {} not found",
+                    request_data.sequence_id
+                );
                 if let Ok(mut stats) = stats {
-                    if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address)) {
+                    if let Some(item) =
+                        stats.get_mut(&(request_data.chain_id, request_data.erc20_address))
+                    {
                         item.status = VampingStatus::Failure;
                         item.message = "Orchestrator error: event not found".to_string();
                     }

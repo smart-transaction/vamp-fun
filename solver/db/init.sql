@@ -28,6 +28,14 @@ CREATE TABLE IF NOT EXISTS request_logs(
   INDEX sequence_id_idx(sequence_id)
 );
 
+CREATE TABLE IF NOT EXISTS clonings(
+  chain_id BIGINT NOT NULL,
+  erc20_address CHAR(42) NOT NULL,
+  target_txid VARCHAR(128) NOT NULL,
+  INDEX chain_id_idx(chain_id),
+  INDEX erc20_address_idx(erc20_address)
+);
+
 -- Create the user.
 -- 1. Remove '%' user
 --    if the server and mysql run on the same instance.

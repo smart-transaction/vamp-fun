@@ -11,7 +11,7 @@ use tokio::time::sleep;
 use tonic::{Request, transport::Channel};
 
 use crate::{
-    mysql_conn::create_db_conn,
+    mysql_conn::DbConn,
     request_handler::DeployTokenHandler,
     use_proto::proto::{
         AppChainResultStatus, PollRequestProto,
@@ -25,11 +25,7 @@ pub const VAMPING_APP_ID: &str = "VampFunVamping";
 pub struct RequestRegistratorListener {
     client: RequestRegistratorServiceClient<Channel>,
     poll_frequency: Duration,
-    mysql_host: String,
-    mysql_port: String,
-    mysql_user: String,
-    mysql_password: String,
-    mysql_database: String,
+    db_conn: DbConn,
 }
 
 /// A polling client that pings the request registrator for new UserEventProto events.
@@ -37,11 +33,7 @@ impl RequestRegistratorListener {
     pub async fn new(
         request_registrator_url: String,
         poll_frequency: Duration,
-        mysql_host: String,
-        mysql_port: String,
-        mysql_user: String,
-        mysql_password: String,
-        mysql_database: String,
+        db_conn: DbConn,
     ) -> Result<Self, Box<dyn Error>> {
         info!(
             "Connecting to request registrator at {}",
@@ -56,11 +48,7 @@ impl RequestRegistratorListener {
         Ok(Self {
             client,
             poll_frequency,
-            mysql_host,
-            mysql_port,
-            mysql_user,
-            mysql_password,
-            mysql_database,
+            db_conn,
         })
     }
 
@@ -142,13 +130,7 @@ impl RequestRegistratorListener {
     }
 
     fn read_last_request_id(&self) -> Result<Option<u64>, Box<dyn Error>> {
-        let mut conn = create_db_conn(
-            &self.mysql_host,
-            &self.mysql_port,
-            &self.mysql_user,
-            &self.mysql_password,
-            &self.mysql_database,
-        )?;
+        let mut conn = self.db_conn.create_db_conn()?;
 
         let stmt = "SELECT sequence_id FROM request_logs ORDER BY ts DESC LIMIT 1";
         let seq_id: Option<u64> = conn.exec_first(stmt, ())?;
@@ -157,13 +139,7 @@ impl RequestRegistratorListener {
     }
 
     fn write_request_id(&self, sequence_id: u64) -> Result<(), Box<dyn Error>> {
-        let mut conn = create_db_conn(
-            &self.mysql_host,
-            &self.mysql_port,
-            &self.mysql_user,
-            &self.mysql_password,
-            &self.mysql_database,
-        )?;
+        let mut conn = self.db_conn.create_db_conn()?;
 
         let stmt = "INSERT INTO request_logs (sequence_id) VALUES (?)";
         conn.exec_drop(stmt, (sequence_id,))?;

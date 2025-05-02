@@ -29,6 +29,7 @@ pub struct IndexerStats {
     pub message: String,
     pub start_timestamp: i64,
     pub current_timestamp: i64,
+    pub solana_txid: String,
 }
 
 const MAX_STATS: usize = 100;

@@ -13,12 +13,12 @@ use ethers::{
     utils::keccak256,
 };
 use log::{error, info};
-use mysql::{PooledConn, TxOpts, prelude::Queryable};
+use mysql::{TxOpts, prelude::Queryable};
 use tokio::spawn;
 
 use crate::{
     chain_info::{fetch_chains, get_quicknode_mapping, ChainInfo},
-    mysql_conn::create_db_conn,
+    mysql_conn::DbConn,
     snapshot_processor::process_and_send_snapshot,
     stats::{IndexerProcesses, IndexerStats, VampingStatus},
 };
@@ -38,11 +38,7 @@ pub struct TokenRequestData {
 pub struct SnapshotIndexer {
     chain_info: HashMap<u64, ChainInfo>,
     quicknode_chains: HashMap<u64, String>,
-    mysql_host: String,
-    mysql_port: u16,
-    mysql_user: String,
-    mysql_password: String,
-    mysql_database: String,
+    db_conn: DbConn,
     orchestrator_url: String,
 }
 
@@ -50,21 +46,13 @@ const BLOCK_STEP: usize = 9990;
 
 impl SnapshotIndexer {
     pub fn new(
-        mysql_host: String,
-        mysql_port: u16,
-        mysql_user: String,
-        mysql_password: String,
-        mysql_database: String,
+        db_conn: DbConn,
         orchestrator_url: String,
     ) -> Self {
         Self {
             chain_info: HashMap::new(),
             quicknode_chains: HashMap::new(),
-            mysql_host,
-            mysql_port,
-            mysql_user,
-            mysql_password,
-            mysql_database,
+            db_conn,
             orchestrator_url,
         }
     }
@@ -92,15 +80,7 @@ impl SnapshotIndexer {
 
         let provider = Arc::new(self.connect_chain(request_data.chain_id).await?);
 
-        let mysql_conn = create_db_conn(
-            &self.mysql_host,
-            &self.mysql_port.to_string(),
-            &self.mysql_user,
-            &self.mysql_password,
-            &self.mysql_database,
-        )?;
-        let (mut token_supply, prev_block_number) = Self::read_token_supply(
-            mysql_conn,
+        let (mut token_supply, prev_block_number) = self.read_token_supply(
             request_data.chain_id,
             request_data.erc20_address,
         )?;
@@ -110,15 +90,7 @@ impl SnapshotIndexer {
             .map(|(_, v)| *v)
             .fold(U256::zero(), |acc, x| acc.checked_add(x).unwrap());
 
-        let mysql_conn = create_db_conn(
-            &self.mysql_host,
-            &self.mysql_port.to_string(),
-            &self.mysql_user,
-            &self.mysql_password,
-            &self.mysql_database,
-        )?;
         let orchestrator_url = self.orchestrator_url.clone();
-
         {
             if let Ok(mut stats) = stats.lock() {
                 let mut item = IndexerStats::default();
@@ -130,6 +102,7 @@ impl SnapshotIndexer {
                 stats.insert((request_data.chain_id, request_data.erc20_address), item);
             }
         }
+        let db_conn = self.db_conn.clone();
         spawn(async move {
             let first_block = prev_block_number.unwrap_or(0) + 1;
             let latest_block = request_data.block_number as usize;
@@ -201,7 +174,7 @@ impl SnapshotIndexer {
 
             // Writing the token supply to the database
             if let Err(err) = Self::write_token_supply(
-                mysql_conn,
+                db_conn.clone(),
                 request_data.chain_id,
                 request_data.erc20_address,
                 request_data.block_number,
@@ -225,6 +198,7 @@ impl SnapshotIndexer {
                 token_supply,
                 orchestrator_url,
                 stats.clone(),
+                db_conn.clone(),
             )
             .await
             {
@@ -266,12 +240,12 @@ impl SnapshotIndexer {
     }
 
     pub fn read_token_supply(
-        mut conn: PooledConn,
+        &self,
         chain_id: u64,
         erc20_address: Address,
     ) -> Result<(HashMap<Address, U256>, Option<usize>), Box<dyn Error>> {
         let mut token_supply = HashMap::new();
-
+        let mut conn = self.db_conn.create_db_conn()?;
         // Reading the current snapshot from the database
         let stmt = "SELECT holder_address, holder_amount FROM tokens WHERE chain_id = ? AND erc20_address = ?";
         let addr_str = format!("{:#x}", erc20_address);
@@ -298,12 +272,13 @@ impl SnapshotIndexer {
     }
 
     fn write_token_supply(
-        mut conn: PooledConn,
+        db_conn: DbConn,
         chain_id: u64,
         erc20_address: Address,
         block_number: u64,
         token_supply: &HashMap<Address, U256>,
     ) -> Result<(), Box<dyn Error>> {
+        let mut conn = db_conn.create_db_conn()?;
         // Delete existing records for the given erc20_address
         let mut tx = conn.start_transaction(TxOpts::default())?;
         let stmt = "DELETE FROM tokens WHERE chain_id = ? AND erc20_address = ?";

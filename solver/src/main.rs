@@ -14,8 +14,9 @@ use axum::{
 };
 use clap::Parser;
 use log::{Level, error, info};
+use mysql_conn::DbConn;
 use snapshot_indexer::SnapshotIndexer;
-use stats::{cleanup_stats, IndexerProcesses};
+use stats::{IndexerProcesses, cleanup_stats};
 use stderrlog::Timestamp;
 use tokio::{net::TcpListener, spawn};
 use tower_http::cors::{Any, CorsLayer};
@@ -79,21 +80,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut deploy_token_listener = request_registrator_listener::RequestRegistratorListener::new(
         args.request_registrator_url,
         poll_frequency,
-        args.mysql_host.clone(),
-        args.mysql_port.to_string(),
-        args.mysql_user.clone(),
-        args.mysql_password.clone(),
-        args.mysql_database.clone(),
+        DbConn::new(
+            args.mysql_host.clone(),
+            args.mysql_port.to_string(),
+            args.mysql_user.clone(),
+            args.mysql_password.clone(),
+            args.mysql_database.clone(),
+        ),
     )
     .await?;
 
     // Initialize SnapshotIndexer
     let mut indexer = SnapshotIndexer::new(
-        args.mysql_host.clone(),
-        args.mysql_port.clone(),
-        args.mysql_user.clone(),
-        args.mysql_password.clone(),
-        args.mysql_database.clone(),
+        DbConn::new(
+            args.mysql_host.clone(),
+            args.mysql_port.to_string(),
+            args.mysql_user.clone(),
+            args.mysql_password.clone(),
+            args.mysql_database.clone(),
+        ),
         args.orchestrator_url.clone(),
     );
     if let Some(quicknode_api_key) = args.quicknode_api_key {
@@ -140,18 +145,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 async move |params| {
                     http_handler::handle_get_claim_amount(
                         params,
-                        args.mysql_host,
-                        args.mysql_port.to_string(),
-                        args.mysql_user,
-                        args.mysql_password,
-                        args.mysql_database,
+                        DbConn::new(
+                            args.mysql_host.clone(),
+                            args.mysql_port.to_string(),
+                            args.mysql_user.clone(),
+                            args.mysql_password.clone(),
+                            args.mysql_database.clone(),
+                        ),
                     )
                 }
             }),
         )
-        .route("/vamping_stats", get({ async move |params| {
-            http_handler::handle_get_stats(params, indexing_stats)
-        } }))
+        .route(
+            "/vamping_stats",
+            get(async move |params| http_handler::handle_get_stats(params, indexing_stats)),
+        )
         .layer(cors);
 
     let tcp_listener = TcpListener::bind(format!("0.0.0.0:{}", args.port))

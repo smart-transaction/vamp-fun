@@ -30,12 +30,12 @@ impl SolanaOrchestrator {
 
     pub async fn submit_to_solana(
         vamping_data_bytes: Vec<u8>,
-        tmp_source_token_address: Vec<u8>,
+        _tmp_source_token_address: Vec<u8>,
         cluster: String,
         private_key: String,
-        tmp_chain_id: u64,
-        tmp_salt: u64,
-    ) -> Result<()> {
+        _tmp_chain_id: u64,
+        _tmp_salt: u64,
+    ) -> Result<String> {
         //TODO: Will be replaced with signing on the solver side
         let key_bytes = bs58::decode(private_key).into_vec()?; // decode base58
         log::debug!("Decoded len: {}", key_bytes.len());
@@ -141,6 +141,6 @@ impl SolanaOrchestrator {
         let sig = program.rpc().send_and_confirm_transaction(&tx).await?;
         log::info!("Transaction submitted: {}", sig);
 
-        Ok(())
+        Ok(sig.to_string())
     }
 }

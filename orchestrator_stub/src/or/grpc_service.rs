@@ -2,7 +2,7 @@ use crate::or::solana_orchestrator::SolanaOrchestrator;
 use crate::or::storage::Storage;
 use crate::proto::orchestrator_service_server::{OrchestratorService, OrchestratorServiceServer};
 use crate::proto::{
-    AppChainResultProto, AppChainResultStatus, SubmitSolutionRequestProto,
+    AppChainPayloadProto, AppChainResultProto, AppChainResultStatus, SubmitSolutionRequestProto,
     SubmitSolutionResponseProto,
 };
 use std::fs;
@@ -18,14 +18,22 @@ pub struct OrchestratorGrpcService {
 
 #[tonic::async_trait]
 impl OrchestratorService for OrchestratorGrpcService {
-    async fn solver_decision(
+    async fn submit_solution(
         &self,
         request: Request<SubmitSolutionRequestProto>,
     ) -> Result<Response<SubmitSolutionResponseProto>, Status> {
         let metadata = request.metadata();
-        log::info!("Incoming gRPC SubmitSolution request: metadata = {:?}, remote_addr = {:?}", metadata, request.remote_addr());
+        log::info!(
+            "Incoming gRPC SubmitSolution request: metadata = {:?}, remote_addr = {:?}",
+            metadata,
+            request.remote_addr()
+        );
         let req = request.into_inner();
-        log::info!("Request payload: sequence_id = {}, solution_len = {}", req.request_sequence_id, req.generic_solution.len());
+        log::info!(
+            "Request payload: sequence_id = {}, solution_len = {}",
+            req.request_sequence_id,
+            req.generic_solution.len()
+        );
 
         // Fetch request from storage, only if state is New
         match self
@@ -40,7 +48,7 @@ impl OrchestratorService for OrchestratorGrpcService {
                     "Submitting solution to Solana program for sequence_id: {}",
                     req.request_sequence_id
                 );
-                SolanaOrchestrator::submit_to_solana(
+                let solana_txid = SolanaOrchestrator::submit_to_solana(
                     req.generic_solution,
                     req.token_ers20_address,
                     self.solana_cluster.clone(),
@@ -75,6 +83,7 @@ impl OrchestratorService for OrchestratorGrpcService {
                         message: None,
                     }
                     .into(),
+                    payload: Some(AppChainPayloadProto { solana_txid }),
                 }))
             }
             None => Ok(Response::new(SubmitSolutionResponseProto {
@@ -87,17 +96,26 @@ impl OrchestratorService for OrchestratorGrpcService {
                     .into(),
                 }
                 .into(),
+                payload: None,
             })),
         }
     }
 }
 
-pub async fn start_grpc_server(storage: Storage, cfg: &config::Config, solana_private_key: String) -> anyhow::Result<()> {
+pub async fn start_grpc_server(
+    storage: Storage,
+    cfg: &config::Config,
+    solana_private_key: String,
+) -> anyhow::Result<()> {
     let addr: String = cfg.get("grpc.address")?;
     let addr = addr.parse()?;
     let solana_cluster = cfg.get("solana.cluster")?;
 
-    let service = OrchestratorGrpcService { storage, solana_cluster, solana_private_key };
+    let service = OrchestratorGrpcService {
+        storage,
+        solana_cluster,
+        solana_private_key,
+    };
 
     log::info!("Reading the proto descriptor");
     let descriptor_bytes = fs::read("src/generated/user_descriptor.pb")?;

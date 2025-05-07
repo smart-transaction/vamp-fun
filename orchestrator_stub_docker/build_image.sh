@@ -62,7 +62,8 @@ if [ "${OPT}" == "dev" ]; then
   rm -rf target/orchestrator_stub/target
   gcloud builds submit \
     --region=${CLOUD_REGION} \
-    --tag ${DOCKER_TAG}:${BUILD_VERSION}
+    --substitutions=_TAG=${DOCKER_TAG}:${BUILD_VERSION} \
+    --config ../cloudbuild.yaml
 fi
 
 echo "Tagging Docker image as current ${OPT}..."

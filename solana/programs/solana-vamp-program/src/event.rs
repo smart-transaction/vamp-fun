@@ -21,6 +21,6 @@ pub struct TokenMintCreated {
     pub mint_account: Pubkey,
     pub token_name: String,
     pub token_symbol: String,
-    pub token_erc20_address: Vec<u8>,
+    pub token_erc20_address: String,
     pub amount: u64,
 }

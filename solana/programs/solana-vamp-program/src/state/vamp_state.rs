@@ -27,3 +27,10 @@ impl Space for TokenMapping {
 pub struct ClaimState {
     pub is_claimed: bool,
 }
+
+// counter storage to genrate PDA uniquely everytime a new vamp is created
+#[account]
+#[derive(InitSpace)]
+pub struct Counter {
+    pub counter: u64,
+}

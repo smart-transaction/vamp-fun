@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::state::vamp_state::{VampState, TokenMapping};
+use crate::state::vamp_state::{Counter, TokenMapping, VampState};
 use anchor_spl::metadata::{
     create_metadata_accounts_v3, mpl_token_metadata::types::DataV2, CreateMetadataAccountsV3,
     Metadata,
@@ -15,10 +15,21 @@ pub struct Initialize<'info> {
     pub authority: Signer<'info>,
 
     #[account(
+        init_if_needed,
+        payer = authority,
+        seeds = [b"counter"],
+        bump,
+        space = 8 + Counter::INIT_SPACE,
+    )]
+    pub counter_account: Account<'info, Counter>,
+
+    #[account(
         init,
         payer = authority,
+        seeds = [b"mint", authority.key().as_ref(), &counter_account.counter.to_le_bytes()],
+        bump,
         mint::decimals = 9,
-        mint::authority = mint_authority.key(),
+        mint::authority = mint_account.key(),
     )]
     pub mint_account: Account<'info, Mint>,
 
@@ -50,12 +61,6 @@ pub struct Initialize<'info> {
     )]
     pub vault: Account<'info, TokenAccount>, // Vamp's token vault
 
-    /// CHECK: PDA for mint authority (unique seeds)
-    #[account(
-        seeds = [b"mint_authority"],
-        bump,
-    )]
-    pub mint_authority: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
     pub token_metadata_program: Program<'info, Metadata>,
     pub system_program: Program<'info, System>,
@@ -74,10 +79,7 @@ impl<'info> Initialize<'info> {
         _token_decimals: u8,
         bumps: &InitializeBumps,
     ) -> Result<()> {
-        let seeds = b"mint_authority";
-        let bump = bumps.mint_authority;
-        let signer_seeds_inner: &[&[u8]] = &[seeds, &[bump]];
-        let signer_seeds: &[&[&[u8]]] = &[signer_seeds_inner];
+        let signer_seeds: &[&[&[u8]]] = &[&[b"mint", self.authority.key.as_ref(), &self.counter_account.counter.to_le_bytes(), &[bumps.mint_account]]];
 
         create_metadata_accounts_v3(
             CpiContext::new_with_signer(
@@ -85,8 +87,8 @@ impl<'info> Initialize<'info> {
                 CreateMetadataAccountsV3 {
                     metadata: self.metadata_account.to_account_info(),
                     mint: self.mint_account.to_account_info(),
-                    mint_authority: self.mint_authority.to_account_info(),
-                    update_authority: self.mint_authority.to_account_info(),
+                    mint_authority: self.mint_account.to_account_info(),
+                    update_authority: self.mint_account.to_account_info(),
                     payer: self.authority.to_account_info(),
                     system_program: self.system_program.to_account_info(),
                     rent: self.rent.to_account_info(),
@@ -115,13 +117,14 @@ impl<'info> Initialize<'info> {
                 MintTo {
                     mint: self.mint_account.to_account_info(),
                     to: self.vault.to_account_info(),
-                    authority: self.mint_authority.to_account_info(),
+                    authority: self.mint_account.to_account_info(),
                 },
                 signer_seeds,
             ),
-            amount,
+            amount * 10u64.pow(self.mint_account.decimals as u32),
         )?;
-
+        // increment count
+        self.counter_account.counter += 1;
         self.vamp_state.set_inner(VampState {
             token_mappings,
             authority: self.authority.key(),

@@ -12,7 +12,7 @@ use prost::Message;
 
 use crate::mysql_conn::DbConn;
 use crate::request_registrator_listener::VAMPING_APP_ID;
-use crate::snapshot_indexer::TokenRequestData;
+use crate::snapshot_indexer::{TokenAmount, TokenRequestData};
 use crate::stats::{IndexerProcesses, VampingStatus};
 use crate::use_proto::proto::AppChainResultStatus;
 use crate::use_proto::proto::{
@@ -75,7 +75,7 @@ fn write_cloning(
 pub async fn process_and_send_snapshot(
     request_data: TokenRequestData,
     amount: U256,
-    snapshot: HashMap<Address, U256>,
+    snapshot: HashMap<Address, TokenAmount>,
     orchestrator_url: String,
     indexing_stats: Arc<Mutex<IndexerProcesses>>,
     db_conn: DbConn,
@@ -95,7 +95,7 @@ pub async fn process_and_send_snapshot(
     let snapshot = snapshot
         .iter()
         .map(|(k, v)| {
-            let amount = v.checked_div(U256::from(10u64.pow(18 - decimals as u32)));
+            let amount = v.amount.checked_div(U256::from(10u64.pow(18 - decimals as u32)));
             (*k, amount.unwrap_or_default().as_u64())
         })
         .collect::<HashMap<_, _>>();
@@ -116,15 +116,6 @@ pub async fn process_and_send_snapshot(
 
     let mut user_event = UserEventProto::default();
     user_event.app_id = keccak256(VAMPING_APP_ID.as_bytes()).to_vec();
-
-    // Temporarily disable the token mapping on Solana.
-    let _ = TokenMappingProto {
-        addresses: snapshot
-            .iter()
-            .map(|(k, _)| k.as_bytes().to_vec())
-            .collect(),
-        amounts: snapshot.iter().map(|(_, v)| *v).collect(),
-    };
 
     let salt = Utc::now().timestamp() as u64;
 

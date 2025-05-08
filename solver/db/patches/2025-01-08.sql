@@ -1,0 +1,1 @@
+ALTER TABLE tokens ADD COLUMN signature VARCHAR(255);

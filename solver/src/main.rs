@@ -13,6 +13,7 @@ use axum::{
     serve,
 };
 use clap::Parser;
+use ethers::signers::LocalWallet;
 use log::{Level, error, info};
 use mysql_conn::DbConn;
 use snapshot_indexer::SnapshotIndexer;
@@ -62,6 +63,9 @@ pub struct Args {
 
     #[arg(long)]
     pub quicknode_api_key: Option<String>,
+
+    #[arg(long)]
+    pub private_key: LocalWallet,
 }
 
 #[tokio::main]
@@ -100,6 +104,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             args.mysql_database.clone(),
         ),
         args.orchestrator_url.clone(),
+        args.private_key.clone(),
     );
     if let Some(quicknode_api_key) = args.quicknode_api_key {
         if quicknode_api_key.len() == 0 {

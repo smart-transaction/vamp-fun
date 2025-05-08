@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS tokens(
   erc20_address CHAR(42) NOT NULL,
   holder_address CHAR(42) NOT NULL,
   holder_amount VARCHAR(78) NOT NULL,
+  signature VARCHAR(255),
   INDEX chain_id_idx(chain_id),
   INDEX erc20_address_idx(erc20_address),
   INDEX holder_address_idx(holder_address)

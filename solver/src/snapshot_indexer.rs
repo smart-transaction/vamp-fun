@@ -9,7 +9,8 @@ use std::{
 use chrono::Utc;
 use ethers::{
     providers::{Http, Middleware, Provider},
-    types::{Address, Filter, H256, U256},
+    signers::{LocalWallet, Signer},
+    types::{Address, Bytes, Filter, H256, U256},
     utils::keccak256,
 };
 use log::{error, info};
@@ -17,7 +18,7 @@ use mysql::{TxOpts, prelude::Queryable};
 use tokio::spawn;
 
 use crate::{
-    chain_info::{fetch_chains, get_quicknode_mapping, ChainInfo},
+    chain_info::{ChainInfo, fetch_chains, get_quicknode_mapping},
     mysql_conn::DbConn,
     snapshot_processor::process_and_send_snapshot,
     stats::{IndexerProcesses, IndexerStats, VampingStatus},
@@ -35,29 +36,37 @@ pub struct TokenRequestData {
     pub block_number: u64,
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct TokenAmount {
+    pub amount: U256,
+    pub signature: Vec<u8>,
+}
+
 pub struct SnapshotIndexer {
     chain_info: HashMap<u64, ChainInfo>,
     quicknode_chains: HashMap<u64, String>,
     db_conn: DbConn,
     orchestrator_url: String,
+    private_key: LocalWallet,
 }
 
 const BLOCK_STEP: usize = 9990;
 
 impl SnapshotIndexer {
-    pub fn new(
-        db_conn: DbConn,
-        orchestrator_url: String,
-    ) -> Self {
+    pub fn new(db_conn: DbConn, orchestrator_url: String, private_key: LocalWallet) -> Self {
         Self {
             chain_info: HashMap::new(),
             quicknode_chains: HashMap::new(),
             db_conn,
             orchestrator_url,
+            private_key,
         }
     }
 
-    pub async fn init_chain_info(&mut self, quicknode_api_key: Option<String>) -> Result<(), Box<dyn Error>> {
+    pub async fn init_chain_info(
+        &mut self,
+        quicknode_api_key: Option<String>,
+    ) -> Result<(), Box<dyn Error>> {
         let chains = fetch_chains().await?;
         self.chain_info = chains;
 
@@ -80,14 +89,12 @@ impl SnapshotIndexer {
 
         let provider = Arc::new(self.connect_chain(request_data.chain_id).await?);
 
-        let (mut token_supply, prev_block_number) = self.read_token_supply(
-            request_data.chain_id,
-            request_data.erc20_address,
-        )?;
+        let (mut token_supply, prev_block_number) =
+            self.read_token_supply(request_data.chain_id, request_data.erc20_address)?;
 
         let mut total_amount = token_supply
             .iter()
-            .map(|(_, v)| *v)
+            .map(|(_, v)| v.amount)
             .fold(U256::zero(), |acc, x| acc.checked_add(x).unwrap());
 
         let orchestrator_url = self.orchestrator_url.clone();
@@ -103,6 +110,7 @@ impl SnapshotIndexer {
             }
         }
         let db_conn = self.db_conn.clone();
+        let private_key = self.private_key.clone();
         spawn(async move {
             let first_block = prev_block_number.unwrap_or(0) + 1;
             let latest_block = request_data.block_number as usize;
@@ -144,17 +152,17 @@ impl SnapshotIndexer {
                     let from_address = Address::from_slice(&from[12..]);
                     let to_address = Address::from_slice(&to[12..]);
                     if from_address != Address::zero() {
-                        if let Some(v) = token_supply.get(&from_address) {
-                            token_supply.insert(from_address, v.checked_sub(value).unwrap());
+                        if let Some(v) = token_supply.get_mut(&from_address) {
+                            v.amount = v.amount.checked_sub(value).unwrap();
                         }
                     }
                     if to_address != Address::zero() {
-                        match token_supply.get(&to_address) {
+                        match token_supply.get_mut(&to_address) {
                             Some(v) => {
-                                token_supply.insert(to_address, v.checked_add(value).unwrap());
+                                v.amount = v.amount.checked_sub(value).unwrap();
                             }
                             None => {
-                                token_supply.insert(to_address, value);
+                                token_supply.insert(to_address, TokenAmount::default());
                             }
                         }
                     }
@@ -170,6 +178,19 @@ impl SnapshotIndexer {
                         item.blocks_done = block_to as u64;
                     }
                 }
+            }
+
+            // Truncate values that are < 1 Gwei, compute signatures
+            for (_, supply) in token_supply.iter_mut() {
+                let amount_gwei = supply.amount.checked_div(U256::from(10u64.pow(9))).unwrap();
+                let amount = amount_gwei.checked_mul(U256::from(10u64.pow(9))).unwrap();
+                let signature =private_key.sign_message(amount.to_string()).await;
+                if let Err(err) = signature {
+                    error!("Failed to sign message: {:?}", err);
+                    continue;
+                }
+                supply.amount = amount;
+                supply.signature = signature.unwrap().to_vec();
             }
 
             // Writing the token supply to the database
@@ -220,7 +241,7 @@ impl SnapshotIndexer {
             let _ = provider.get_block_number().await?;
             return Ok(provider);
         }
-        
+
         let chain_info = self.chain_info.get(&chain_id).ok_or(format!(
             "Chain ID {} is not registered in the chainid network",
             chain_id
@@ -243,11 +264,11 @@ impl SnapshotIndexer {
         &self,
         chain_id: u64,
         erc20_address: Address,
-    ) -> Result<(HashMap<Address, U256>, Option<usize>), Box<dyn Error>> {
+    ) -> Result<(HashMap<Address, TokenAmount>, Option<usize>), Box<dyn Error>> {
         let mut token_supply = HashMap::new();
         let mut conn = self.db_conn.create_db_conn()?;
         // Reading the current snapshot from the database
-        let stmt = "SELECT holder_address, holder_amount FROM tokens WHERE chain_id = ? AND erc20_address = ?";
+        let stmt = "SELECT holder_address, holder_amount, signature FROM tokens WHERE chain_id = ? AND erc20_address = ?";
         let addr_str = format!("{:#x}", erc20_address);
         let result = conn.exec_iter(stmt, (chain_id, &addr_str))?;
 
@@ -255,11 +276,21 @@ impl SnapshotIndexer {
             let row = row?;
             let token_address: Option<String> = row.get(0);
             let token_supply_value: Option<String> = row.get(1);
+            let solver_signature: String = row.get(2).unwrap_or_default();
             if let Some(token_address) = token_address {
                 if let Some(token_supply_value) = token_supply_value {
                     let token_supply_value = U256::from_dec_str(&token_supply_value)?;
                     let token_address = Address::from_str(&token_address)?;
-                    token_supply.insert(token_address, token_supply_value);
+                    let solver_signature = Bytes::from_str(&solver_signature)
+                        .unwrap_or_default()
+                        .to_vec();
+                    token_supply.insert(
+                        token_address,
+                        TokenAmount {
+                            amount: token_supply_value,
+                            signature: solver_signature,
+                        },
+                    );
                 }
             }
         }
@@ -276,7 +307,7 @@ impl SnapshotIndexer {
         chain_id: u64,
         erc20_address: Address,
         block_number: u64,
-        token_supply: &HashMap<Address, U256>,
+        token_supply: &HashMap<Address, TokenAmount>,
     ) -> Result<(), Box<dyn Error>> {
         let mut conn = db_conn.create_db_conn()?;
         // Delete existing records for the given erc20_address
@@ -287,12 +318,18 @@ impl SnapshotIndexer {
 
         // Insert new supplies
         for (token_address, supply) in token_supply {
-            let stmt = "INSERT INTO tokens (chain_id, erc20_address, holder_address, holder_amount) VALUES (?, ?, ?, ?)";
+            let stmt = "INSERT INTO tokens (chain_id, erc20_address, holder_address, holder_amount, signature) VALUES (?, ?, ?, ?, ?)";
             let addr_str = format!("{:#x}", erc20_address);
             let token_addr_str = format!("{:#x}", token_address);
             tx.exec_drop(
                 stmt,
-                (chain_id, addr_str, token_addr_str, supply.to_string()),
+                (
+                    chain_id,
+                    addr_str,
+                    token_addr_str,
+                    supply.amount.to_string(),
+                    hex::encode(&supply.signature),
+                ),
             )?;
         }
         // Insert new epoch

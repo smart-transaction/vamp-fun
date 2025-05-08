@@ -6,6 +6,7 @@ MYSQL_DATABASE=vampfun
 REQUEST_REGISTRATOR_URL=http://localhost:50051
 ORCHESTRATOR_URL=http://localhost:50052
 POLL_FREQUENCY_SECS=5
+PRIVATE_KEY=0xa16244600268d2379a6e22b0dc1d6064d714b43b346a434f3fd50831103f56bf
 
 cargo run \
   -- \
@@ -16,4 +17,6 @@ cargo run \
   --mysql-host=${MYSQL_HOST} \
   --mysql-port=${MYSQL_PORT} \
   --mysql-database=${MYSQL_DATABASE} \
-  --poll-frequency-secs=${POLL_FREQUENCY_SECS}
+  --poll-frequency-secs=${POLL_FREQUENCY_SECS} \
+  --private-key=${PRIVATE_KEY}
+  

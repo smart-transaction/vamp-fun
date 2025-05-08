@@ -42,4 +42,5 @@ CMD \
    "--request-registrator-url=${REQUEST_REGISTRATOR_URL}" \
    "--orchestrator-url=${ORCHESTRATOR_URL}" \
    "--poll-frequency-secs=${POLL_FREQUENCY_SECS}" \
-   "--quicknode-api-key=${QUICKNODE_API_KEY}"
+   "--quicknode-api-key=${QUICKNODE_API_KEY}" \
+   "--private-key=${SOLVER_PRIVATE_KEY}"

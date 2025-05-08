@@ -23,7 +23,7 @@ pub mod solana_vamp_program {
     use hex::ToHex;
     use super::*;
 
-    pub fn create_token_mint(ctx: Context<Initialize>, vamping_data: Vec<u8>) -> Result<()> {
+    pub fn create_token_mint(ctx: Context<Initialize>, vamping_data: Vec<u8>, _vamp_identifier: u64) -> Result<()> {
         let vamping_info = TokenVampingInfoProto::decode(&vamping_data[..]).unwrap();
         let token_mapping_proto = vamping_info.token_mapping.unwrap_or_default();
 

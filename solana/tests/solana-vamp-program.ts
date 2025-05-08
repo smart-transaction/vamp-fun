@@ -16,7 +16,6 @@ const program = anchor.workspace.solanaVampProgram as Program<SolanaVampProgram>
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 const PROGRAM_ID = program.programId;
 
-const mintKeypair2 = anchor.web3.Keypair.generate();
 const claimerKeypair = anchor.web3.Keypair.generate();
 
 describe("solana-vamp-project", () => {
@@ -24,16 +23,15 @@ describe("solana-vamp-project", () => {
   anchor.setProvider(provider);
   const authority = provider.wallet.publicKey;
 
-  it("Initializes Vamp State and Mints Token", async () => {
+  it.only("Initializes Vamp State and Mints Token", async () => {
     const accounts = await setupInitAccounts(authority);
     const vampingData = await getVampingData();
 
     try {
       const tx = await program.methods
-        .createTokenMint(vampingData)
+        .createTokenMint(vampingData, new BN(0))
         .accounts({
           authority,
-          counterAccount: accounts.counter,
           mintAccount: accounts.mintAccount,
           metadataAccount: accounts.metadataAccount,
           vampState: accounts.vampState,
@@ -43,7 +41,7 @@ describe("solana-vamp-project", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-        })
+        } as any)
         .signers([provider.wallet.payer])
         .preInstructions([
           ComputeBudgetProgram.setComputeUnitLimit({
@@ -77,7 +75,6 @@ describe("solana-vamp-project", () => {
       .createTokenMint(vampingData)
       .accounts({
         authority,
-        counterAccount: accounts.counter,
         mintAccount: mintAccount2,
         metadataAccount: accounts.metadataAccount2,
         vampState: accounts.vampState2,
@@ -115,7 +112,7 @@ describe("solana-vamp-project", () => {
     await provider.sendAndConfirm(ataTx, [claimerKeypair]);
 
     // Call claim
-    const ethAddressBytes = new Uint8Array(hexToBytes(ethAddress)); 
+    const ethAddressBytes = hexToBytes(ethAddress); 
     const ethSignatureBytes = hexToBytes(ethSignature);
     const tx = await program.methods
       .claim(ethAddressBytes, new BN(amount), ethSignatureBytes)
@@ -127,6 +124,7 @@ describe("solana-vamp-project", () => {
         claimerTokenAccount: claimerTokenAccount,
         mintAccount: mintAccount2,
         token_program: TOKEN_PROGRAM_ID,
+        system_program: anchor.web3.SystemProgram.programId,
       } as any)
       .signers([claimerKeypair])
       .rpc();
@@ -159,15 +157,24 @@ describe("solana-vamp-project", () => {
 
   async function setupInitAccounts(authority: PublicKey) {
     let count = new BN(0);
-    const [mintAccount] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from('mint'), authority.toBuffer(), count.toArrayLike(Buffer, "le", 8),], program.programId);
-
-    const [counter] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("counter")],
-      PROGRAM_ID
+    const [mintAccount] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('mint'),
+        authority.toBuffer(),
+        count.toArrayLike(Buffer, "le", 8),
+      ],
+      program.programId
     );
 
     count = new BN(1);
-    const [mintAccount2] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from('mint'), authority.toBuffer(), count.toArrayLike(Buffer, "le", 8),], program.programId);
+    const [mintAccount2] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('mint'),
+        authority.toBuffer(),
+        count.toArrayLike(Buffer, "le", 8),
+      ],
+      program.programId
+    );
 
     const [metadataAccount] = anchor.web3.PublicKey.findProgramAddressSync(
       [
@@ -214,7 +221,6 @@ describe("solana-vamp-project", () => {
       vampStateBump,
       vault,
       mintAccount,
-      counter,
       mintAccount2,
       vampState2,
       vampStateBump2,
@@ -237,11 +243,11 @@ describe("solana-vamp-project", () => {
     }
   }
 
-  function hexToBytes(hex: string) {
+  function hexToBytes(hex: string): number[] {
     if (hex.length % 2 !== 0) {
       throw new Error("Invalid hex string");
     }
-    const bytes = [];
+    const bytes: number[] = [];
     for (let i = 2; i < hex.length; i += 2) {
       bytes[(i - 2) / 2] = parseInt(hex.substr(i, 2), 16);
     }

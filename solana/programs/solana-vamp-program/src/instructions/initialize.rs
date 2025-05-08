@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use crate::state::vamp_state::{Counter, TokenMapping, VampState};
+use crate::constants::ANCHOR_DISCRIMINATOR;
+use crate::state::vamp_state::VampState;
 use anchor_spl::metadata::{
     create_metadata_accounts_v3, mpl_token_metadata::types::DataV2, CreateMetadataAccountsV3,
     Metadata,
@@ -10,23 +11,15 @@ use anchor_spl::{
 };
 
 #[derive(Accounts)]
+#[instruction(_vamp_identifier: u64)]
 pub struct Initialize<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
 
     #[account(
-        init_if_needed,
-        payer = authority,
-        seeds = [b"counter"],
-        bump,
-        space = 8 + Counter::INIT_SPACE,
-    )]
-    pub counter_account: Account<'info, Counter>,
-
-    #[account(
         init,
         payer = authority,
-        seeds = [b"mint", authority.key().as_ref(), &counter_account.counter.to_le_bytes()],
+        seeds = [b"mint", authority.key().as_ref(), &_vamp_identifier.to_be_bytes()],
         bump,
         mint::decimals = 9,
         mint::authority = mint_account.key(),
@@ -47,7 +40,7 @@ pub struct Initialize<'info> {
         payer = authority,
         seeds = [b"vamp", mint_account.key().as_ref()],
         bump,
-        space = 10000 // space = ANCHOR_DISCRIMINATOR + VampState::INIT_SPACE
+        space = ANCHOR_DISCRIMINATOR + VampState::INIT_SPACE
     )]
     pub vamp_state: Account<'info, VampState>,
 
@@ -59,7 +52,7 @@ pub struct Initialize<'info> {
         seeds = [b"vault", mint_account.key().as_ref()],
         bump,
     )]
-    pub vault: Account<'info, TokenAccount>, // Vamp's token vault
+    pub vault: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
     pub token_metadata_program: Program<'info, Metadata>,
@@ -71,7 +64,6 @@ pub struct Initialize<'info> {
 impl<'info> Initialize<'info> {
     pub fn create_token_mint(
         &mut self,
-        token_mappings: Vec<TokenMapping>,
         token_name: String,
         token_symbol: String,
         token_uri: String,
@@ -79,7 +71,7 @@ impl<'info> Initialize<'info> {
         _token_decimals: u8,
         bumps: &InitializeBumps,
     ) -> Result<()> {
-        let signer_seeds: &[&[&[u8]]] = &[&[b"mint", self.authority.key.as_ref(), &self.counter_account.counter.to_le_bytes(), &[bumps.mint_account]]];
+        let signer_seeds: &[&[&[u8]]] = &[&[b"mint", self.authority.key.as_ref(), &[bumps.mint_account]]];
 
         create_metadata_accounts_v3(
             CpiContext::new_with_signer(
@@ -123,11 +115,8 @@ impl<'info> Initialize<'info> {
             ),
             amount * 10u64.pow(self.mint_account.decimals as u32),
         )?;
-        // increment count
-        self.counter_account.counter += 1;
+
         self.vamp_state.set_inner(VampState {
-            token_mappings,
-            authority: self.authority.key(),
             bump: bumps.vamp_state,
             mint: self.mint_account.key(),
         });

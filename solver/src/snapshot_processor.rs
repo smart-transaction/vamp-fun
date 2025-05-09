@@ -2,23 +2,60 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 
+use bs58;
 use chrono::Utc;
-use ethers::types::{Address, U256};
 use ethers::utils::keccak256;
+use ethers::{
+    signers::{LocalWallet, Signer},
+    types::{Address, Signature, U256},
+};
 use log::info;
 use merkle_tree::{Leaf, MerkleTree};
+use mysql::TxOpts;
 use mysql::prelude::Queryable;
 use prost::Message;
+use sha3::{Digest, Keccak256};
 
 use crate::mysql_conn::DbConn;
 use crate::request_registrator_listener::VAMPING_APP_ID;
 use crate::snapshot_indexer::{TokenAmount, TokenRequestData};
 use crate::stats::{IndexerProcesses, VampingStatus};
-use crate::use_proto::proto::AppChainResultStatus;
+use crate::use_proto::proto::{AppChainPayloadProto, AppChainResultStatus};
 use crate::use_proto::proto::{
     SubmitSolutionRequestProto, TokenMappingProto, TokenVampingInfoProto, UserEventProto,
     orchestrator_service_client::OrchestratorServiceClient,
 };
+
+fn create_cloning_solana_intent_id(txid: &str, chain_id: u64) -> Result<Vec<u8>, Box<dyn Error>> {
+    if txid.is_empty() {
+        return Err("Transaction ID is empty".into());
+    }
+    let mut hasher = Keccak256::new();
+    hasher.update(bs58::decode(txid).into_vec()?);
+    hasher.update(&chain_id.to_le_bytes());
+    let result = hasher.finalize();
+    Ok(result.to_vec())
+}
+
+async fn sign_balance(
+    chain_id: u64,
+    private_key: &LocalWallet,
+    address: &Address,
+    supply: &mut TokenAmount,
+    payload: &AppChainPayloadProto,
+) -> Result<Signature, Box<dyn Error>> {
+    let mut hash_message = Keccak256::new();
+    hash_message.update(address.as_bytes());
+    let (amount, _) = convert_to_sol(supply.amount)?;
+    hash_message.update(&amount.to_le_bytes());
+    hash_message.update(&create_cloning_solana_intent_id(
+        &payload.solana_txid,
+        chain_id,
+    )?);
+    let hash_message = hash_message.finalize();
+    let signature = private_key.sign_message(hash_message).await?;
+    Ok(signature)
+}
 
 fn convert_to_sol(src_amount: U256) -> Result<(u64, u8), Box<dyn Error>> {
     // Truncate the amount to gwei
@@ -61,24 +98,63 @@ fn write_cloning(
     db_conn: DbConn,
     chain_id: u64,
     erc20_address: Address,
-    target_txid: String,
+    target_txid: &str,
 ) -> Result<(), Box<dyn Error>> {
     let mut conn = db_conn.create_db_conn()?;
     let addr_str = format!("{:#x}", erc20_address);
     conn.exec_drop(
         "INSERT INTO clonings (chain_id, erc20_address, target_txid) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE target_txid = ?",
-        (chain_id, &addr_str, &target_txid, &target_txid),
+        (chain_id, &addr_str, target_txid, target_txid),
     )?;
+    Ok(())
+}
+
+fn write_token_supply(
+    db_conn: DbConn,
+    chain_id: u64,
+    erc20_address: Address,
+    block_number: u64,
+    token_supply: &HashMap<Address, TokenAmount>,
+) -> Result<(), Box<dyn Error>> {
+    let mut conn = db_conn.create_db_conn()?;
+    // Delete existing records for the given erc20_address
+    let mut tx = conn.start_transaction(TxOpts::default())?;
+    let stmt = "DELETE FROM tokens WHERE chain_id = ? AND erc20_address = ?";
+    let str_address = format!("{:#x}", erc20_address);
+    tx.exec_drop(stmt, (chain_id, &str_address))?; // Delete existing records for the given erc20_address
+
+    // Insert new supplies
+    for (token_address, supply) in token_supply {
+        let stmt = "INSERT INTO tokens (chain_id, erc20_address, holder_address, holder_amount, signature) VALUES (?, ?, ?, ?, ?)";
+        let addr_str = format!("{:#x}", erc20_address);
+        let token_addr_str = format!("{:#x}", token_address);
+        tx.exec_drop(
+            stmt,
+            (
+                chain_id,
+                addr_str,
+                token_addr_str,
+                supply.amount.to_string(),
+                hex::encode(&supply.signature),
+            ),
+        )?;
+    }
+    // Insert new epoch
+    let stmt = "INSERT INTO epochs (chain_id, erc20_address, block_number) VALUES(?, ?, ?)";
+    tx.exec_drop(stmt, (chain_id, &str_address, block_number))?;
+
+    tx.commit()?;
     Ok(())
 }
 
 pub async fn process_and_send_snapshot(
     request_data: TokenRequestData,
     amount: U256,
-    snapshot: HashMap<Address, TokenAmount>,
+    original_snapshot: HashMap<Address, TokenAmount>,
     orchestrator_url: String,
     indexing_stats: Arc<Mutex<IndexerProcesses>>,
     db_conn: DbConn,
+    private_key: LocalWallet,
 ) -> Result<(), Box<dyn Error>> {
     info!("Received indexed snapshot");
     {
@@ -92,15 +168,17 @@ pub async fn process_and_send_snapshot(
     }
     // Convert the amount into a Solana format
     let (amount, decimals) = convert_to_sol(amount)?;
-    let snapshot = snapshot
+    let solana_snapshot = original_snapshot
         .iter()
         .map(|(k, v)| {
-            let amount = v.amount.checked_div(U256::from(10u64.pow(18 - decimals as u32)));
+            let amount = v
+                .amount
+                .checked_div(U256::from(10u64.pow(18 - decimals as u32)));
             (*k, amount.unwrap_or_default().as_u64())
         })
         .collect::<HashMap<_, _>>();
     // Create the Merkle tree
-    let leaves = snapshot
+    let leaves = solana_snapshot
         .iter()
         .map(|(k, v)| {
             let leaf = Leaf {
@@ -133,6 +211,7 @@ pub async fn process_and_send_snapshot(
         }),
         chain_id: request_data.chain_id,
         salt,
+        solver_public_key: private_key.address().to_fixed_bytes().to_vec(),
     };
 
     let mut encoded_vamping_info = Vec::new();
@@ -151,13 +230,12 @@ pub async fn process_and_send_snapshot(
     info!("Connected to orchestrator at {}", orchestrator_url);
     let response = client.submit_solution(request_proto).await?;
     let response_proto = response.into_inner();
-    let stats = indexing_stats.lock();
     if let Some(result) = response_proto.result.to_owned() {
         let status: AppChainResultStatus = AppChainResultStatus::try_from(result.status)?;
         match status {
             AppChainResultStatus::Error => {
                 let message = result.message.unwrap_or("Unknown error".to_string());
-                if let Ok(mut stats) = stats {
+                if let Ok(mut stats) = indexing_stats.lock() {
                     if let Some(item) =
                         stats.get_mut(&(request_data.chain_id, request_data.erc20_address))
                     {
@@ -170,15 +248,38 @@ pub async fn process_and_send_snapshot(
             AppChainResultStatus::Ok => {
                 if let Some(payload) = response_proto.payload {
                     write_cloning(
-                        db_conn,
+                        db_conn.clone(),
                         request_data.chain_id,
                         request_data.erc20_address,
-                        payload.solana_txid,
+                        &payload.solana_txid,
+                    )?;
+
+                    let mut ethereum_snapshot = original_snapshot.clone();
+                    // Truncate values that are < 1 Gwei, compute signatures
+                    for (address, supply) in ethereum_snapshot.iter_mut() {
+                        let signature = sign_balance(
+                            request_data.chain_id,
+                            &private_key,
+                            address,
+                            supply,
+                            &payload,
+                        )
+                        .await?;
+                        supply.signature = signature.to_vec();
+                    }
+
+                    // Writing the token supply to the database
+                    write_token_supply(
+                        db_conn.clone(),
+                        request_data.chain_id,
+                        request_data.erc20_address,
+                        request_data.block_number,
+                        &ethereum_snapshot,
                     )?;
                 } else {
                     return Err("Payload not found in orchestrator response".into());
                 }
-                if let Ok(mut stats) = stats {
+                if let Ok(mut stats) = indexing_stats.lock() {
                     if let Some(item) =
                         stats.get_mut(&(request_data.chain_id, request_data.erc20_address))
                     {
@@ -192,6 +293,7 @@ pub async fn process_and_send_snapshot(
                     "Orchestrator error: event {} not found",
                     request_data.sequence_id
                 );
+                let stats = indexing_stats.lock();
                 if let Ok(mut stats) = stats {
                     if let Some(item) =
                         stats.get_mut(&(request_data.chain_id, request_data.erc20_address))
@@ -244,4 +346,92 @@ fn test_convert_to_sol() {
     let amount = U256::zero();
     let result = convert_to_sol(amount).unwrap();
     assert_eq!(result, (0, 9));
+}
+
+#[test]
+fn test_create_cloning_intent_id() {
+    // Test case: Valid txid and chain_id
+    let txid = "3KMf5zj7q2Zk";
+    let chain_id = 1u64;
+    let result = create_cloning_solana_intent_id(txid, chain_id).unwrap();
+    assert_eq!(result.len(), 32); // Keccak256 hash should be 32 bytes
+
+    // Test case: Invalid txid (non-base58 string)
+    let txid = "invalid_txid!";
+    let chain_id = 1u64;
+    let result = create_cloning_solana_intent_id(txid, chain_id);
+    assert!(result.is_err());
+
+    // Test case: Empty txid
+    let txid = "";
+    let chain_id = 1u64;
+    let result = create_cloning_solana_intent_id(txid, chain_id);
+    assert!(result.is_err());
+
+    // Test case: Large chain_id
+    let txid = "3KMf5zj7q2Zk";
+    let chain_id = u64::MAX;
+    let result = create_cloning_solana_intent_id(txid, chain_id).unwrap();
+    assert_eq!(result.len(), 32); // Keccak256 hash should still be 32 bytes
+}
+
+#[tokio::test]
+async fn test_sign_balance() {
+    use ethers::core::k256::ecdsa::SigningKey;
+    use std::str::FromStr;
+
+    // Test setup
+    let key = SigningKey::from_slice(
+        &hex::decode("1ec9f456c48500dc267137437abffe4307cb2a9b54f1933b56315e5dec3683f5").unwrap(),
+    )
+    .unwrap();
+    let private_key = LocalWallet::from(key);
+    let chain_id = 1u64;
+    let address = Address::from_str("0x589A698b7b7dA0Bec545177D3963A2741105C7C9").unwrap();
+    let mut supply = TokenAmount {
+        amount: U256::from(1_000_000_000_000_000_000u128),
+        signature: Vec::new(),
+    };
+    let payload = AppChainPayloadProto {
+        solana_txid: "3KMf5zj7q2Zk".to_string(),
+        ..Default::default()
+    };
+
+    // Test case: Valid inputs
+    let signature = sign_balance(chain_id, &private_key, &address, &mut supply, &payload).await;
+    assert!(signature.is_ok());
+    assert_eq!(
+        signature.unwrap().to_string(),
+        "1e96cf5740155208dff397042f4878f33d0a93a1e48fdc308a07361334a1e62c3d701d8882c5e73e84ff1eb1c1c2610dbae54a1992d61bca664955f00d6ad4c31b"
+    );
+
+    // Test case: Invalid Solana transaction ID in payload
+    let invalid_payload = AppChainPayloadProto {
+        solana_txid: "invalid_txid!".to_string(),
+        ..Default::default()
+    };
+    let result = sign_balance(
+        chain_id,
+        &private_key,
+        &address,
+        &mut supply,
+        &invalid_payload,
+    )
+    .await;
+    assert!(result.is_err());
+
+    // Test case: Empty Solana transaction ID in payload
+    let empty_payload = AppChainPayloadProto {
+        solana_txid: "".to_string(),
+        ..Default::default()
+    };
+    let result = sign_balance(
+        chain_id,
+        &private_key,
+        &address,
+        &mut supply,
+        &empty_payload,
+    )
+    .await;
+    assert!(result.is_err());
 }

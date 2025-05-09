@@ -32,4 +32,6 @@ message TokenVampingInfoProto {
   uint64 chain_id = 9;
   // The salt for the vamp.fun vamping.
   uint64 salt = 10;
+  // The solver public key.
+  bytes solver_public_key = 11;
 }

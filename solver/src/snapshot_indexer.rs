@@ -9,12 +9,12 @@ use std::{
 use chrono::Utc;
 use ethers::{
     providers::{Http, Middleware, Provider},
-    signers::{LocalWallet, Signer},
+    signers::LocalWallet,
     types::{Address, Bytes, Filter, H256, U256},
     utils::keccak256,
 };
 use log::{error, info};
-use mysql::{TxOpts, prelude::Queryable};
+use mysql::prelude::Queryable;
 use tokio::spawn;
 
 use crate::{
@@ -180,31 +180,6 @@ impl SnapshotIndexer {
                 }
             }
 
-            // Truncate values that are < 1 Gwei, compute signatures
-            for (_, supply) in token_supply.iter_mut() {
-                let amount_gwei = supply.amount.checked_div(U256::from(10u64.pow(9))).unwrap();
-                let amount = amount_gwei.checked_mul(U256::from(10u64.pow(9))).unwrap();
-                let signature =private_key.sign_message(amount.to_string()).await;
-                if let Err(err) = signature {
-                    error!("Failed to sign message: {:?}", err);
-                    continue;
-                }
-                supply.amount = amount;
-                supply.signature = signature.unwrap().to_vec();
-            }
-
-            // Writing the token supply to the database
-            if let Err(err) = Self::write_token_supply(
-                db_conn.clone(),
-                request_data.chain_id,
-                request_data.erc20_address,
-                request_data.block_number,
-                &token_supply,
-            ) {
-                error!("Failed to write token supply: {:?}", err);
-                return;
-            }
-
             info!(
                 "Successfully indexed snapshot for token address: {:?}",
                 request_data.erc20_address
@@ -220,6 +195,7 @@ impl SnapshotIndexer {
                 orchestrator_url,
                 stats.clone(),
                 db_conn.clone(),
+                private_key
             )
             .await
             {
@@ -300,43 +276,5 @@ impl SnapshotIndexer {
         let block_num: Option<usize> = conn.exec_first(stmt, (chain_id, &addr_str))?;
 
         Ok((token_supply, block_num))
-    }
-
-    fn write_token_supply(
-        db_conn: DbConn,
-        chain_id: u64,
-        erc20_address: Address,
-        block_number: u64,
-        token_supply: &HashMap<Address, TokenAmount>,
-    ) -> Result<(), Box<dyn Error>> {
-        let mut conn = db_conn.create_db_conn()?;
-        // Delete existing records for the given erc20_address
-        let mut tx = conn.start_transaction(TxOpts::default())?;
-        let stmt = "DELETE FROM tokens WHERE chain_id = ? AND erc20_address = ?";
-        let str_address = format!("{:#x}", erc20_address);
-        tx.exec_drop(stmt, (chain_id, &str_address))?; // Delete existing records for the given erc20_address
-
-        // Insert new supplies
-        for (token_address, supply) in token_supply {
-            let stmt = "INSERT INTO tokens (chain_id, erc20_address, holder_address, holder_amount, signature) VALUES (?, ?, ?, ?, ?)";
-            let addr_str = format!("{:#x}", erc20_address);
-            let token_addr_str = format!("{:#x}", token_address);
-            tx.exec_drop(
-                stmt,
-                (
-                    chain_id,
-                    addr_str,
-                    token_addr_str,
-                    supply.amount.to_string(),
-                    hex::encode(&supply.signature),
-                ),
-            )?;
-        }
-        // Insert new epoch
-        let stmt = "INSERT INTO epochs (chain_id, erc20_address, block_number) VALUES(?, ?, ?)";
-        tx.exec_drop(stmt, (chain_id, &str_address, block_number))?;
-
-        tx.commit()?;
-        Ok(())
     }
 }

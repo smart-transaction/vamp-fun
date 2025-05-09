@@ -4583,6 +4583,7 @@ name = "vamp-fun-solver"
 version = "1.0.36"
 dependencies = [
  "axum",
+ "bs58",
  "chrono",
  "clap",
  "ethers",

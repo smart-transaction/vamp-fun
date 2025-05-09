@@ -19,7 +19,7 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [b"mint", authority.key().as_ref(), &_vamp_identifier.to_be_bytes()],
+        seeds = [b"mint", authority.key().as_ref(), &_vamp_identifier.to_le_bytes()],
         bump,
         mint::decimals = 9,
         mint::authority = mint_account.key(),
@@ -64,6 +64,7 @@ pub struct Initialize<'info> {
 impl<'info> Initialize<'info> {
     pub fn create_token_mint(
         &mut self,
+        _vamp_identifier: u64,
         token_name: String,
         token_symbol: String,
         token_uri: String,
@@ -71,7 +72,7 @@ impl<'info> Initialize<'info> {
         _token_decimals: u8,
         bumps: &InitializeBumps,
     ) -> Result<()> {
-        let signer_seeds: &[&[&[u8]]] = &[&[b"mint", self.authority.key.as_ref(), &[bumps.mint_account]]];
+        let signer_seeds: &[&[&[u8]]] = &[&[b"mint", self.authority.key.as_ref(), &_vamp_identifier.to_le_bytes(), &[bumps.mint_account]]];
 
         create_metadata_accounts_v3(
             CpiContext::new_with_signer(

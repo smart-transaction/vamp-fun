@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use prost::Message;
 
-declare_id!("CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH");
+declare_id!("2tpiLJn7K3PcsGbT3A5MReKMcaLzBxK65cxapmHFJMom");
 
 // Module declarations
 mod event;
@@ -21,9 +21,10 @@ use use_proto::vamp_fun::TokenVampingInfoProto;
 #[program]
 pub mod solana_vamp_program {
     use hex::ToHex;
+    use use_proto::vamp_fun;
     use super::*;
 
-    pub fn create_token_mint(ctx: Context<Initialize>, vamping_data: Vec<u8>) -> Result<()> {
+    pub fn create_token_mint(ctx: Context<Initialize>, vamp_identifier: u64, vamping_data: Vec<u8>) -> Result<()> {
         let vamping_info = TokenVampingInfoProto::decode(&vamping_data[..]).unwrap();
         let token_mapping_proto = vamping_info.token_mapping.unwrap_or_default();
 
@@ -33,6 +34,7 @@ pub mod solana_vamp_program {
         );
 
         ctx.accounts.create_token_mint(
+            vamp_identifier,
             vamping_info.token_name.clone(),
             vamping_info.token_symbol.clone(),
             vamping_info.token_uri.unwrap_or_default(),

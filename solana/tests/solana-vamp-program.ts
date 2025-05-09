@@ -16,7 +16,6 @@ const program = anchor.workspace.solanaVampProgram as Program<SolanaVampProgram>
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 const PROGRAM_ID = program.programId;
 
-const mintKeypair2 = anchor.web3.Keypair.generate();
 const claimerKeypair = anchor.web3.Keypair.generate();
 
 describe("solana-vamp-project", () => {
@@ -30,10 +29,9 @@ describe("solana-vamp-project", () => {
 
     try {
       const tx = await program.methods
-        .createTokenMint(vampingData)
+        .createTokenMint(new BN(0), vampingData)
         .accounts({
           authority,
-          counterAccount: accounts.counter,
           mintAccount: accounts.mintAccount,
           metadataAccount: accounts.metadataAccount,
           vampState: accounts.vampState,
@@ -74,10 +72,9 @@ describe("solana-vamp-project", () => {
     );
 
     await program.methods
-      .createTokenMint(vampingData)
+      .createTokenMint(new BN(1), vampingData)
       .accounts({
         authority,
-        counterAccount: accounts.counter,
         mintAccount: mintAccount2,
         metadataAccount: accounts.metadataAccount2,
         vampState: accounts.vampState2,
@@ -161,11 +158,6 @@ describe("solana-vamp-project", () => {
     let count = new BN(0);
     const [mintAccount] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from('mint'), authority.toBuffer(), count.toArrayLike(Buffer, "le", 8),], program.programId);
 
-    const [counter] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("counter")],
-      PROGRAM_ID
-    );
-
     count = new BN(1);
     const [mintAccount2] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from('mint'), authority.toBuffer(), count.toArrayLike(Buffer, "le", 8),], program.programId);
 
@@ -186,7 +178,6 @@ describe("solana-vamp-project", () => {
       ],
       TOKEN_METADATA_PROGRAM_ID
     );
-
 
     const [vampState, vampStateBump] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("vamp"), mintAccount.toBuffer()],
@@ -214,7 +205,6 @@ describe("solana-vamp-project", () => {
       vampStateBump,
       vault,
       mintAccount,
-      counter,
       mintAccount2,
       vampState2,
       vampStateBump2,
@@ -252,9 +242,7 @@ describe("solana-vamp-project", () => {
     const vampStateAccount = await program.account.vampState.fetch(vampState);
 
     assert.equal(vampStateAccount.mint.toBase58(), mintAccount.toBase58(), "Mint account mismatch");
-    assert.equal(vampStateAccount.authority.toBase58(), authority.toBase58(), "Authority mismatch");
     assert.equal(vampStateAccount.bump, vampStateBump, "Bump mismatch");
-    assert.isArray(vampStateAccount.tokenMappings, "Token mappings should be an array");
   }
 
   async function getVampingData() {

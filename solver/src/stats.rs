@@ -30,6 +30,7 @@ pub struct IndexerStats {
     pub start_timestamp: i64,
     pub current_timestamp: i64,
     pub solana_txid: String,
+    pub cloning_intent_id: String,
 }
 
 const MAX_STATS: usize = 100;

@@ -6,7 +6,7 @@ use std::{
 use axum::{Json, extract::Query, http::StatusCode};
 use ethers::types::U256;
 use log::error;
-use mysql::prelude::Queryable;
+use mysql::{prelude::Queryable, Row};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -21,6 +21,7 @@ pub struct TokenClaimData {
     pub amount: String,
     pub decimals: u8,
     pub target_txid: String,
+    pub solver_signature: String,
 }
 
 pub fn handle_get_claim_amount(
@@ -67,17 +68,29 @@ pub fn handle_get_claim_amount(
         amount: "0".to_string(),
         decimals: 9,
         target_txid: "".to_string(),
+        solver_signature: "".to_string(),
     };
 
-    let stmt = "SELECT holder_amount FROM tokens WHERE chain_id = ? AND erc20_address = ? AND holder_address = ?";
+    let stmt = "SELECT holder_amount, signature FROM tokens WHERE chain_id = ? AND erc20_address = ? AND holder_address = ?";
     match db_conn.exec_first(stmt, (&chain_id, &token_address, &user_address)) {
-        Ok(amount) => {
-            let amount = amount.unwrap_or("0".to_string());
-            let num_amount = U256::from_dec_str(&amount)
-                .unwrap_or_default()
-                .checked_div(U256::from(10u64.pow(9)))
-                .unwrap_or_default();
-            claim_data.amount = num_amount.to_string();
+        Ok(row) => {
+            if row.is_none() {
+                log::error!("No data found for the given parameters");
+                return Err(StatusCode::NOT_FOUND);
+            }
+            let row: Row = row.unwrap();
+            let amount: Option<String> = row.get(0);
+            if let Some(amount) = amount {
+                let num_amount = U256::from_dec_str(&amount)
+                    .unwrap_or_default()
+                    .checked_div(U256::from(10u64.pow(9)))
+                    .unwrap_or_default();
+                claim_data.amount = num_amount.to_string();
+            }
+            let solver_signature: Option<String> = row.get(1);
+            if let Some(solver_signature) = solver_signature {
+                claim_data.solver_signature = solver_signature;
+            }
         }
         Err(err) => {
             log::error!("Failed to execute query: {:?}", err);

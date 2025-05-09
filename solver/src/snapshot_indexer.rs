@@ -10,11 +10,11 @@ use chrono::Utc;
 use ethers::{
     providers::{Http, Middleware, Provider},
     signers::LocalWallet,
-    types::{Address, Bytes, Filter, H256, U256},
+    types::{Address, Filter, H256, U256},
     utils::keccak256,
 };
 use log::{error, info};
-use mysql::prelude::Queryable;
+use mysql::{prelude::Queryable, Value};
 use tokio::spawn;
 
 use crate::{
@@ -252,19 +252,20 @@ impl SnapshotIndexer {
             let row = row?;
             let token_address: Option<String> = row.get(0);
             let token_supply_value: Option<String> = row.get(1);
-            let solver_signature: String = row.get(2).unwrap_or_default();
+            let mut solver_signature = String::new();
+            let signature_value: Value = row.get(2).unwrap_or(Value::NULL);
+            if signature_value != Value::NULL {
+                solver_signature = row.get(3).unwrap();
+            }
             if let Some(token_address) = token_address {
                 if let Some(token_supply_value) = token_supply_value {
                     let token_supply_value = U256::from_dec_str(&token_supply_value)?;
                     let token_address = Address::from_str(&token_address)?;
-                    let solver_signature = Bytes::from_str(&solver_signature)
-                        .unwrap_or_default()
-                        .to_vec();
                     token_supply.insert(
                         token_address,
                         TokenAmount {
                             amount: token_supply_value,
-                            signature: solver_signature,
+                            signature: hex::decode(&solver_signature)?,
                         },
                     );
                 }

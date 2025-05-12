@@ -60,6 +60,7 @@ if [ "${OPT}" == "dev" ]; then
   cp -rf ../proto target
   cp -rf ../crates target
   rm -rf target/solver/target
+  rm -rf target/crates/**/target
   gcloud builds submit \
     --region=${CLOUD_REGION} \
     --substitutions=_TAG=${DOCKER_TAG}:${BUILD_VERSION} \

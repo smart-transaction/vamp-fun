@@ -34,6 +34,7 @@ pub struct TokenRequestData {
     pub token_uri: String,
     pub token_decimal: u8,
     pub block_number: u64,
+    pub request_id: Vec<u8>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -159,7 +160,7 @@ impl SnapshotIndexer {
                     if to_address != Address::zero() {
                         match token_supply.get_mut(&to_address) {
                             Some(v) => {
-                                v.amount = v.amount.checked_sub(value).unwrap();
+                                v.amount = v.amount.checked_add(value).unwrap();
                             }
                             None => {
                                 token_supply.insert(to_address, TokenAmount::default());

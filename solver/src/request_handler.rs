@@ -15,6 +15,7 @@ pub struct DeployTokenHandler {
     pub token_symbol_name: [u8; 32],
     pub token_uri_name: [u8; 32],
     pub token_decimal_name: [u8; 32],
+    pub request_id_name: [u8; 32],
     pub stats: Arc<Mutex<IndexerProcesses>>
 }
 
@@ -23,6 +24,7 @@ const TOKEN_FULL_NAME: &str = "TokenFullName";
 const TOKEN_SYMBOL_NAME: &str = "TokenSymbolName";
 const TOKEN_URI_NAME: &str = "TokenURI";
 const TOKEN_DECIMAL_NAME: &str = "TokenDecimal";
+const REQUEST_ID_NAME: &str = "RequestId";
 
 impl DeployTokenHandler {
     pub fn new(indexer: Arc<SnapshotIndexer>, indexing_stats: Arc<Mutex<IndexerProcesses>>) -> Self {
@@ -33,6 +35,7 @@ impl DeployTokenHandler {
             token_symbol_name: keccak256(TOKEN_SYMBOL_NAME.as_bytes()),
             token_uri_name: keccak256(TOKEN_URI_NAME.as_bytes()),
             token_decimal_name: keccak256(TOKEN_DECIMAL_NAME.as_bytes()),
+            request_id_name: keccak256(REQUEST_ID_NAME.as_bytes()),
             stats: indexing_stats,
         }
     }
@@ -58,6 +61,8 @@ impl DeployTokenHandler {
                 }
                 info!("Token decimal: {:?}", add_data.value[0]);
                 request_data.token_decimal = add_data.value[0];
+            } else if add_data.key == self.request_id_name {
+                request_data.request_id = add_data.value;
             }
         }
         let stats = self.stats.clone();

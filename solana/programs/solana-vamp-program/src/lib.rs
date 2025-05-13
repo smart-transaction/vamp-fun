@@ -9,6 +9,7 @@ mod instructions;
 mod state;
 mod use_proto;
 mod util;
+mod constant;
 
 // Re-exports
 use event::TokenMintCreated;
@@ -16,15 +17,14 @@ use event::ErrorCode;
 use instructions::*;
 
 use use_proto::vamp_fun::TokenVampingInfoProto;
-use util::verify_merkle_root;
 
 #[program]
 pub mod solana_vamp_program {
-    use crate::util::convert_token_mapping;
     use hex::ToHex;
+    use use_proto::vamp_fun;
     use super::*;
 
-    pub fn create_token_mint(ctx: Context<Initialize>, vamping_data: Vec<u8>) -> Result<()> {
+    pub fn create_token_mint(ctx: Context<Initialize>, vamp_identifier: u64, vamping_data: Vec<u8>) -> Result<()> {
         let vamping_info = TokenVampingInfoProto::decode(&vamping_data[..]).unwrap();
         let token_mapping_proto = vamping_info.token_mapping.unwrap_or_default();
 
@@ -33,11 +33,8 @@ pub mod solana_vamp_program {
             ErrorCode::InvalidTokenMapping,
         );
 
-        let token_mapping = convert_token_mapping(&token_mapping_proto, vamping_info.decimal as u8)
-            .map_err(|_| ErrorCode::InvalidTokenMapping)?;
-
         ctx.accounts.create_token_mint(
-            token_mapping,
+            vamp_identifier,
             vamping_info.token_name.clone(),
             vamping_info.token_symbol.clone(),
             vamping_info.token_uri.unwrap_or_default(),

@@ -6,7 +6,7 @@ use std::{
 use axum::{Json, extract::Query, http::StatusCode};
 use ethers::types::U256;
 use log::error;
-use mysql::{prelude::Queryable, Row};
+use mysql::{prelude::Queryable, Row, Value};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -22,6 +22,7 @@ pub struct TokenClaimData {
     pub decimals: u8,
     pub target_txid: String,
     pub solver_signature: String,
+    pub validator_signature: String,
 }
 
 pub fn handle_get_claim_amount(
@@ -69,6 +70,7 @@ pub fn handle_get_claim_amount(
         decimals: 9,
         target_txid: "".to_string(),
         solver_signature: "".to_string(),
+        validator_signature: "".to_string(),
     };
 
     let stmt = "SELECT holder_amount, signature FROM tokens WHERE chain_id = ? AND erc20_address = ? AND holder_address = ?";
@@ -87,10 +89,14 @@ pub fn handle_get_claim_amount(
                     .unwrap_or_default();
                 claim_data.amount = num_amount.to_string();
             }
-            let solver_signature: Option<String> = row.get(1);
-            if let Some(solver_signature) = solver_signature {
-                claim_data.solver_signature = solver_signature;
+            let mut solver_signature = String::new();
+            let signature_value: Value = row.get(1).unwrap_or(Value::NULL);
+            if signature_value != Value::NULL {
+                solver_signature = row.get(3).unwrap();
             }
+            claim_data.solver_signature = solver_signature.clone();
+            // Temporary duplication of the solver signature, the validator signature will be added later
+            claim_data.validator_signature = solver_signature;
         }
         Err(err) => {
             log::error!("Failed to execute query: {:?}", err);

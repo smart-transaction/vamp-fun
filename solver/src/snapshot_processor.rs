@@ -194,6 +194,7 @@ pub async fn process_and_send_snapshot(
         chain_id: request_data.chain_id,
         token_ers20_address: request_data.erc20_address.as_bytes().to_vec(),
         salt,
+        request_id: request_data.request_id.clone(),
     };
 
     let mut client = OrchestratorServiceClient::connect(orchestrator_url.clone()).await?;

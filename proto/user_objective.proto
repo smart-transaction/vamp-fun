@@ -71,6 +71,7 @@ message SubmitSolutionRequestProto {
   uint64 chain_id = 4;
   bytes token_ers20_address = 5;
   uint64 salt = 6;
+  bytes request_id = 7;
 }
 
 message SubmitSolutionResponseProto {

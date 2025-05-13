@@ -4,9 +4,12 @@ use std::sync::{Arc, Mutex};
 use crate::snapshot_indexer::{SnapshotIndexer, TokenRequestData};
 use crate::stats::{IndexerProcesses, VampingStatus};
 use crate::use_proto::proto::UserEventProto;
+
+use chrono::Utc;
 use ethers::types::Address;
 use ethers::utils::keccak256;
 use log::info;
+use sha3::{Digest, Keccak256};
 
 pub struct DeployTokenHandler {
     pub indexer: Arc<SnapshotIndexer>,
@@ -15,7 +18,6 @@ pub struct DeployTokenHandler {
     pub token_symbol_name: [u8; 32],
     pub token_uri_name: [u8; 32],
     pub token_decimal_name: [u8; 32],
-    pub request_id_name: [u8; 32],
     pub stats: Arc<Mutex<IndexerProcesses>>
 }
 
@@ -24,7 +26,6 @@ const TOKEN_FULL_NAME: &str = "TokenFullName";
 const TOKEN_SYMBOL_NAME: &str = "TokenSymbolName";
 const TOKEN_URI_NAME: &str = "TokenURI";
 const TOKEN_DECIMAL_NAME: &str = "TokenDecimal";
-const REQUEST_ID_NAME: &str = "RequestId";
 
 impl DeployTokenHandler {
     pub fn new(indexer: Arc<SnapshotIndexer>, indexing_stats: Arc<Mutex<IndexerProcesses>>) -> Self {
@@ -35,7 +36,6 @@ impl DeployTokenHandler {
             token_symbol_name: keccak256(TOKEN_SYMBOL_NAME.as_bytes()),
             token_uri_name: keccak256(TOKEN_URI_NAME.as_bytes()),
             token_decimal_name: keccak256(TOKEN_DECIMAL_NAME.as_bytes()),
-            request_id_name: keccak256(REQUEST_ID_NAME.as_bytes()),
             stats: indexing_stats,
         }
     }
@@ -46,6 +46,14 @@ impl DeployTokenHandler {
         request_data.sequence_id = sequence_id;
         request_data.chain_id = event.chain_id;
         request_data.block_number = event.block_number;
+        // Temporary random value for the request_id
+        let mut hash_message = Keccak256::new();
+        hash_message.update(&sequence_id.to_le_bytes());
+        hash_message.update(&event.chain_id.to_le_bytes());
+        hash_message.update(&event.block_number.to_le_bytes());
+        hash_message.update(Utc::now().timestamp().to_le_bytes());
+        request_data.request_id = hash_message.finalize().to_vec();
+
         for add_data in event.additional_data {
             if add_data.key == self.contract_address_name {
                 request_data.erc20_address = Address::from_slice(&add_data.value);
@@ -61,8 +69,6 @@ impl DeployTokenHandler {
                 }
                 info!("Token decimal: {:?}", add_data.value[0]);
                 request_data.token_decimal = add_data.value[0];
-            } else if add_data.key == self.request_id_name {
-                request_data.request_id = add_data.value;
             }
         }
         let stats = self.stats.clone();

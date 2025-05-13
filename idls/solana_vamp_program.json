@@ -156,7 +156,27 @@
         {
           "name": "mint_account",
           "writable": true,
-          "signer": true
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "arg",
+                "path": "_vamp_identifier"
+              }
+            ]
+          }
         },
         {
           "name": "metadata_account",
@@ -235,32 +255,6 @@
           }
         },
         {
-          "name": "mint_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  109,
-                  105,
-                  110,
-                  116,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
-        },
-        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
@@ -282,6 +276,10 @@
         }
       ],
       "args": [
+        {
+          "name": "vamp_identifier",
+          "type": "u64"
+        },
         {
           "name": "vamping_data",
           "type": "bytes"
@@ -378,35 +376,6 @@
       }
     },
     {
-      "name": "TokenMapping",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "token_address",
-            "type": "pubkey"
-          },
-          {
-            "name": "token_amount",
-            "type": "u64"
-          },
-          {
-            "name": "eth_address",
-            "type": {
-              "array": [
-                "u8",
-                20
-              ]
-            }
-          },
-          {
-            "name": "decimals",
-            "type": "u8"
-          }
-        ]
-      }
-    },
-    {
       "name": "TokenMintCreated",
       "type": {
         "kind": "struct",
@@ -425,7 +394,7 @@
           },
           {
             "name": "token_erc20_address",
-            "type": "bytes"
+            "type": "string"
           },
           {
             "name": "amount",
@@ -439,20 +408,6 @@
       "type": {
         "kind": "struct",
         "fields": [
-          {
-            "name": "token_mappings",
-            "type": {
-              "vec": {
-                "defined": {
-                  "name": "TokenMapping"
-                }
-              }
-            }
-          },
-          {
-            "name": "authority",
-            "type": "pubkey"
-          },
           {
             "name": "bump",
             "type": "u8"

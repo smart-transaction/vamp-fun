@@ -35,6 +35,7 @@ impl SolanaOrchestrator {
         private_key: String,
         _tmp_chain_id: u64,
         _tmp_salt: u64,
+        request_id: Vec<u8>,
     ) -> Result<String> {
         //TODO: Will be replaced with signing on the solver side
         let key_bytes = bs58::decode(private_key).into_vec()?; // decode base58
@@ -72,9 +73,16 @@ impl SolanaOrchestrator {
         //     Pubkey::find_program_address(&[b"mint"], &solana_vamp_program::ID);
         // log::info!("mint_account: {}", mint_account);
 
-        let mint_keypair = Arc::new(Keypair::new());
-        log::debug!("mint_keypair.pubkey: {}", mint_keypair.pubkey());
-        let mint_account = mint_keypair.pubkey();
+        // let mint_keypair = Arc::new(Keypair::new());
+        // log::debug!("mint_keypair.pubkey: {}", mint_keypair.pubkey());
+        // let mint_account = mint_keypair.pubkey();
+
+        let vamp_identifier = fold_request_id(&request_id)?;
+
+        let (mint_account, _) = Pubkey::find_program_address(
+            &[b"mint", payer_keypair.pubkey().as_ref(), vamp_identifier.to_le_bytes().as_ref()],
+            &solana_vamp_program::ID,
+        );
 
         let (mint_authority, _bump) =
             Pubkey::find_program_address(&[b"mint_authority"], &solana_vamp_program::ID);
@@ -111,7 +119,6 @@ impl SolanaOrchestrator {
                 metadata_account,
                 vamp_state,
                 vault,
-                mint_authority,
                 token_program: TOKEN_PROGRAM_ID,
                 token_metadata_program: TOKEN_METADATA_PROGRAM_ID,
                 system_program: system_program::ID,
@@ -119,6 +126,7 @@ impl SolanaOrchestrator {
                 rent: sysvar::rent::ID,
             })
             .args(args::CreateTokenMint {
+                vamp_identifier: fold_request_id(&request_id)?,
                 vamping_data: vamping_data_bytes,
             })
             .instructions()?;
@@ -133,8 +141,8 @@ impl SolanaOrchestrator {
         let tx = Transaction::new_signed_with_payer(
             &all_instructions,
             Some(&payer_keypair.pubkey()),
-            // &[&*payer_keypair],
-            &[&*payer_keypair, &*mint_keypair],
+            &[&*payer_keypair],
+            // &[&*payer_keypair, &*mint_keypair],
             recent_blockhash,
         );
 
@@ -142,5 +150,68 @@ impl SolanaOrchestrator {
         log::info!("Transaction submitted: {}", sig);
 
         Ok(sig.to_string())
+    }
+}
+
+fn fold_request_id(request_id: &[u8]) -> Result<u64> {
+    let mut hash64 = 0u64;
+    for chunk in request_id.chunks(8) {
+        let chunk_value = u64::from_le_bytes(chunk.try_into()?);
+        hash64 ^= chunk_value; // XOR the chunks to reduce to 64 bits
+    }
+    Ok(hash64)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fold_request_id_empty() {
+        let request_id = vec![];
+        let result = fold_request_id(&request_id);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0);
+    }
+
+    #[test]
+    fn test_fold_request_id_single_chunk() {
+        let request_id = vec![1, 0, 0, 0, 0, 0, 0, 0];
+        let result = fold_request_id(&request_id);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 1);
+    }
+
+    #[test]
+    fn test_fold_request_id_multiple_chunks() {
+        let request_id = vec![
+            1, 0, 0, 0, 0, 0, 0, 0, // First chunk
+            2, 0, 0, 0, 0, 0, 0, 0, // Second chunk
+        ];
+        let result = fold_request_id(&request_id);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 3); // 1 XOR 2 = 3
+    }
+
+    #[test]
+    fn test_fold_request_id_partial_chunk() {
+        let request_id = vec![
+            1, 0, 0, 0, 0, 0, 0, 0, // First chunk
+            2, 0, 0, 0, 0, 0, 0,    // Partial second chunk
+        ];
+        let result = fold_request_id(&request_id);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_fold_request_id_large_input() {
+        let request_id = vec![
+            1, 0, 0, 0, 0, 0, 0, 0, // First chunk
+            2, 0, 0, 0, 0, 0, 0, 0, // Second chunk
+            3, 0, 0, 0, 0, 0, 0, 0, // Third chunk
+        ];
+        let result = fold_request_id(&request_id);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0); // 1 XOR 2 XOR 3 = 0
     }
 }

@@ -114,7 +114,7 @@ impl<'info> Initialize<'info> {
                 },
                 signer_seeds,
             ),
-            amount * 10u64.pow(self.mint_account.decimals as u32),
+            amount,
         )?;
 
         self.vamp_state.set_inner(VampState {

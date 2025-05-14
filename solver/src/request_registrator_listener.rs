@@ -70,7 +70,7 @@ impl RequestRegistratorListener {
                 continue;
             }
             last_timestamp = time_now.as_secs();
-            let ids = self.read_last_request_id()?;
+            let ids = self.read_last_sequence_id()?;
             let mut request_proto = PollRequestProto::default();
             if let Some(last_id) = ids {
                 request_proto.last_sequence_id = last_id;
@@ -114,7 +114,7 @@ impl RequestRegistratorListener {
                                 error!("Failed to handle event: {:?}", err);
                             }
                         }
-                        self.write_request_id(sequence_id)?;
+                        self.write_sequence_id(sequence_id)?;
                     }
                     AppChainResultStatus::EventNotFound => {
                         // No new event, just skip
@@ -129,7 +129,7 @@ impl RequestRegistratorListener {
         }
     }
 
-    fn read_last_request_id(&self) -> Result<Option<u64>, Box<dyn Error>> {
+    fn read_last_sequence_id(&self) -> Result<Option<u64>, Box<dyn Error>> {
         let mut conn = self.db_conn.create_db_conn()?;
 
         let stmt = "SELECT sequence_id FROM request_logs ORDER BY ts DESC LIMIT 1";
@@ -138,7 +138,7 @@ impl RequestRegistratorListener {
         Ok(seq_id)
     }
 
-    fn write_request_id(&self, sequence_id: u64) -> Result<(), Box<dyn Error>> {
+    fn write_sequence_id(&self, sequence_id: u64) -> Result<(), Box<dyn Error>> {
         let mut conn = self.db_conn.create_db_conn()?;
 
         let stmt = "INSERT INTO request_logs (sequence_id) VALUES (?)";

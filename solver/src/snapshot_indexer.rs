@@ -34,7 +34,7 @@ pub struct TokenRequestData {
     pub token_uri: String,
     pub token_decimal: u8,
     pub block_number: u64,
-    pub request_id: Vec<u8>,
+    pub intent_id: Vec<u8>,
 }
 
 #[derive(Debug, Default, Clone)]

@@ -181,7 +181,7 @@ pub async fn process_and_send_snapshot(
         salt,
         solver_public_key: private_key.address().to_fixed_bytes().to_vec(),
         validator_public_key: private_key.address().to_fixed_bytes().to_vec(),
-        request_id: request_data.request_id.clone(),
+        intent_id: request_data.intent_id.clone(),
     };
 
     let mut encoded_vamping_info = Vec::new();
@@ -194,7 +194,7 @@ pub async fn process_and_send_snapshot(
         chain_id: request_data.chain_id,
         token_ers20_address: request_data.erc20_address.as_bytes().to_vec(),
         salt,
-        request_id: request_data.request_id.clone(),
+        intent_id: request_data.intent_id.clone(),
     };
 
     let mut client = OrchestratorServiceClient::connect(orchestrator_url.clone()).await?;
@@ -232,7 +232,7 @@ pub async fn process_and_send_snapshot(
                         let balance_hash = get_balance_hash(
                             &address.0.to_vec(),
                             amount,
-                            &request_data.request_id,
+                            &request_data.intent_id,
                         )?;
                         let signature = private_key.sign_message(&balance_hash).await?;
                         supply.signature = signature.to_vec();

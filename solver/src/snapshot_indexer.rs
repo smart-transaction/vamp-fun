@@ -256,7 +256,7 @@ impl SnapshotIndexer {
             let mut solver_signature = String::new();
             let signature_value: Value = row.get(2).unwrap_or(Value::NULL);
             if signature_value != Value::NULL {
-                solver_signature = row.get(3).unwrap();
+                solver_signature = row.get(2).unwrap();
             }
             if let Some(token_address) = token_address {
                 if let Some(token_supply_value) = token_supply_value {

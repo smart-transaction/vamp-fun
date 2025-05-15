@@ -48,13 +48,11 @@ pub struct Claim<'info> {
 }
 
 fn verify_ethereum_signature(
-    message: &str,
+    message: &Vec<u8>,
     signature: [u8; 65],
-    expected_address: [u8; 20],
+    expected_address: &Vec<u8>,
 ) -> Result<()> {
-    let prefix = format!("\x19Ethereum Signed Message:\n{}", message.len());
-    let prefixed_message = format!("{}{}", prefix, message);
-    let message_hash = hash(&prefixed_message.as_bytes()).0;
+    let message_hash = hash(&message).0;
 
     {
         let signature =
@@ -91,20 +89,28 @@ fn verify_ethereum_signature(
 pub fn claim_tokens(
     ctx: Context<Claim>,
     eth_address: [u8; 20],
-    amount: u64,
-    eth_signature: [u8; 65],
+    balance: u64,
+    solver_individual_balance_sig: [u8; 65], 
+    validator_individual_balance_sig: [u8; 65], 
+    ownership_sig: [u8; 65],
 ) -> Result<()> {
-    // Find the token amount for the given ETH address
-    // let amount = ctx.accounts.vamp_state.token_mappings
-    //     .iter()
-    //     .find(|mapping| mapping.eth_address == eth_address)
-    //     .ok_or(ErrorCode::InvalidAddress)?
-    //     .token_amount;
 
-    // Verify the Ethereum signature
-    verify_ethereum_signature(&amount.to_string(), eth_signature, eth_address)?;
+    let message = [ 
+        eth_address.as_ref(), 
+        &balance.to_le_bytes(),
+        &ctx.accounts.vamp_state.vamp_identifier.to_le_bytes(), 
+    ].concat();
 
-    require!(ctx.accounts.claim_state.is_claimed == false, ErrorCode::InvalidAddress);
+    // Verify the owner signature
+    verify_ethereum_signature(&message, ownership_sig, &eth_address.to_vec())?;
+
+    // Verify the solver signature
+    verify_ethereum_signature(&message, solver_individual_balance_sig, &ctx.accounts.vamp_state.solver_public_key)?;
+
+    // Verify the validator signature
+    verify_ethereum_signature(&message, validator_individual_balance_sig, &ctx.accounts.vamp_state.validator_public_key)?;
+
+    require!(ctx.accounts.claim_state.is_claimed == false, ErrorCode::TokensAlredyClaimed);
 
     let mint_key = ctx.accounts.mint_account.key();
     let seeds = &[
@@ -125,7 +131,7 @@ pub fn claim_tokens(
             },
             signer_seeds,
         ),
-        amount,
+        balance,
     )?;
 
     ctx.accounts.claim_state.is_claimed = true;

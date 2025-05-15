@@ -9,7 +9,6 @@ mod event;
 mod instructions;
 mod state;
 mod use_proto;
-mod util;
 
 // Re-exports
 use event::ErrorCode;

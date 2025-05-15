@@ -37,5 +37,5 @@ message TokenVampingInfoProto {
   // The validator public key.
   bytes validator_public_key = 12;
   // The request ID.
-  bytes request_id = 13;
+  bytes intent_id = 13;
 }

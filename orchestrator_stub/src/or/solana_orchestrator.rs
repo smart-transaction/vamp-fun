@@ -35,7 +35,7 @@ impl SolanaOrchestrator {
         private_key: String,
         _tmp_chain_id: u64,
         _tmp_salt: u64,
-        request_id: Vec<u8>,
+        intent_id: Vec<u8>,
     ) -> Result<String> {
         //TODO: Will be replaced with signing on the solver side
         let key_bytes = bs58::decode(private_key).into_vec()?; // decode base58
@@ -77,7 +77,7 @@ impl SolanaOrchestrator {
         // log::debug!("mint_keypair.pubkey: {}", mint_keypair.pubkey());
         // let mint_account = mint_keypair.pubkey();
 
-        let vamp_identifier = fold_request_id(&request_id)?;
+        let vamp_identifier = fold_intent_id(&intent_id)?;
 
         let (mint_account, _) = Pubkey::find_program_address(
             &[b"mint", payer_keypair.pubkey().as_ref(), vamp_identifier.to_le_bytes().as_ref()],
@@ -126,7 +126,7 @@ impl SolanaOrchestrator {
                 rent: sysvar::rent::ID,
             })
             .args(args::CreateTokenMint {
-                vamp_identifier: fold_request_id(&request_id)?,
+                vamp_identifier: fold_intent_id(&intent_id)?,
                 vamping_data: vamping_data_bytes,
             })
             .instructions()?;
@@ -153,9 +153,9 @@ impl SolanaOrchestrator {
     }
 }
 
-fn fold_request_id(request_id: &[u8]) -> Result<u64> {
+fn fold_intent_id(intent_id: &[u8]) -> Result<u64> {
     let mut hash64 = 0u64;
-    for chunk in request_id.chunks(8) {
+    for chunk in intent_id.chunks(8) {
         let chunk_value = u64::from_le_bytes(chunk.try_into()?);
         hash64 ^= chunk_value; // XOR the chunks to reduce to 64 bits
     }
@@ -167,50 +167,50 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_fold_request_id_empty() {
-        let request_id = vec![];
-        let result = fold_request_id(&request_id);
+    fn test_fold_intent_id_empty() {
+        let intent_id = vec![];
+        let result = fold_intent_id(&intent_id);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 0);
     }
 
     #[test]
-    fn test_fold_request_id_single_chunk() {
-        let request_id = vec![1, 0, 0, 0, 0, 0, 0, 0];
-        let result = fold_request_id(&request_id);
+    fn test_fold_intent_id_single_chunk() {
+        let intent_id = vec![1, 0, 0, 0, 0, 0, 0, 0];
+        let result = fold_intent_id(&intent_id);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 1);
     }
 
     #[test]
-    fn test_fold_request_id_multiple_chunks() {
-        let request_id = vec![
+    fn test_fold_intent_id_multiple_chunks() {
+        let intent_id = vec![
             1, 0, 0, 0, 0, 0, 0, 0, // First chunk
             2, 0, 0, 0, 0, 0, 0, 0, // Second chunk
         ];
-        let result = fold_request_id(&request_id);
+        let result = fold_intent_id(&intent_id);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 3); // 1 XOR 2 = 3
     }
 
     #[test]
-    fn test_fold_request_id_partial_chunk() {
-        let request_id = vec![
+    fn test_fold_intent_id_partial_chunk() {
+        let intent_id = vec![
             1, 0, 0, 0, 0, 0, 0, 0, // First chunk
             2, 0, 0, 0, 0, 0, 0,    // Partial second chunk
         ];
-        let result = fold_request_id(&request_id);
+        let result = fold_intent_id(&intent_id);
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_fold_request_id_large_input() {
-        let request_id = vec![
+    fn test_fold_intent_id_large_input() {
+        let intent_id = vec![
             1, 0, 0, 0, 0, 0, 0, 0, // First chunk
             2, 0, 0, 0, 0, 0, 0, 0, // Second chunk
             3, 0, 0, 0, 0, 0, 0, 0, // Third chunk
         ];
-        let result = fold_request_id(&request_id);
+        let result = fold_intent_id(&intent_id);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 0); // 1 XOR 2 XOR 3 = 0
     }

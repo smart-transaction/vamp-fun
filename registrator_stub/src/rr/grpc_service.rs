@@ -32,7 +32,8 @@ impl RequestRegistratorService for RRService {
         match self.storage.get_request_by_sequence_id(&next_sequence_id).await {
             Ok(stored_request) => {
                 // Calculate hash of the event
-                let request_id = calculate_hash(stored_request.data.as_bytes());
+                // Temporary; to be replaced with the intent_id from the event
+                let intent_id = calculate_hash(stored_request.data.as_bytes());
 
                 let user_event: UserEventProto = serde_json::from_str(&stored_request.data)
                     .map_err(|e| Status::internal(format!("Failed to parse UserEventProto from Redis: {}", e)))?;
@@ -44,7 +45,7 @@ impl RequestRegistratorService for RRService {
                     }.into(),
                     sequence_id: stored_request.sequence_id,
                     event: Some(user_event),
-                    request_id: Some(request_id.as_bytes().to_vec()),
+                    intent_id: Some(intent_id.as_bytes().to_vec()),
                 }))
             }
             Err(_) => Ok(Response::new(PollResponseProto {
@@ -54,7 +55,7 @@ impl RequestRegistratorService for RRService {
                 }.into(),
                 sequence_id: next_sequence_id.into(),
                 event: None,
-                request_id: None,
+                intent_id: None,
             })),
         }
     }

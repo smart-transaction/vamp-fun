@@ -55,7 +55,7 @@ impl OrchestratorService for OrchestratorGrpcService {
                     self.solana_private_key.clone(),
                     req.chain_id,
                     req.salt,
-                    req.request_id,
+                    req.intent_id,
                 )
                 .await
                 .map_err(|e| {

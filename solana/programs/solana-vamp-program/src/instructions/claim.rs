@@ -48,13 +48,21 @@ pub struct Claim<'info> {
 }
 
 fn verify_ethereum_signature(
-    message: &str,
+    message: &Vec<u8>,
     signature: [u8; 65],
     expected_address: [u8; 20],
 ) -> Result<()> {
-    let prefix = format!("\x19Ethereum Signed Message:\n{}", message.len());
-    let prefixed_message = format!("{}{}", prefix, message);
-    let message_hash = hash(&prefixed_message.as_bytes()).0;
+    const PREFIX: &str = "\x19Ethereum Signed Message:\n";
+
+    let len = message.len();
+    let len_string = len.to_string();
+
+    let mut eth_message = Vec::with_capacity(PREFIX.len() + len_string.len() + len);
+    eth_message.extend_from_slice(PREFIX.as_bytes());
+    eth_message.extend_from_slice(len_string.as_bytes());
+    eth_message.extend_from_slice(message);
+
+    let message_hash = hash(&eth_message).0;
 
     {
         let signature =
@@ -102,7 +110,7 @@ pub fn claim_tokens(
     //     .token_amount;
 
     // Verify the Ethereum signature
-    verify_ethereum_signature(&amount.to_string(), eth_signature, eth_address)?;
+    verify_ethereum_signature(&amount.to_string().as_bytes().to_vec(), eth_signature, eth_address)?;
 
     require!(ctx.accounts.claim_state.is_claimed == false, ErrorCode::InvalidAddress);
 

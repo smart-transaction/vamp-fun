@@ -1,0 +1,15 @@
+[package]
+name = "vamping_data_mock"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+balance_util = { path = "../crates/balance_util" }
+ethers = "2.0.14"
+hex = "0.4.3"
+prost = "0.13.5"
+tokio = { version = "1.45.0", features = ["full"] }
+tonic = "0.13.1"
+
+[build-dependencies]
+tonic-build = "0.13.0"

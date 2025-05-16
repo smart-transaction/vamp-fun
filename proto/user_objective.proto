@@ -50,6 +50,7 @@ message AppChainPayloadProto {
   // A workaround, will be formalised for the appchain later
   // The solana transaction ID
   string solana_txid = 1;
+  // The token SPL account
 }
 
 message PollRequestProto {
@@ -59,7 +60,7 @@ message PollRequestProto {
 message PollResponseProto {
   uint64 sequence_id = 1;
   AppChainResultProto result = 2;
-  optional bytes request_id = 3;
+  optional bytes intent_id = 3;
   UserEventProto event = 4;
 }
 
@@ -71,7 +72,7 @@ message SubmitSolutionRequestProto {
   uint64 chain_id = 4;
   bytes token_ers20_address = 5;
   uint64 salt = 6;
-  bytes request_id = 7;
+  bytes intent_id = 7;
 }
 
 message SubmitSolutionResponseProto {

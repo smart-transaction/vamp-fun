@@ -53,7 +53,6 @@ fn verify_ethereum_signature(
     expected_address: &Vec<u8>,
 ) -> Result<()> {
     let message_hash = hash(&message).0;
-
     {
         let signature =
             Signature::parse_standard_slice(&signature[..64]).map_err(|e| {
@@ -94,12 +93,13 @@ pub fn claim_tokens(
     validator_individual_balance_sig: [u8; 65], 
     ownership_sig: [u8; 65],
 ) -> Result<()> {
-
+  
     let message = [ 
         eth_address.as_ref(), 
         &balance.to_le_bytes(),
         &ctx.accounts.vamp_state.vamp_identifier.to_le_bytes(), 
     ].concat();
+
 
     // Verify the owner signature
     verify_ethereum_signature(&message, ownership_sig, &eth_address.to_vec())?;

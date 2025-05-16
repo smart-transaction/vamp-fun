@@ -92,7 +92,7 @@ pub fn handle_get_claim_amount(
             let mut solver_signature = String::new();
             let signature_value: Value = row.get(1).unwrap_or(Value::NULL);
             if signature_value != Value::NULL {
-                solver_signature = row.get(3).unwrap();
+                solver_signature = row.get(1).unwrap();
             }
             claim_data.solver_signature = solver_signature.clone();
             // Temporary duplication of the solver signature, the validator signature will be added later

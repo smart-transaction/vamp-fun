@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Encoded Vamping Info: {:?}", encoded_vamping_data);
 
-    println!("Folder Intent ID: {:?}", fold_intent_id(&vamping_data.intent_id)?);
+    println!("Folded Intent ID: {:?}", fold_intent_id(&vamping_data.intent_id)?);
 
     let balance_address = "8ebd059f9acef4758a8ac8d6e017d6c76b248c82";
     let balance_amount = 1_000_000_000u64;

@@ -10,6 +10,7 @@ pub mod vamp_fun {
 
 const SOLVER_PRIVATE_KEY: &str = "9aa4451744ed6f2e3eeee95923c8c5323d86a41315114961e5cabac111719c64";
 const VALIDATOR_PRIVATE_KEY: &str = "c9927bc21d1c962ee9a4f0634b49868ab80cb1b3f3522881849a5e81ca21edb0";
+const BALANCE_ACCOUNT_PRIVATE_KEY: &str = "fc813315c55817d4fb1396dcf772e1dfa84b8d3328713a6647930ec1983a67cf";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -66,6 +67,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let signer = LocalWallet::from_str(VALIDATOR_PRIVATE_KEY)?;
     let validator_signature = signer.sign_message(&balance_hash).await?;
     println!("Validator Signature: {:?}", validator_signature.to_vec());
+
+    let signer = LocalWallet::from_str(BALANCE_ACCOUNT_PRIVATE_KEY)?;
+    let owner_signature = signer.sign_message(balance_amount.to_string()).await?;
+    println!("Owner Signature: {:?}", owner_signature.to_vec());
 
     Ok(())
 }

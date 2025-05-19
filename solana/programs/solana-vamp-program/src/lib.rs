@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use prost::Message;
 
-declare_id!("CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH");
+declare_id!("2tpiLJn7K3PcsGbT3A5MReKMcaLzBxK65cxapmHFJMom");
 
 // Module declarations
 mod constant;
@@ -44,6 +44,7 @@ pub mod solana_vamp_program {
             vamping_info.decimal as u8,
             vamping_info.solver_public_key,
             vamping_info.validator_public_key,
+            vamping_info.intent_id,
             &ctx.bumps,
         )?;
 

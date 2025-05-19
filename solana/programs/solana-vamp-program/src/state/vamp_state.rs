@@ -10,6 +10,8 @@ pub struct VampState {
     #[max_len(65)]
     pub validator_public_key: Vec<u8>,
     pub vamp_identifier: u64,
+    #[max_len(64)]
+    pub intent_id: Vec<u8>,
 }
 
 #[account]

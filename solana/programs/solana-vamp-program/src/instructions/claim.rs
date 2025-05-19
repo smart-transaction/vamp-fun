@@ -97,9 +97,8 @@ pub fn claim_tokens(
     let message = [ 
         eth_address.as_ref(), 
         &balance.to_le_bytes(),
-        &ctx.accounts.vamp_state.vamp_identifier.to_le_bytes(), 
+        &ctx.accounts.vamp_state.intent_id, 
     ].concat();
-
 
     // Verify the owner signature
     verify_ethereum_signature(&message, ownership_sig, &eth_address.to_vec())?;

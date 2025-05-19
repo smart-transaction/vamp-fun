@@ -72,6 +72,7 @@ impl<'info> Initialize<'info> {
         _token_decimals: u8,
         solver_public_key: Vec<u8>,
         validator_public_key: Vec<u8>,
+        intent_id: Vec<u8>,
         bumps: &InitializeBumps,
     ) -> Result<()> {
         let signer_seeds: &[&[&[u8]]] = &[&[b"mint", self.authority.key.as_ref(), &vamp_identifier.to_le_bytes(), &[bumps.mint_account]]];
@@ -125,6 +126,7 @@ impl<'info> Initialize<'info> {
             solver_public_key,
             validator_public_key,
             vamp_identifier,
+            intent_id
         });
 
         Ok(())

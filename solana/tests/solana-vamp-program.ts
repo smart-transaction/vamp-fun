@@ -14,8 +14,7 @@ import { BN } from "@coral-xyz/anchor";
 
 // Constants
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
-const TEST_AMOUNT = 1000000000;
-const TEST_PRIVATE_KEY = "94eb3102993b41ec55c241060f47daa0f6372e2e3ad7e91612ae36c364042e44";
+const TEST_AMOUNT = 1_000_000_000;
 
 // Program setup
 const program = anchor.workspace.solanaVampProgram as Program<SolanaVampProgram>;
@@ -114,21 +113,21 @@ describe("solana-vamp-project", () => {
   }
 
   async function getVampingData(): Promise<Buffer> {
-    return Buffer.from([
-      10, 32, 90, 160, 56, 251, 44, 118, 170, 168, 64, 47, 17, 121, 171, 204, 191, 209, 4, 159,
-      217, 18, 75, 33, 146, 241, 243, 172, 228, 148, 215, 40, 55, 212, 18, 13, 86, 97, 109, 112,
-      105, 110, 103, 32, 84, 111, 107, 101, 110, 26, 4, 86, 65, 77, 80, 34, 20, 182, 154, 101,
-      107, 43, 232, 170, 11, 56, 89, 178, 78, 237, 60, 34, 219, 32, 110, 233, 102, 42, 27, 104,
-      116, 116, 112, 115, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 47,
-      116, 111, 107, 101, 110, 47, 49, 48, 128, 172, 199, 240, 55, 56, 9, 66, 137, 1, 10, 20,
-      195, 145, 61, 77, 139, 171, 73, 20, 50, 134, 81, 194, 234, 232, 23, 200, 183, 142, 31, 76,
-      10, 20, 101, 208, 138, 5, 108, 23, 174, 19, 55, 5, 101, 176, 76, 247, 125, 42, 250, 28, 185,
-      250, 10, 20, 89, 24, 178, 230, 71, 70, 77, 71, 67, 96, 26, 134, 87, 83, 230, 76, 128, 89,
-      220, 79, 10, 20, 245, 80, 76, 226, 188, 197, 38, 20, 241, 33, 175, 249, 185, 59, 32, 1, 217,
-      39, 21, 202, 10, 20, 253, 206, 66, 17, 111, 84, 31, 200, 247, 176, 119, 110, 43, 48, 131,
-      43, 213, 98, 28, 133, 18, 25, 128, 148, 235, 220, 3, 128, 168, 214, 185, 7, 128, 188, 193,
-      150, 11, 128, 208, 172, 243, 14, 128, 228, 151, 208, 18
-    ]);
+    return Buffer.from([18, 12, 77, 121, 32, 77, 101, 109, 101, 116, 111, 107, 101, 110, 26, 4, 77, 69, 77, 69, 34, 20, 10, 11, 85, 6, 100, 79, 145, 115, 236, 165, 13, 29, 125, 44, 172, 229, 150, 165, 229, 85, 42, 27, 104, 116, 116, 112, 115, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 47, 116, 111, 107, 101, 110, 47, 49, 48, 128, 240, 179, 163, 223, 248, 70, 56, 9, 72, 1, 80, 210, 133, 216, 204, 4, 90, 20, 249, 139, 130, 139, 56, 155, 239, 78, 187, 181, 145, 28, 161, 126, 79, 121, 137, 201, 6, 141, 98, 20, 139, 37, 237, 6, 226, 22, 85, 63, 141, 66, 101, 153, 96, 97, 176, 160, 101, 175, 163, 92, 106, 32, 17, 17, 17, 17, 17, 17, 17, 17, 34, 34, 34, 34, 34, 34, 34, 34, 119, 119, 119, 119, 119, 119, 119, 119, 153, 153, 153, 153, 153, 153, 153, 153]);
+  }
+
+  async function getSignaures() {
+    const solverSignature = [251, 190, 51, 170, 61, 104, 94, 173, 134, 86, 195, 233, 114, 39, 131, 218, 205, 35, 184, 80, 233, 53, 220, 244, 27, 165, 216, 133, 6, 251, 209, 206, 62, 148, 200, 51, 176, 66, 113, 38, 158, 246, 60, 234, 141, 183, 42, 176, 53, 65, 143, 195, 84, 99, 162, 156, 57, 192, 188, 82, 3, 23, 55, 169, 27];
+
+    const validatorSignature = [132, 102, 82, 207, 139, 9, 105, 132, 111, 194, 73, 232, 249, 93, 122, 112, 80, 215, 153, 195, 146, 169, 161, 84, 195, 61, 80, 124, 160, 220, 174, 148, 91, 127, 181, 185, 19, 26, 125, 186, 208, 87, 72, 6, 210, 252, 242, 117, 76, 4, 174, 63, 192, 211, 223, 144, 225, 206, 40, 241, 224, 119, 94, 225, 27];
+  
+    const ownerSignature = [159, 14, 114, 4, 79, 86, 99, 112, 204, 149, 43, 139, 52, 244, 99, 177, 78, 124, 241, 238, 189, 131, 3, 61, 169, 67, 69, 180, 199, 6, 9, 3, 98, 134, 202, 207, 28, 57, 71, 252, 158, 54, 2, 167, 228, 87, 197, 114, 222, 109, 77, 197, 108, 184, 99, 89, 244, 173, 190, 251, 255, 39, 99, 115, 28];
+
+    return {
+      solverSignature,
+      validatorSignature,
+      ownerSignature,
+    };
   }
 
   // Test cases
@@ -158,12 +157,12 @@ describe("solana-vamp-project", () => {
           })
         ])
         .rpc();
-              
+
       const details = await provider.connection.getParsedTransaction(tx, {
         commitment: "confirmed",
         maxSupportedTransactionVersion: 0,
       });
-  
+
       if (details?.meta) {
         const fee = details.meta.fee;
         console.log(`Transaction Fee: ${fee} lamports`);
@@ -184,7 +183,7 @@ describe("solana-vamp-project", () => {
     const mintAccount2 = accounts.mintAccount2;
     const vampingData = await getVampingData();
 
-    const [ethAddress, ethSignature] = await signMessage(TEST_AMOUNT.toString(), TEST_PRIVATE_KEY);
+    const ethAddress = "0x8ebd059f9acef4758a8ac8d6e017d6c76b248c82";
 
     const [claimState] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("claim"), accounts.vampState2.toBuffer(), Buffer.from(ethAddress.slice(2), "hex")],
@@ -230,10 +229,11 @@ describe("solana-vamp-project", () => {
 
     // Execute claim
     const ethAddressBytes = hexToBytes(ethAddress);
-    const ethSignatureBytes = hexToBytes(ethSignature);
-    
+
+    const {solverSignature, validatorSignature, ownerSignature} = await getSignaures();
+
     await program.methods
-      .claim(ethAddressBytes, new BN(TEST_AMOUNT), ethSignatureBytes)
+      .claim(ethAddressBytes, new BN(TEST_AMOUNT), solverSignature, validatorSignature, ownerSignature)
       .accounts({
         authority: claimerKeypair.publicKey,
         vampState: accounts.vampState2,
@@ -254,7 +254,7 @@ describe("solana-vamp-project", () => {
     // Verify double claim prevention
     try {
       await program.methods
-        .claim(ethAddressBytes, new BN(TEST_AMOUNT), ethSignatureBytes)
+        .claim(ethAddressBytes, new BN(TEST_AMOUNT), solverSignature, validatorSignature, ownerSignature)
         .accounts({
           authority: claimerKeypair.publicKey,
           vampState: accounts.vampState2,

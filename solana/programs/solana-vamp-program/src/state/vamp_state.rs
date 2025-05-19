@@ -2,9 +2,16 @@ use anchor_lang::prelude::*;
 
 #[account]
 #[derive(InitSpace)]
-pub struct VampState {    // Admin address
-    pub bump: u8,              // Bump for vault authority PDA
-    pub mint: Pubkey,          // Token mint address (from fungible_token)
+pub struct VampState {
+    pub bump: u8,          
+    pub mint: Pubkey,
+    #[max_len(65)]
+    pub solver_public_key: Vec<u8>,
+    #[max_len(65)]
+    pub validator_public_key: Vec<u8>,
+    pub vamp_identifier: u64,
+    #[max_len(64)]
+    pub intent_id: Vec<u8>,
 }
 
 #[account]

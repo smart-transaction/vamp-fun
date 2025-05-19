@@ -11,7 +11,7 @@ use anchor_spl::{
 };
 
 #[derive(Accounts)]
-#[instruction(_vamp_identifier: u64)]
+#[instruction(vamp_identifier: u64)]
 pub struct Initialize<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -19,7 +19,7 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [b"mint", authority.key().as_ref(), &_vamp_identifier.to_le_bytes()],
+        seeds = [b"mint", authority.key().as_ref(), &vamp_identifier.to_le_bytes()],
         bump,
         mint::decimals = 9,
         mint::authority = mint_account.key(),
@@ -64,15 +64,18 @@ pub struct Initialize<'info> {
 impl<'info> Initialize<'info> {
     pub fn create_token_mint(
         &mut self,
-        _vamp_identifier: u64,
+        vamp_identifier: u64,
         token_name: String,
         token_symbol: String,
         token_uri: String,
         amount: u64,
         _token_decimals: u8,
+        solver_public_key: Vec<u8>,
+        validator_public_key: Vec<u8>,
+        intent_id: Vec<u8>,
         bumps: &InitializeBumps,
     ) -> Result<()> {
-        let signer_seeds: &[&[&[u8]]] = &[&[b"mint", self.authority.key.as_ref(), &_vamp_identifier.to_le_bytes(), &[bumps.mint_account]]];
+        let signer_seeds: &[&[&[u8]]] = &[&[b"mint", self.authority.key.as_ref(), &vamp_identifier.to_le_bytes(), &[bumps.mint_account]]];
 
         create_metadata_accounts_v3(
             CpiContext::new_with_signer(
@@ -120,6 +123,10 @@ impl<'info> Initialize<'info> {
         self.vamp_state.set_inner(VampState {
             bump: bumps.vamp_state,
             mint: self.mint_account.key(),
+            solver_public_key,
+            validator_public_key,
+            vamp_identifier,
+            intent_id
         });
 
         Ok(())

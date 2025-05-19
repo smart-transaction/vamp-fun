@@ -50,20 +50,9 @@ pub struct Claim<'info> {
 fn verify_ethereum_signature(
     message: &Vec<u8>,
     signature: [u8; 65],
-    expected_address: [u8; 20],
+    expected_address: &Vec<u8>,
 ) -> Result<()> {
-    const PREFIX: &str = "\x19Ethereum Signed Message:\n";
-
-    let len = message.len();
-    let len_string = len.to_string();
-
-    let mut eth_message = Vec::with_capacity(PREFIX.len() + len_string.len() + len);
-    eth_message.extend_from_slice(PREFIX.as_bytes());
-    eth_message.extend_from_slice(len_string.as_bytes());
-    eth_message.extend_from_slice(message);
-
-    let message_hash = hash(&eth_message).0;
-
+    let message_hash = hash(&message).0;
     {
         let signature =
             Signature::parse_standard_slice(&signature[..64]).map_err(|e| {
@@ -99,20 +88,28 @@ fn verify_ethereum_signature(
 pub fn claim_tokens(
     ctx: Context<Claim>,
     eth_address: [u8; 20],
-    amount: u64,
-    eth_signature: [u8; 65],
+    balance: u64,
+    solver_individual_balance_sig: [u8; 65], 
+    validator_individual_balance_sig: [u8; 65], 
+    ownership_sig: [u8; 65],
 ) -> Result<()> {
-    // Find the token amount for the given ETH address
-    // let amount = ctx.accounts.vamp_state.token_mappings
-    //     .iter()
-    //     .find(|mapping| mapping.eth_address == eth_address)
-    //     .ok_or(ErrorCode::InvalidAddress)?
-    //     .token_amount;
+  
+    let message = [ 
+        eth_address.as_ref(), 
+        &balance.to_le_bytes(),
+        &ctx.accounts.vamp_state.intent_id, 
+    ].concat();
 
-    // Verify the Ethereum signature
-    verify_ethereum_signature(&amount.to_string().as_bytes().to_vec(), eth_signature, eth_address)?;
+    // Verify the owner signature
+    verify_ethereum_signature(&message, ownership_sig, &eth_address.to_vec())?;
 
-    require!(ctx.accounts.claim_state.is_claimed == false, ErrorCode::InvalidAddress);
+    // Verify the solver signature
+    verify_ethereum_signature(&message, solver_individual_balance_sig, &ctx.accounts.vamp_state.solver_public_key)?;
+
+    // Verify the validator signature
+    verify_ethereum_signature(&message, validator_individual_balance_sig, &ctx.accounts.vamp_state.validator_public_key)?;
+
+    require!(ctx.accounts.claim_state.is_claimed == false, ErrorCode::TokensAlredyClaimed);
 
     let mint_key = ctx.accounts.mint_account.key();
     let seeds = &[
@@ -133,7 +130,7 @@ pub fn claim_tokens(
             },
             signer_seeds,
         ),
-        amount,
+        balance,
     )?;
 
     ctx.accounts.claim_state.is_claimed = true;

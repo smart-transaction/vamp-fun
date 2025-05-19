@@ -14,6 +14,8 @@ pub enum ErrorCode {
     InvalidAddress,
     #[msg("Invalid token mapping provided.")]
     InvalidTokenMapping,
+    #[msg("Tokens already claimed.")]
+    TokensAlredyClaimed
 }
 
 #[event]

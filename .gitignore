@@ -21,3 +21,4 @@ target/
 # IntelliJ IDEA metafiles
 /vamp-fun.iml
 /.idea/
+/validator_vamp/ipfs-root/*

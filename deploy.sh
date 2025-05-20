@@ -32,7 +32,9 @@ do
         REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         BASE_RPC_URL_WSS="wss://service.lestnet.org:8888"
-        ORCHESTRATOR_SOLANA_CLUSTER="Devnet"
+        ORCHESTRATOR_SOLANA_DEVNET_URL="https://red-burned-rain.solana-devnet.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
+        ORCHESTRATOR_SOLANA_MAINNET_URL="${ORCHESTRATOR_SOLANA_DEVNET_URL}"
+        ORCHESTRATOR_SOLANA_DEFAULT_URL="${ORCHESTRATOR_SOLANA_DEVNET_URL}"
         ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
         ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
@@ -58,7 +60,9 @@ do
         BASE_RPC_URL_WSS="wss://red-burned-rain.base-mainnet.quiknode.pro/${QUICKNODE_API_KEY}"
         POLYGON_RPC_URL_WSS="wss://red-burned-rain.matic.quiknode.pro/${QUICKNODE_API_KEY}"
         ARBITRUM_RPC_URL_WSS="wss://red-burned-rain.arbitrum-mainnet.quiknode.pro/${QUICKNODE_API_KEY}"
-        ORCHESTRATOR_SOLANA_CLUSTER="Mainnet"
+        ORCHESTRATOR_SOLANA_DEVNET_URL="https://red-burned-rain.solana-devnet.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
+        ORCHESTRATOR_SOLANA_MAINNET_URL="https://red-burned-rain.solana-mainnet.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
+        ORCHESTRATOR_SOLANA_DEFAULT_URL="${ORCHESTRATOR_SOLANA_MAINNET_URL}"
         ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
         ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
@@ -144,10 +148,11 @@ services:
       - POLL_FREQUENCY_SECS=${POLL_FREQUENCY_SECS}
       - QUICKNODE_API_KEY=${QUICKNODE_API_KEY}
       - SOLVER_PRIVATE_KEY=\${SOLVER_PRIVATE_KEY}
+      - SOLANA_PRIVATE_KEY=\${SOLANA_PRIVATE_KEY}
     ports:
       - 8000:8000
     logging:
-      driver: "local"
+      driver: "json-file"
       options:
         max-size: 100m
         max-file: "15"
@@ -206,7 +211,6 @@ services:
       vamp_fun_redis:
         condition: service_started
     environment:
-      - SOLANA_PRIVATE_KEY=\${SOLANA_PRIVATE_KEY}
       - RUST_LOG=debug
     ports:
       - 50052:50052
@@ -320,7 +324,9 @@ rm request_registrator_config.toml
 # Orchestrator
 cat >orchestrator_config.toml << ORCHESTRATOR_CONFIG
 [solana]
-cluster = "${ORCHESTRATOR_SOLANA_CLUSTER}"
+devnet_url = "${ORCHESTRATOR_SOLANA_DEVNET_URL}"
+mainnet_url = "${ORCHESTRATOR_SOLANA_MAINNET_URL}"
+default_url = "${ORCHESTRATOR_SOLANA_DEFAULT_URL}"
 program_address = "${ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS}"
 
 [grpc]

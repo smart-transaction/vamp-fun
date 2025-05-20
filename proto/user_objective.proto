@@ -50,7 +50,15 @@ message AppChainPayloadProto {
   // A workaround, will be formalised for the appchain later
   // The solana transaction ID
   string solana_txid = 1;
-  // The token SPL account
+}
+
+enum SolanaCluster {
+  // The default value, considering unspecified
+  UNSPECIFIED = 0;
+  // Mainnet
+  MAINNET = 1;
+  // Devnet
+  DEVNET = 2;
 }
 
 message PollRequestProto {
@@ -64,15 +72,21 @@ message PollResponseProto {
   UserEventProto event = 4;
 }
 
+message ChainSelectionProto {
+  // The chain to send the transaction to.
+  oneof chain {
+    uint64 evm_chain_id = 1;
+    SolanaCluster solana_cluster = 2;
+  }
+}
+
 message SubmitSolutionRequestProto {
-  bytes app_id = 1;
-  uint64 request_sequence_id = 2;
-  bytes generic_solution = 3;
-  // A workaroud data for the PoC, to be moved side the generic_solution later
-  uint64 chain_id = 4;
-  bytes token_ers20_address = 5;
-  uint64 salt = 6;
-  bytes intent_id = 7;
+  // The sequence ID from the solver
+  uint64 request_sequence_id = 1;
+  // The chain to send the transaction to.
+  ChainSelectionProto chain = 2;
+  // The transaction to be sent to the chain.
+  bytes transaction = 4;
 }
 
 message SubmitSolutionResponseProto {
@@ -86,7 +100,19 @@ service RequestRegistratorService {
   rpc Poll(PollRequestProto) returns (PollResponseProto);
 }
 
+message LatestBlockHashRequestProto {
+  // The chain to fetch the block hash from.
+  ChainSelectionProto chain = 1;
+}
+
+message LatestBlockHashResponseProto{
+  AppChainResultProto result = 1;
+  bytes block_hash = 2;
+}
+
 service OrchestratorService{
   // To be called from the solver to the orchestrator to deliver the solver decision.
   rpc SubmitSolution(SubmitSolutionRequestProto) returns (SubmitSolutionResponseProto);
+  // Getting the recent block hash.
+  rpc GetLatestBlockHash(LatestBlockHashRequestProto) returns (LatestBlockHashResponseProto);
 }

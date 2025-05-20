@@ -6,6 +6,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use anchor_client::Program;
 use chrono::Utc;
 use ethers::{
     providers::{Http, Middleware, Provider},
@@ -15,13 +16,14 @@ use ethers::{
 };
 use log::{error, info};
 use mysql::{prelude::Queryable, Value};
+use solana_sdk::signature::Keypair;
 use tokio::spawn;
 
 use crate::{
-    chain_info::{ChainInfo, fetch_chains, get_quicknode_mapping},
+    chain_info::{fetch_chains, get_quicknode_mapping, ChainInfo},
     mysql_conn::DbConn,
     snapshot_processor::process_and_send_snapshot,
-    stats::{IndexerProcesses, IndexerStats, VampingStatus},
+    stats::{IndexerProcesses, IndexerStats, VampingStatus}, use_proto::proto::SolanaCluster,
 };
 
 #[derive(Default)]
@@ -35,6 +37,7 @@ pub struct TokenRequestData {
     pub token_decimal: u8,
     pub block_number: u64,
     pub intent_id: Vec<u8>,
+    pub solana_cluster: Option<SolanaCluster>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -49,18 +52,22 @@ pub struct SnapshotIndexer {
     db_conn: DbConn,
     orchestrator_url: String,
     private_key: LocalWallet,
+    solana_payer_keypair: Arc<Keypair>,
+    solana_program: Arc<Program<Arc<Keypair>>>,
 }
 
 const BLOCK_STEP: usize = 9990;
 
 impl SnapshotIndexer {
-    pub fn new(db_conn: DbConn, orchestrator_url: String, private_key: LocalWallet) -> Self {
+    pub fn new(db_conn: DbConn, orchestrator_url: String, private_key: LocalWallet, solana_payer_keypair: Arc<Keypair>, solana_program: Arc<Program<Arc<Keypair>>>) -> Self {
         Self {
             chain_info: HashMap::new(),
             quicknode_chains: HashMap::new(),
             db_conn,
             orchestrator_url,
             private_key,
+            solana_payer_keypair,
+            solana_program,
         }
     }
 
@@ -112,6 +119,8 @@ impl SnapshotIndexer {
         }
         let db_conn = self.db_conn.clone();
         let private_key = self.private_key.clone();
+        let solana_payer_keypair = self.solana_payer_keypair.clone();
+        let solana_program = self.solana_program.clone();
         spawn(async move {
             let first_block = prev_block_number.unwrap_or(0) + 1;
             let latest_block = request_data.block_number as usize;
@@ -196,7 +205,9 @@ impl SnapshotIndexer {
                 orchestrator_url,
                 stats.clone(),
                 db_conn.clone(),
-                private_key
+                private_key,
+                solana_payer_keypair,
+                solana_program,
             )
             .await
             {

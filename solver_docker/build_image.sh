@@ -59,6 +59,7 @@ if [ "${OPT}" == "dev" ]; then
   cp -rf ../solver target
   cp -rf ../proto target
   cp -rf ../crates target
+  cp -rf ../idls target
   rm -rf target/solver/target
   rm -rf target/crates/**/target
   gcloud builds submit \

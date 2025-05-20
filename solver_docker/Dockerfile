@@ -9,6 +9,7 @@ WORKDIR /usr/src/vamp-fun-solver
 COPY target/solver solver
 COPY target/proto proto
 COPY target/crates crates
+COPY target/idls idls
 RUN cargo install --path ./solver
 
 FROM --platform=linux/amd64 ubuntu:22.04
@@ -43,4 +44,5 @@ CMD \
    "--orchestrator-url=${ORCHESTRATOR_URL}" \
    "--poll-frequency-secs=${POLL_FREQUENCY_SECS}" \
    "--quicknode-api-key=${QUICKNODE_API_KEY}" \
-   "--private-key=${SOLVER_PRIVATE_KEY}"
+   "--private-key=${SOLVER_PRIVATE_KEY}" \
+   "--solana-private-key=${SOLANA_PRIVATE_KEY}"

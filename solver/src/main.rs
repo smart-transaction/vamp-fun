@@ -3,6 +3,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use anchor_client::{Client, Cluster, Program};
+use anchor_lang::declare_program;
 use axum::{
     Router,
     http::{
@@ -17,6 +19,7 @@ use ethers::signers::LocalWallet;
 use log::{Level, error, info};
 use mysql_conn::DbConn;
 use snapshot_indexer::SnapshotIndexer;
+use solana_sdk::signature::Keypair;
 use stats::{IndexerProcesses, cleanup_stats};
 use stderrlog::Timestamp;
 use tokio::{net::TcpListener, spawn};
@@ -66,6 +69,9 @@ pub struct Args {
 
     #[arg(long)]
     pub private_key: LocalWallet,
+
+    #[arg(long)]
+    pub solana_private_key: String,
 }
 
 #[tokio::main]
@@ -94,6 +100,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     )
     .await?;
 
+    // Initialize Solana client
+    let solana_payer_keypair = Arc::new(Keypair::from_base58_string(&args.solana_private_key));
+    let solana_program = Arc::new(get_program_instance(solana_payer_keypair.clone())?);
+
     // Initialize SnapshotIndexer
     let mut indexer = SnapshotIndexer::new(
         DbConn::new(
@@ -105,6 +115,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ),
         args.orchestrator_url.clone(),
         args.private_key.clone(),
+        solana_payer_keypair.clone(),
+        solana_program.clone(),
     );
     if let Some(quicknode_api_key) = args.quicknode_api_key {
         if quicknode_api_key.len() == 0 {
@@ -174,4 +186,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("Starting server at port {}", args.port);
     serve(tcp_listener, app).await.unwrap();
     Ok(())
+}
+
+declare_program!(solana_vamp_program);
+
+fn get_program_instance(payer_keypair: Arc<Keypair>) -> Result<Program<Arc<Keypair>>, Box<dyn Error>> {
+    let anchor_client = Client::new(
+        Cluster::Debug,
+        payer_keypair.clone(),
+    );
+    Ok(anchor_client.program(solana_vamp_program::ID)?)
 }

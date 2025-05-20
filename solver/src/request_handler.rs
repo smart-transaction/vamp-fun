@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::snapshot_indexer::{SnapshotIndexer, TokenRequestData};
 use crate::stats::{IndexerProcesses, VampingStatus};
-use crate::use_proto::proto::UserEventProto;
+use crate::use_proto::proto::{SolanaCluster, UserEventProto};
 
 use chrono::Utc;
 use ethers::types::Address;
@@ -18,6 +18,7 @@ pub struct DeployTokenHandler {
     pub token_symbol_name: [u8; 32],
     pub token_uri_name: [u8; 32],
     pub token_decimal_name: [u8; 32],
+    pub solana_cluster_name: [u8; 32],
     pub stats: Arc<Mutex<IndexerProcesses>>
 }
 
@@ -26,18 +27,27 @@ const TOKEN_FULL_NAME: &str = "TokenFullName";
 const TOKEN_SYMBOL_NAME: &str = "TokenSymbolName";
 const TOKEN_URI_NAME: &str = "TokenURI";
 const TOKEN_DECIMAL_NAME: &str = "TokenDecimal";
+const SOLANA_CLUSTER: &str = "SolanaCluster";
 
 impl DeployTokenHandler {
     pub fn new(indexer: Arc<SnapshotIndexer>, indexing_stats: Arc<Mutex<IndexerProcesses>>) -> Self {
-        Self {
+        let handler = Self {
             indexer,
             contract_address_name: keccak256(CONTRACT_ADDRESS_NAME.as_bytes()),
             token_full_name: keccak256(TOKEN_FULL_NAME.as_bytes()),
             token_symbol_name: keccak256(TOKEN_SYMBOL_NAME.as_bytes()),
             token_uri_name: keccak256(TOKEN_URI_NAME.as_bytes()),
             token_decimal_name: keccak256(TOKEN_DECIMAL_NAME.as_bytes()),
+            solana_cluster_name: keccak256(SOLANA_CLUSTER.as_bytes()),
             stats: indexing_stats,
-        }
+        };
+        info!("contract_address_name: {:?}", handler.contract_address_name);
+        info!("token_full_name: {:?}", handler.token_full_name);
+        info!("token_symbol_name: {:?}", handler.token_symbol_name);
+        info!("token_uri_name: {:?}", handler.token_uri_name);
+        info!("token_decimal_name: {:?}", handler.token_decimal_name);
+        info!("solana_cluster_name: {:?}", handler.solana_cluster_name);
+        handler
     }
 
     pub async fn handle(&self, sequence_id: u64, event: UserEventProto) -> Result<(), Box<dyn Error>> {
@@ -69,6 +79,8 @@ impl DeployTokenHandler {
                 }
                 info!("Token decimal: {:?}", add_data.value[0]);
                 request_data.token_decimal = add_data.value[0];
+            } else if add_data.key == self.solana_cluster_name {
+                request_data.solana_cluster = SolanaCluster::from_str_name(String::from_utf8(add_data.value).unwrap().as_str());
             }
         }
         let stats = self.stats.clone();

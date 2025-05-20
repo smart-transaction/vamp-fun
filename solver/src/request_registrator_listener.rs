@@ -97,6 +97,7 @@ impl RequestRegistratorListener {
                             // The message was already received, skipping it
                             continue;
                         }
+                        info!("Received new event with sequence ID: {}", sequence_id);
                         if let None = response_proto.event {
                             error!("Malformed request: the event is None");
                             continue;

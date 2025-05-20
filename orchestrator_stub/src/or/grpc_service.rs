@@ -1,19 +1,60 @@
-use crate::or::solana_orchestrator::SolanaOrchestrator;
 use crate::or::storage::Storage;
+use crate::proto::chain_selection_proto::Chain;
 use crate::proto::orchestrator_service_server::{OrchestratorService, OrchestratorServiceServer};
 use crate::proto::{
-    AppChainPayloadProto, AppChainResultProto, AppChainResultStatus, SubmitSolutionRequestProto,
-    SubmitSolutionResponseProto,
+    AppChainPayloadProto, AppChainResultProto, AppChainResultStatus, ChainSelectionProto,
+    LatestBlockHashRequestProto, LatestBlockHashResponseProto, SolanaCluster,
+    SubmitSolutionRequestProto, SubmitSolutionResponseProto,
 };
+
 use std::fs;
+
+use postcard;
+use solana_client::rpc_client::RpcClient;
+use solana_commitment_config::CommitmentConfig;
+use solana_sdk::transaction::Transaction;
 use tonic::{Request, Response, Status, transport::Server};
 use tonic_reflection::server::Builder as ReflectionBuilder;
 
 #[derive(Clone)]
 pub struct OrchestratorGrpcService {
     storage: Storage,
-    solana_cluster: String,
-    solana_private_key: String,
+    solana_devnet_url: String,
+    solana_mainnet_url: String,
+    solana_default_url: String,
+}
+
+impl OrchestratorGrpcService {
+    fn get_solana_url(&self, chain: Option<ChainSelectionProto>) -> Result<String, Status> {
+        if let Some(chain) = chain {
+            if let Some(chain) = chain.chain {
+                match chain {
+                    Chain::EvmChainId(_) => {
+                        return Err(Status::invalid_argument("EVM chain not supported yet"));
+                    }
+                    Chain::SolanaCluster(cluster) => {
+                        const DEVNET: i32 = SolanaCluster::Devnet as i32;
+                        const MAINNET: i32 = SolanaCluster::Mainnet as i32;
+                        match cluster {
+                            DEVNET => {
+                                return Ok(self.solana_devnet_url.clone());
+                            }
+                            MAINNET => {
+                                return Ok(self.solana_mainnet_url.clone());
+                            }
+                            _ => {
+                                return Err(Status::invalid_argument(format!(
+                                    "Unsupported Solana cluster: {}",
+                                    cluster
+                                )));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(self.solana_default_url.clone())
+    }
 }
 
 #[tonic::async_trait]
@@ -29,11 +70,7 @@ impl OrchestratorService for OrchestratorGrpcService {
             request.remote_addr()
         );
         let req = request.into_inner();
-        log::info!(
-            "Request payload: sequence_id = {}, solution_len = {}",
-            req.request_sequence_id,
-            req.generic_solution.len()
-        );
+        log::info!("Request payload: sequence_id = {}", req.request_sequence_id,);
 
         // Fetch request from storage, only if state is New
         match self
@@ -48,23 +85,22 @@ impl OrchestratorService for OrchestratorGrpcService {
                     "Submitting solution to Solana program for sequence_id: {}",
                     req.request_sequence_id
                 );
-                let solana_txid = SolanaOrchestrator::submit_to_solana(
-                    req.generic_solution,
-                    req.token_ers20_address,
-                    self.solana_cluster.clone(),
-                    self.solana_private_key.clone(),
-                    req.chain_id,
-                    req.salt,
-                    req.intent_id,
-                )
-                .await
-                .map_err(|e| {
-                    Status::internal(format!(
-                        "Failed to execute solana transaction: \
-                    {}",
-                        e
-                    ))
-                })?;
+
+                let transaction: Transaction =
+                    postcard::from_bytes(&req.transaction).map_err(|e| {
+                        Status::internal(format!("Failed to deserialize transaction: {}", e))
+                    })?;
+
+                // TODO: Add the chain selection logic here
+                let solana_url = self.get_solana_url(req.chain)?;
+                let client = RpcClient::new_with_commitment(
+                    solana_url.clone(),
+                    CommitmentConfig::confirmed(),
+                );
+                let tx_sig = client
+                    .send_and_confirm_transaction(&transaction)
+                    .map_err(|e| Status::internal(format!("Failed to send transaction: {}", e)))?;
+                log::info!("Transaction submitted: {}", tx_sig);
 
                 // Update state to UnderExecution
                 log::info!(
@@ -84,7 +120,9 @@ impl OrchestratorService for OrchestratorGrpcService {
                         message: None,
                     }
                     .into(),
-                    payload: Some(AppChainPayloadProto { solana_txid }),
+                    payload: Some(AppChainPayloadProto {
+                        solana_txid: tx_sig.to_string(),
+                    }),
                 }))
             }
             None => Ok(Response::new(SubmitSolutionResponseProto {
@@ -101,21 +139,42 @@ impl OrchestratorService for OrchestratorGrpcService {
             })),
         }
     }
+
+    async fn get_latest_block_hash(
+        &self,
+        request: Request<LatestBlockHashRequestProto>,
+    ) -> Result<Response<LatestBlockHashResponseProto>, Status> {
+        let req = request.into_inner();
+        // TODO: Add the chain selection logic here
+        let client = RpcClient::new_with_commitment(
+            self.get_solana_url(req.chain)?,
+            CommitmentConfig::confirmed(),
+        );
+        let blockhash = client
+            .get_latest_blockhash()
+            .map_err(|e| Status::internal(format!("Failed to get latest blockhash: {}", e)))?;
+        Ok(Response::new(LatestBlockHashResponseProto {
+            result: Some(AppChainResultProto {
+                status: AppChainResultStatus::Ok.into(),
+                message: None,
+            }),
+            block_hash: blockhash.to_bytes().to_vec(),
+        }))
+    }
 }
 
-pub async fn start_grpc_server(
-    storage: Storage,
-    cfg: &config::Config,
-    solana_private_key: String,
-) -> anyhow::Result<()> {
+pub async fn start_grpc_server(storage: Storage, cfg: &config::Config) -> anyhow::Result<()> {
     let addr: String = cfg.get("grpc.address")?;
     let addr = addr.parse()?;
-    let solana_cluster = cfg.get("solana.cluster")?;
+    let solana_devnet_url = cfg.get("solana.devnet_url")?;
+    let solana_mainnet_url = cfg.get("solana.mainnet_url")?;
+    let solana_default_url = cfg.get("solana.default_url")?;
 
     let service = OrchestratorGrpcService {
         storage,
-        solana_cluster,
-        solana_private_key,
+        solana_devnet_url,
+        solana_mainnet_url,
+        solana_default_url,
     };
 
     log::info!("Reading the proto descriptor");

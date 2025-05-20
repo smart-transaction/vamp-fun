@@ -1,8 +1,7 @@
 [solana]
-devnet_url = "https://red-burned-rain.solana-devnet.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
-mainnet_url = "https://red-burned-rain.solana-devnet.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
-default_url = "https://red-burned-rain.solana-devnet.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
-program_address = "CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH"
+devnet_url = "https://api.devnet.solana.com"
+mainnet_url = "https://api.devnet.solana.com"
+default_url = "https://api.devnet.solana.com"
 
 [grpc]
 address = "127.0.0.1:50052"

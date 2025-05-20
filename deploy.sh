@@ -32,13 +32,12 @@ do
         REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         BASE_RPC_URL_WSS="wss://service.lestnet.org:8888"
-        ORCHESTRATOR_SOLANA_DEVNET_URL="https://red-burned-rain.solana-devnet.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
+        QUICKNODE_API_KEY=$(gcloud secrets versions access 1 --secret="QUICKNODE_API_KEY")
+        ORCHESTRATOR_SOLANA_DEVNET_URL="https://red-burned-rain.solana-devnet.quiknode.pro/${QUICKNODE_API_KEY}"
         ORCHESTRATOR_SOLANA_MAINNET_URL="${ORCHESTRATOR_SOLANA_DEVNET_URL}"
         ORCHESTRATOR_SOLANA_DEFAULT_URL="${ORCHESTRATOR_SOLANA_DEVNET_URL}"
-        ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
         ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
-        QUICKNODE_API_KEY=""
         break
         ;;
     "prod")
@@ -60,10 +59,9 @@ do
         BASE_RPC_URL_WSS="wss://red-burned-rain.base-mainnet.quiknode.pro/${QUICKNODE_API_KEY}"
         POLYGON_RPC_URL_WSS="wss://red-burned-rain.matic.quiknode.pro/${QUICKNODE_API_KEY}"
         ARBITRUM_RPC_URL_WSS="wss://red-burned-rain.arbitrum-mainnet.quiknode.pro/${QUICKNODE_API_KEY}"
-        ORCHESTRATOR_SOLANA_DEVNET_URL="https://red-burned-rain.solana-devnet.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
-        ORCHESTRATOR_SOLANA_MAINNET_URL="https://red-burned-rain.solana-mainnet.quiknode.pro/5584179b9ee88c6e12604c4aa19aa2832ead6f45"
+        ORCHESTRATOR_SOLANA_DEVNET_URL="https://red-burned-rain.solana-devnet.quiknode.pro/${QUICKNODE_API_KEY}"
+        ORCHESTRATOR_SOLANA_MAINNET_URL="https://red-burned-rain.solana-mainnet.quiknode.pro/${QUICKNODE_API_KEY}"
         ORCHESTRATOR_SOLANA_DEFAULT_URL="${ORCHESTRATOR_SOLANA_MAINNET_URL}"
-        ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS="CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
         ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         break
@@ -327,7 +325,6 @@ cat >orchestrator_config.toml << ORCHESTRATOR_CONFIG
 devnet_url = "${ORCHESTRATOR_SOLANA_DEVNET_URL}"
 mainnet_url = "${ORCHESTRATOR_SOLANA_MAINNET_URL}"
 default_url = "${ORCHESTRATOR_SOLANA_DEFAULT_URL}"
-program_address = "${ORCHESTRATOR_SOLANA_PROGRAM_ADDRESS}"
 
 [grpc]
 address = "${ORCHESTRATOR_GRPC_ADDRESS}"

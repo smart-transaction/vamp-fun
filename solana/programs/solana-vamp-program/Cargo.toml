@@ -24,6 +24,7 @@ prost = "0.13.5"
 hex = "0.4.3"
 solana-program = "2.2.1"
 libsecp256k1 = "0.7.2"
+balance_util = { path = "../../../crates/balance_util"}
 
 [build-dependencies]
 prost-build = "0.13.5"

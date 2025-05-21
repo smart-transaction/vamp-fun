@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount, Transfer};
+use balance_util::get_balance_hash;
 use libsecp256k1::Signature;
 use solana_program::{
     account_info::AccountInfo, keccak::hash, program_error::ProgramError, pubkey::Pubkey,
@@ -48,11 +49,10 @@ pub struct Claim<'info> {
 }
 
 fn verify_ethereum_signature(
-    message: &Vec<u8>,
+    message_hash: &Vec<u8>,
     signature: [u8; 65],
     expected_address: &Vec<u8>,
 ) -> Result<()> {
-    let message_hash = hash(&message).0;
     {
         let signature =
             Signature::parse_standard_slice(&signature[..64]).map_err(|e| {
@@ -93,12 +93,7 @@ pub fn claim_tokens(
     validator_individual_balance_sig: [u8; 65], 
     ownership_sig: [u8; 65],
 ) -> Result<()> {
-  
-    let message = [ 
-        eth_address.as_ref(), 
-        &balance.to_le_bytes(),
-        &ctx.accounts.vamp_state.intent_id, 
-    ].concat();
+    let message = get_balance_hash(&eth_address.to_vec(), balance, &ctx.accounts.vamp_state.intent_id).expect("eth message hash error");
 
     // Verify the owner signature
     verify_ethereum_signature(&message, ownership_sig, &eth_address.to_vec())?;

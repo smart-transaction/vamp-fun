@@ -761,10 +761,8 @@ dependencies = [
 name = "balance_util"
 version = "0.1.0"
 dependencies = [
- "ethers",
  "hex",
  "sha3",
- "tokio",
 ]
 
 [[package]]

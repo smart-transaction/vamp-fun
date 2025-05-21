@@ -121,7 +121,7 @@ describe("solana-vamp-project", () => {
 
     const validatorSignature = [132, 102, 82, 207, 139, 9, 105, 132, 111, 194, 73, 232, 249, 93, 122, 112, 80, 215, 153, 195, 146, 169, 161, 84, 195, 61, 80, 124, 160, 220, 174, 148, 91, 127, 181, 185, 19, 26, 125, 186, 208, 87, 72, 6, 210, 252, 242, 117, 76, 4, 174, 63, 192, 211, 223, 144, 225, 206, 40, 241, 224, 119, 94, 225, 27];
   
-    const ownerSignature = [159, 14, 114, 4, 79, 86, 99, 112, 204, 149, 43, 139, 52, 244, 99, 177, 78, 124, 241, 238, 189, 131, 3, 61, 169, 67, 69, 180, 199, 6, 9, 3, 98, 134, 202, 207, 28, 57, 71, 252, 158, 54, 2, 167, 228, 87, 197, 114, 222, 109, 77, 197, 108, 184, 99, 89, 244, 173, 190, 251, 255, 39, 99, 115, 28];
+    const ownerSignature = [140, 92, 134, 184, 0, 228, 15, 165, 64, 112, 11, 199, 184, 110, 96, 93, 125, 4, 68, 147, 124, 176, 160, 51, 76, 86, 4, 248, 101, 100, 3, 147, 9, 252, 21, 198, 4, 40, 200, 2, 43, 44, 193, 163, 224, 105, 113, 21, 65, 218, 235, 207, 125, 43, 216, 68, 106, 155, 15, 99, 210, 221, 127, 220, 28];
 
     return {
       solverSignature,
@@ -247,9 +247,8 @@ describe("solana-vamp-project", () => {
       .rpc();
 
     // Verify token balance
-    const claimerAta = await provider.connection.getTokenAccountBalance(claimerTokenAccount);
-    console.log("Claimer token balance:", claimerAta.value.amount);
-    assert.equal(claimerAta.value.amount, TEST_AMOUNT.toString(), "Token amount mismatch");
+    const claimerData = await provider.connection.getTokenAccountBalance(claimerTokenAccount);
+    assert.equal(claimerData.value.amount, TEST_AMOUNT.toString(), "Token amount mismatch");
 
     // Verify double claim prevention
     try {

@@ -69,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Validator Signature: {:?}", validator_signature.to_vec());
 
     let signer = LocalWallet::from_str(BALANCE_ACCOUNT_PRIVATE_KEY)?;
-    let owner_signature = signer.sign_message(balance_amount.to_string()).await?;
+    let owner_signature = signer.sign_message(&balance_hash).await?;
     println!("Owner Signature: {:?}", owner_signature.to_vec());
 
     Ok(())

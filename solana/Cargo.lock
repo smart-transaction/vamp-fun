@@ -277,6 +277,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
+name = "balance_util"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "sha3",
+]
+
+[[package]]
 name = "base64"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2419,6 +2427,7 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
+ "balance_util",
  "hex",
  "libsecp256k1 0.7.2",
  "merkle_tree",

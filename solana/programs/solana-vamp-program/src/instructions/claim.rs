@@ -7,7 +7,10 @@ use solana_program::{
     secp256k1_recover::secp256k1_recover,
 };
 
-use crate::{event::ErrorCode, state::vamp_state::{ClaimState, VampState}};
+use crate::{
+    event::ErrorCode,
+    state::vamp_state::{ClaimState, VampState},
+};
 
 #[derive(Accounts)]
 #[instruction(eth_address: [u8; 20])]
@@ -49,16 +52,25 @@ pub struct Claim<'info> {
 }
 
 fn verify_ethereum_signature(
-    message_hash: &Vec<u8>,
+    message: &Vec<u8>,
     signature: [u8; 65],
     expected_address: &Vec<u8>,
 ) -> Result<()> {
+    const PREFIX: &str = "\x19Ethereum Signed Message:\n";
+    let len = message.len();
+    let len_string = len.to_string();
+
+    let mut eth_message = Vec::with_capacity(PREFIX.len() + len_string.len() + len);
+    eth_message.extend_from_slice(PREFIX.as_bytes());
+    eth_message.extend_from_slice(len_string.as_bytes());
+    eth_message.extend_from_slice(message);
+
+    let message_hash = hash(&eth_message).0;
     {
-        let signature =
-            Signature::parse_standard_slice(&signature[..64]).map_err(|e| {
-                msg!("Failed to parse signature: {:?}", e);
-                ProgramError::InvalidArgument
-            })?;
+        let signature = Signature::parse_standard_slice(&signature[..64]).map_err(|e| {
+            msg!("Failed to parse signature: {:?}", e);
+            ProgramError::InvalidArgument
+        })?;
 
         if signature.s.is_high() {
             msg!("signature with high-s value");
@@ -89,22 +101,38 @@ pub fn claim_tokens(
     ctx: Context<Claim>,
     eth_address: [u8; 20],
     balance: u64,
-    solver_individual_balance_sig: [u8; 65], 
-    validator_individual_balance_sig: [u8; 65], 
+    solver_individual_balance_sig: [u8; 65],
+    validator_individual_balance_sig: [u8; 65],
     ownership_sig: [u8; 65],
 ) -> Result<()> {
-    let message = get_balance_hash(&eth_address.to_vec(), balance, &ctx.accounts.vamp_state.intent_id).expect("eth message hash error");
+    let message = get_balance_hash(
+        &eth_address.to_vec(),
+        balance,
+        &ctx.accounts.vamp_state.intent_id,
+    )
+    .expect("eth message hash error");
 
     // Verify the owner signature
     verify_ethereum_signature(&message, ownership_sig, &eth_address.to_vec())?;
 
     // Verify the solver signature
-    verify_ethereum_signature(&message, solver_individual_balance_sig, &ctx.accounts.vamp_state.solver_public_key)?;
+    verify_ethereum_signature(
+        &message,
+        solver_individual_balance_sig,
+        &ctx.accounts.vamp_state.solver_public_key,
+    )?;
 
     // Verify the validator signature
-    verify_ethereum_signature(&message, validator_individual_balance_sig, &ctx.accounts.vamp_state.validator_public_key)?;
+    verify_ethereum_signature(
+        &message,
+        validator_individual_balance_sig,
+        &ctx.accounts.vamp_state.validator_public_key,
+    )?;
 
-    require!(ctx.accounts.claim_state.is_claimed == false, ErrorCode::TokensAlredyClaimed);
+    require!(
+        ctx.accounts.claim_state.is_claimed == false,
+        ErrorCode::TokensAlredyClaimed
+    );
 
     let mint_key = ctx.accounts.mint_account.key();
     let seeds = &[

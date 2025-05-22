@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS clonings(
   chain_id BIGINT NOT NULL,
   erc20_address CHAR(42) NOT NULL,
   target_txid VARCHAR(128) NOT NULL,
+  token_spl_address VARCHAR(128) NOT NULL,
   INDEX chain_id_idx(chain_id),
   INDEX erc20_address_idx(erc20_address)
 );

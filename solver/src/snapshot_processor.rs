@@ -143,7 +143,7 @@ pub async fn process_and_send_snapshot(
         .as_slice()
         .try_into()?;
 
-    let transaction = prepare_transaction(
+    let (transaction, vamp_state) = prepare_transaction(
         solana_payer_keypair.clone(),
         solana_program.clone(),
         recent_blockhash,
@@ -187,6 +187,7 @@ pub async fn process_and_send_snapshot(
                         request_data.chain_id,
                         request_data.erc20_address,
                         &payload.solana_txid,
+                        &vamp_state.to_string(),
                     )?;
 
                     let mut ethereum_snapshot = original_snapshot.clone();
@@ -283,12 +284,13 @@ fn write_cloning(
     chain_id: u64,
     erc20_address: Address,
     target_txid: &str,
+    vamp_state_address: &str,
 ) -> Result<(), Box<dyn Error>> {
     let mut conn = db_conn.create_db_conn()?;
     let addr_str = format!("{:#x}", erc20_address);
     conn.exec_drop(
-        "INSERT INTO clonings (chain_id, erc20_address, target_txid) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE target_txid = ?",
-        (chain_id, &addr_str, target_txid, target_txid),
+        "INSERT INTO clonings (chain_id, erc20_address, target_txid, token_spl_address) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE target_txid = ?, token_spl_address = ?",
+        (chain_id, &addr_str, target_txid, vamp_state_address, target_txid, vamp_state_address),
     )?;
     Ok(())
 }
@@ -340,7 +342,7 @@ fn prepare_transaction(
     recent_blockhash: [u8; 32],
     intent_id: &[u8],
     vamping_data_bytes: Vec<u8>,
-) -> Result<Transaction, Box<dyn Error>> {
+) -> Result<(Transaction, Pubkey), Box<dyn Error>> {
     let vamp_identifier = fold_intent_id(&intent_id)?;
 
     let (mint_account, _) = Pubkey::find_program_address(
@@ -399,7 +401,7 @@ fn prepare_transaction(
         &[&*payer_keypair],
         Hash::new_from_array(recent_blockhash),
     );
-    Ok(tx)
+    Ok((tx, vamp_state))
 }
 
 fn fold_intent_id(intent_id: &[u8]) -> Result<u64, Box<dyn Error>> {

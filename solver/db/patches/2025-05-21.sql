@@ -1,0 +1,1 @@
+ALTER TABLE clonings ADD COLUMN token_spl_address VARCHAR(128) NOT NULL;

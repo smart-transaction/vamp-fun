@@ -23,6 +23,7 @@ pub struct TokenClaimData {
     pub target_txid: String,
     pub solver_signature: String,
     pub validator_signature: String,
+    pub mint_account_address: String,
     pub token_spl_address: String,
 }
 
@@ -72,6 +73,7 @@ pub fn handle_get_claim_amount(
         target_txid: "".to_string(),
         solver_signature: "".to_string(),
         validator_signature: "".to_string(),
+        mint_account_address: "".to_string(),
         token_spl_address: "".to_string(),
     };
 
@@ -106,14 +108,16 @@ pub fn handle_get_claim_amount(
         }
     }
 
-    let stmt = "SELECT target_txid, token_spl_address FROM clonings WHERE chain_id = ? AND erc20_address = ?";
+    let stmt = "SELECT target_txid, token_spl_address, mint_account_address FROM clonings WHERE chain_id = ? AND erc20_address = ?";
     match db_conn.exec_first(stmt, (&chain_id, &token_address)) {
         Ok(row) => {
             let row: Row = row.unwrap();
             let target_txid: Option<String> = row.get(0);
             let token_spl_address: Option<String> = row.get(1);
+            let mint_account_address: Option<String> = row.get(2);
             claim_data.target_txid = target_txid.unwrap_or("".to_string());
             claim_data.token_spl_address = token_spl_address.unwrap_or("".to_string());
+            claim_data.mint_account_address = mint_account_address.unwrap_or("".to_string());
         }
         Err(err) => {
             log::error!("Failed to execute query: {:?}", err);

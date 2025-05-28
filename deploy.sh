@@ -51,7 +51,7 @@ do
         REQUEST_REGISTRATOR_URL="http://vamp_fun_request_registrator_ethereum:50051"
         ORCHESTRATOR_URL="http://vamp_fun_orchestrator:50052"
         POLL_FREQUENCY_SECS=5
-        REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0xe1D19d84b401a4714B1e7ade61c30D857CA6CC8d"
+        REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x672bbf1E4bEdC6Cce3FD1c1B47883641FcAB5088"
         REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         QUICKNODE_API_KEY=$(gcloud secrets versions access 1 --secret="QUICKNODE_API_KEY")
@@ -223,6 +223,7 @@ services:
 volumes:
   mysql:
     name: vamp_fun_mysql
+    external: true
 
 COMPOSE
 

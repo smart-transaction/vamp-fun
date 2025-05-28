@@ -14,7 +14,7 @@ use ethers::{
     types::{Address, Filter, H256, U256},
     utils::keccak256,
 };
-use log::{error, info};
+use log::{error, info, warn};
 use mysql::{prelude::Queryable, Value};
 use solana_sdk::signature::Keypair;
 use tokio::spawn;
@@ -161,11 +161,6 @@ impl SnapshotIndexer {
                     let value = U256::from(log.data.0.to_vec().as_slice());
                     let from_address = Address::from_slice(&from[12..]);
                     let to_address = Address::from_slice(&to[12..]);
-                    if from_address != Address::zero() {
-                        if let Some(v) = token_supply.get_mut(&from_address) {
-                            v.amount = v.amount.checked_sub(value).unwrap();
-                        }
-                    }
                     if to_address != Address::zero() {
                         match token_supply.get_mut(&to_address) {
                             Some(v) => {
@@ -173,6 +168,23 @@ impl SnapshotIndexer {
                             }
                             None => {
                                 token_supply.insert(to_address, TokenAmount::default());
+                            }
+                        }
+                    }
+                    if from_address != Address::zero() {
+                        if let Some(v) = token_supply.get_mut(&from_address) {
+                            // Checking the substraction. If None then truncate the result to 0
+                            if let Some(new_amount) = v.amount.checked_sub(value) {
+                                v.amount = new_amount;
+                            } else {
+                                // If the amount is less than the value, set it to zero
+                                warn!(
+                                    "Token amount for address {:?} = {} is less than the deducted value {}. Setting to zero.",
+                                    from_address,
+                                    v.amount,
+                                    value
+                                );
+                                v.amount = U256::zero();
                             }
                         }
                     }

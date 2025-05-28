@@ -153,6 +153,12 @@
         "inputs": [
             {
                 "indexed": true,
+                "internalType": "uint256",
+                "name": "requestId",
+                "type": "uint256"
+            },
+            {
+                "indexed": true,
                 "internalType": "bytes",
                 "name": "appId",
                 "type": "bytes"
@@ -1079,7 +1085,13 @@
             }
         ],
         "name": "pushUserObjective",
-        "outputs": [],
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "requestId",
+                "type": "uint256"
+            }
+        ],
         "stateMutability": "nonpayable",
         "type": "function"
     },

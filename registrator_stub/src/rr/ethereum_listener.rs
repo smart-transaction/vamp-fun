@@ -131,17 +131,18 @@ fn u256_to_bytes(val: U256) -> Vec<u8> {
 }
 
 fn convert_to_user_event_proto(log: &ethers::abi::Log) -> anyhow::Result<UserEventProto> {
-    let app_id = match &log.params[0].value {
+    // TODO: Add the propper intent_id parsing logic (&log.params[0])
+    let app_id = match &log.params[1].value {
         Token::FixedBytes(b) => b.clone(),
         other => {
             log::error!("Expected bytes32 for top-level appId but got: {:?}", other);
             return Err(anyhow::anyhow!("Invalid appId type"));
         }
     };
-    let chain_id = log.params[1].value.clone().into_uint().unwrap().as_u64();
-    let block_number = log.params[2].value.clone().into_uint().unwrap().as_u64();
+    let chain_id = log.params[2].value.clone().into_uint().unwrap().as_u64();
+    let block_number = log.params[3].value.clone().into_uint().unwrap().as_u64();
 
-    let user_objective = match &log.params[3].value {
+    let user_objective = match &log.params[4].value {
         Token::Tuple(fields) => {
             let app_id = match &fields[0] {
                 Token::Bytes(b) => b.clone(),
@@ -182,7 +183,7 @@ fn convert_to_user_event_proto(log: &ethers::abi::Log) -> anyhow::Result<UserEve
         _ => return Err(anyhow::anyhow!("Invalid userObjective format")),
     };
 
-    let additional_data = match &log.params[4].value {
+    let additional_data = match &log.params[5].value {
         Token::Array(arr) => arr.iter().map(|entry| {
             if let Token::Tuple(kv) = entry {
                 AdditionalDataProto {

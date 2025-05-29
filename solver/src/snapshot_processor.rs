@@ -117,10 +117,14 @@ pub async fn process_and_send_snapshot(
         OrchestratorServiceClient::connect(orchestrator_url.clone()).await?;
     info!("Connected to orchestrator at {}", orchestrator_url);
 
+    let solana_cluster_proto = request_data
+        .solana_cluster
+        .unwrap_or(SolanaCluster::Devnet);
+
     let mut blockhash_request_proto = LatestBlockHashRequestProto::default();
     if let Some(_) = request_data.solana_cluster {
         blockhash_request_proto.chain = Some(ChainSelectionProto {
-            chain: Some(Chain::SolanaCluster(SolanaCluster::Devnet as i32).into()),
+            chain: Some(Chain::SolanaCluster(solana_cluster_proto.into()).into()),
         });
     }
 
@@ -159,7 +163,7 @@ pub async fn process_and_send_snapshot(
     let request_proto = SubmitSolutionRequestProto {
         request_sequence_id: request_data.sequence_id,
         chain: Some(ChainSelectionProto {
-            chain: Some(Chain::SolanaCluster(SolanaCluster::Devnet.into()).into()),
+            chain: Some(Chain::SolanaCluster(solana_cluster_proto.into()).into()),
         }),
         transaction: transaction.to_vec(),
     };
@@ -370,7 +374,6 @@ fn prepare_transaction(
 
     let (vault, _) =
         Pubkey::find_program_address(&[b"vault", mint_account.as_ref()], &solana_vamp_program::ID);
-    // The cluster doesn't matter here, it's used only for the instructions creation.
     let program_instructions = program
         .request()
         .accounts(accounts::CreateTokenMint {

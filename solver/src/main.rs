@@ -72,6 +72,9 @@ pub struct Args {
 
     #[arg(long)]
     pub solana_private_key: String,
+
+    #[arg(long)]
+    pub default_solana_cluster: String,
 }
 
 #[tokio::main]
@@ -134,6 +137,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let deploy_token_handler = Arc::new(request_handler::DeployTokenHandler::new(
         indexer.clone(),
         indexing_stats.clone(),
+        args.default_solana_cluster.clone(),
     ));
 
     spawn(async move {
@@ -190,10 +194,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 declare_program!(solana_vamp_program);
 
-fn get_program_instance(payer_keypair: Arc<Keypair>) -> Result<Program<Arc<Keypair>>, Box<dyn Error>> {
-    let anchor_client = Client::new(
-        Cluster::Debug,
-        payer_keypair.clone(),
-    );
+fn get_program_instance(
+    payer_keypair: Arc<Keypair>,
+) -> Result<Program<Arc<Keypair>>, Box<dyn Error>> {
+    // The cluster doesn't matter here, it's used only for the instructions creation.
+    let anchor_client = Client::new(Cluster::Debug, payer_keypair.clone());
     Ok(anchor_client.program(solana_vamp_program::ID)?)
 }

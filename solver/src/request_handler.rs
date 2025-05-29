@@ -19,7 +19,8 @@ pub struct DeployTokenHandler {
     pub token_uri_name: [u8; 32],
     pub token_decimal_name: [u8; 32],
     pub solana_cluster_name: [u8; 32],
-    pub stats: Arc<Mutex<IndexerProcesses>>
+    pub stats: Arc<Mutex<IndexerProcesses>>,
+    pub default_solana_cluster: String,
 }
 
 const CONTRACT_ADDRESS_NAME: &str = "ERC20ContractAddress";
@@ -30,7 +31,7 @@ const TOKEN_DECIMAL_NAME: &str = "TokenDecimal";
 const SOLANA_CLUSTER: &str = "SolanaCluster";
 
 impl DeployTokenHandler {
-    pub fn new(indexer: Arc<SnapshotIndexer>, indexing_stats: Arc<Mutex<IndexerProcesses>>) -> Self {
+    pub fn new(indexer: Arc<SnapshotIndexer>, indexing_stats: Arc<Mutex<IndexerProcesses>>, default_solana_cluster: String) -> Self {
         let handler = Self {
             indexer,
             contract_address_name: keccak256(CONTRACT_ADDRESS_NAME.as_bytes()),
@@ -40,6 +41,7 @@ impl DeployTokenHandler {
             token_decimal_name: keccak256(TOKEN_DECIMAL_NAME.as_bytes()),
             solana_cluster_name: keccak256(SOLANA_CLUSTER.as_bytes()),
             stats: indexing_stats,
+            default_solana_cluster,
         };
         info!("contract_address_name: {:?}", handler.contract_address_name);
         info!("token_full_name: {:?}", handler.token_full_name);
@@ -82,6 +84,10 @@ impl DeployTokenHandler {
             } else if add_data.key == self.solana_cluster_name {
                 request_data.solana_cluster = SolanaCluster::from_str_name(String::from_utf8(add_data.value).unwrap().as_str());
             }
+        }
+        // Check if the solana cluster is present in the request. If not, setting up the default one.
+        if request_data.solana_cluster.is_none() {
+            request_data.solana_cluster = SolanaCluster::from_str_name(self.default_solana_cluster.as_str());
         }
         let stats = self.stats.clone();
         let chain_id = request_data.chain_id;

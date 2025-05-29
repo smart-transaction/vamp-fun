@@ -38,6 +38,7 @@ do
         ORCHESTRATOR_SOLANA_DEFAULT_URL="${ORCHESTRATOR_SOLANA_DEVNET_URL}"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
         ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
+        DEFAULT_SOLANA_CLUSTER="DEVNET"
         break
         ;;
     "prod")
@@ -64,6 +65,7 @@ do
         ORCHESTRATOR_SOLANA_DEFAULT_URL="${ORCHESTRATOR_SOLANA_MAINNET_URL}"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
         ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
+        DEFAULT_SOLANA_CLUSTER="MAINNET"
         break
         ;;
     "quit")
@@ -90,7 +92,7 @@ SOLVER_PRIVATE_KEY=\$(gcloud secrets versions access 1 --secret="VAMP_FUN_SOLVER
 
 ENV
 
-sudo docker compose up -d --remove-orphans
+docker compose up -d --remove-orphans
 
 rm -f .env
 
@@ -100,7 +102,7 @@ sudo chmod a+x up.sh
 
 cat >down.sh << DOWN
 # Turn down solver.
-sudo docker compose down
+docker compose down
 DOWN
 sudo chmod a+x down.sh
 
@@ -147,6 +149,7 @@ services:
       - QUICKNODE_API_KEY=${QUICKNODE_API_KEY}
       - SOLVER_PRIVATE_KEY=\${SOLVER_PRIVATE_KEY}
       - SOLANA_PRIVATE_KEY=\${SOLANA_PRIVATE_KEY}
+      - DEFAULT_SOLANA_CLUSTER=${DEFAULT_SOLANA_CLUSTER}
     ports:
       - 8000:8000
     logging:
@@ -178,6 +181,11 @@ services:
         condition: service_started
     ports:
       - 50051:50051
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+        max-file: "15"
 
   vamp_fun_request_registrator_base:
     container_name: vamp_fun_request_registrator_base
@@ -186,6 +194,12 @@ services:
     depends_on:
       vamp_fun_redis:
         condition: service_started
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+        max-file: "15"
+
   vamp_fun_request_registrator_polygon:
     container_name: vamp_fun_request_registrator_polygon
     image: request-registrator-polygon-updated-image
@@ -193,6 +207,12 @@ services:
     depends_on:
       vamp_fun_redis:
         condition: service_started
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+        max-file: "15"
+
   vamp_fun_request_registrator_arbitrum:
     container_name: vamp_fun_request_registrator_arbitrum
     image: request-registrator-arbitrum-updated-image
@@ -200,6 +220,11 @@ services:
     depends_on:
       vamp_fun_redis:
         condition: service_started
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+        max-file: "15"
 
   vamp_fun_orchestrator:
     container_name: vamp_fun_orchestrator
@@ -212,6 +237,11 @@ services:
       - RUST_LOG=debug
     ports:
       - 50052:50052
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+        max-file: "15"
 
   vamp_fun_redis:
     container_name: vamp_fun_redis
@@ -225,10 +255,11 @@ services:
 volumes:
   mysql:
     name: vamp_fun_mysql
-    external: true
+    external: false
   redis-data:
     # Supposed to be managed by docker and not be flushed on "docker-compose down"
     # Should only be dropped with "docker-compose down -v"
+    name: vamp_fun_redis_data
     external: false
 
 COMPOSE
@@ -236,11 +267,11 @@ COMPOSE
 set -e
 
 # Pull images:
-sudo docker pull ${SOLVER_DOCKER_IMAGE}
-sudo docker pull ${DB_DOCKER_IMAGE}
-sudo docker pull ${ORCHESTRATOR_DOCKER_IMAGE}
-sudo docker pull ${REQUEST_REGISTRATOR_DOCKER_IMAGE}
-sudo docker pull ${REDIS_DOCKER_IMAGE}
+docker pull ${SOLVER_DOCKER_IMAGE}
+docker pull ${DB_DOCKER_IMAGE}
+docker pull ${ORCHESTRATOR_DOCKER_IMAGE}
+docker pull ${REQUEST_REGISTRATOR_DOCKER_IMAGE}
+docker pull ${REDIS_DOCKER_IMAGE}
 
 # Push configs into docker images.
 # Request registrator
@@ -260,10 +291,10 @@ redis_url = "${REQUEST_REGISTRATOR_STORAGE_REDIS_URL}"
 
 REQUEST_REGISTRATOR_CONFIG
 
-TMP_CONTAINER=$(sudo docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
-sudo docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
-sudo docker commit request-registrator-temp-container request-registrator-ethereum-updated-image
-sudo docker rm ${TMP_CONTAINER}
+TMP_CONTAINER=$(docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
+docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
+docker commit request-registrator-temp-container request-registrator-ethereum-updated-image
+docker rm ${TMP_CONTAINER}
 rm request_registrator_config.toml
 
 # Base
@@ -280,10 +311,10 @@ redis_url = "${REQUEST_REGISTRATOR_STORAGE_REDIS_URL}"
 
 REQUEST_REGISTRATOR_CONFIG
 
-TMP_CONTAINER=$(sudo docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
-sudo docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
-sudo docker commit request-registrator-temp-container request-registrator-base-updated-image
-sudo docker rm ${TMP_CONTAINER}
+TMP_CONTAINER=$(docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
+docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
+docker commit request-registrator-temp-container request-registrator-base-updated-image
+docker rm ${TMP_CONTAINER}
 rm request_registrator_config.toml
 
 # Polygon
@@ -300,10 +331,10 @@ redis_url = "${REQUEST_REGISTRATOR_STORAGE_REDIS_URL}"
 
 REQUEST_REGISTRATOR_CONFIG
 
-TMP_CONTAINER=$(sudo docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
-sudo docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
-sudo docker commit request-registrator-temp-container request-registrator-polygon-updated-image
-sudo docker rm ${TMP_CONTAINER}
+TMP_CONTAINER=$(docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
+docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
+docker commit request-registrator-temp-container request-registrator-polygon-updated-image
+docker rm ${TMP_CONTAINER}
 rm request_registrator_config.toml
 
 # Arbitrum
@@ -320,10 +351,10 @@ redis_url = "${REQUEST_REGISTRATOR_STORAGE_REDIS_URL}"
 
 REQUEST_REGISTRATOR_CONFIG
 
-TMP_CONTAINER=$(sudo docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
-sudo docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
-sudo docker commit request-registrator-temp-container request-registrator-arbitrum-updated-image
-sudo docker rm ${TMP_CONTAINER}
+TMP_CONTAINER=$(docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
+docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
+docker commit request-registrator-temp-container request-registrator-arbitrum-updated-image
+docker rm ${TMP_CONTAINER}
 rm request_registrator_config.toml
 
 # Orchestrator
@@ -341,10 +372,10 @@ redis_url = "${ORCHESTRATOR_STORAGE_REDIS_URL}"
 
 ORCHESTRATOR_CONFIG
 
-TMP_CONTAINER=$(sudo docker create --name orchestrator-temp-container ${ORCHESTRATOR_DOCKER_IMAGE})
-sudo docker cp orchestrator_config.toml orchestrator-temp-container:/config/orchestrator.toml
-sudo docker commit orchestrator-temp-container orchestrator-updated-image
-sudo docker rm ${TMP_CONTAINER}
+TMP_CONTAINER=$(docker create --name orchestrator-temp-container ${ORCHESTRATOR_DOCKER_IMAGE})
+docker cp orchestrator_config.toml orchestrator-temp-container:/config/orchestrator.toml
+docker commit orchestrator-temp-container orchestrator-updated-image
+docker rm ${TMP_CONTAINER}
 rm orchestrator_config.toml
 
 # Start our docker images.

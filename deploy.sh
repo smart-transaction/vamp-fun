@@ -219,11 +219,17 @@ services:
     restart: unless-stopped
     ports:
       - 6379:6379
+    volumes:
+      - redis-data:/data
 
 volumes:
   mysql:
     name: vamp_fun_mysql
     external: true
+  redis-data:
+    # Supposed to be managed by docker and not be flushed on "docker-compose down"
+    # Should only be dropped with "docker-compose down -v"
+    external: false
 
 COMPOSE
 

@@ -24,6 +24,9 @@ pub struct OrchestratorGrpcService {
     solana_default_url: String,
 }
 
+const DEVNET: i32 = SolanaCluster::Devnet as i32;
+const MAINNET: i32 = SolanaCluster::Mainnet as i32;
+
 impl OrchestratorGrpcService {
     fn get_solana_url(&self, chain: Option<ChainSelectionProto>) -> Result<String, Status> {
         if let Some(chain) = chain {
@@ -33,8 +36,6 @@ impl OrchestratorGrpcService {
                         return Err(Status::invalid_argument("EVM chain not supported yet"));
                     }
                     Chain::SolanaCluster(cluster) => {
-                        const DEVNET: i32 = SolanaCluster::Devnet as i32;
-                        const MAINNET: i32 = SolanaCluster::Mainnet as i32;
                         match cluster {
                             DEVNET => {
                                 return Ok(self.solana_devnet_url.clone());

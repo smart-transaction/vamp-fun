@@ -10,6 +10,7 @@ contract Vamp is Ownable {
     IERC20 public feeToken;
 
     error ZeroAddress();
+    error InsufficientBalance();
 
     event TreasurySet(address indexed newTreasury);
     event VampInitiated(address indexed vamper, address indexed vampToken);
@@ -36,7 +37,7 @@ contract Vamp is Ownable {
     function initiateVamp(address vamper, address vampToken) public onlyOwner {
         if (vamper == address(0) || vampToken == address(0)) revert ZeroAddress();
         bool success = feeToken.transferFrom(vamper, treasury, fee);
-        if (!success) revert TransferFailed();
+        if (!success) revert InsufficientBalance();
         emit VampInitiated(vamper, vampToken);
     }
 }

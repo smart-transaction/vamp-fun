@@ -5,15 +5,19 @@ import {Script, console} from "forge-std/Script.sol";
 import {Vamp} from "../src/Vamp.sol";
 
 contract VampScript is Script {
-    // Vamp public vamp;
+    function setUp() public {}
 
-    // function setUp() public {}
+    function run() public {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address treasury = vm.envAddress("TREASURY_ADDRESS");
+        uint256 fee = vm.envUint("FEE");
+        address feeToken = vm.envAddress("FEE_TOKEN_ADDRESS");
 
-    // function run() public {
-    //     vm.startBroadcast();
+        vm.startBroadcast(deployerPrivateKey);
 
-    //     vamp = new Vamp();
+        Vamp vamp = new Vamp(treasury, fee, feeToken);
+        console.log("Vamp deployed at:", address(vamp));
 
-    //     vm.stopBroadcast();
-    // }
+        vm.stopBroadcast();
+    }
 }

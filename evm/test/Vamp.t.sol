@@ -29,6 +29,21 @@ contract VampTest is Test {
         assertEq(address(vamp.feeToken()), address(feeToken));
     }
 
+    function test_RevertWhen_ConstructorWhenTreasuryZeroAddress() public {
+        treasury = address(0);
+        feeToken = new MockToken();
+
+        vm.expectRevert(Vamp.ZeroAddress.selector);
+        vamp = new Vamp(treasury, fee, address(feeToken));
+    }
+
+    function test_RevertWhen_ConstructorWhenFeeTokenZeroAddress() public {
+        treasury = makeAddr("treasury");
+
+        vm.expectRevert(Vamp.ZeroAddress.selector);
+        vamp = new Vamp(treasury, fee, address(0));
+    }
+
     function test_SetTreasury() public {
         address newTreasury = makeAddr("newTreasury");
         vm.prank(vamp.owner());

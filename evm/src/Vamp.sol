@@ -74,6 +74,8 @@ contract Vamp is Ownable {
         emit FeeTokenSet(_feeToken);
     }
 
+    // TODO: Claim extra ETH transferred by user
+
     /// @notice Prevents direct native currency transfers to the contract
     receive() external payable {
         revert DirectETHTransferNotAllowed();

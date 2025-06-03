@@ -10,7 +10,8 @@ contract Vamp is Ownable {
     IERC20 public feeToken;
 
     error ZeroAddress();
-    error InsufficientBalance();
+    error FeeTransferFailed();
+    error InsufficientFee();
     /// @dev Error thrown when direct ETH transfer is attempted
     /// @dev Selector 0x157bd4c3
     error DirectETHTransferNotAllowed();
@@ -52,10 +53,13 @@ contract Vamp is Ownable {
 
         if (msg.value == 0) {
             bool success = feeToken.transferFrom(vamper, treasury, fee);
-            if (!success) revert InsufficientBalance();
+            if (!success) revert FeeTransferFailed();
         } else {
+            if (msg.value < fee) {
+                revert InsufficientFee();
+            }
             (bool success, ) = payable(treasury).call{value: msg.value}("");
-            if (!success) revert InsufficientBalance();
+            if (!success) revert FeeTransferFailed();
         }
         emit VampInitiated(vamper, vampToken);
     }

@@ -11,11 +11,14 @@ contract Vamp is Ownable {
 
     error ZeroAddress();
     error InsufficientBalance();
+    /// @dev Error thrown when direct ETH transfer is attempted
+    /// @dev Selector 0x157bd4c3
+    error DirectETHTransferNotAllowed();
 
     event TreasurySet(address indexed newTreasury);
     event VampInitiated(address indexed vamper, address indexed vampToken);
     event FeeSet(uint256 newFee);
-    event FeeTokenSet(address feeToken);
+    event FeeTokenSet(address indexed feeToken);
 
     constructor(
         address _treasury,
@@ -43,11 +46,17 @@ contract Vamp is Ownable {
     function initiateVamp(
         address vamper,
         address vampToken
-    ) external onlyOwner {
+    ) external payable onlyOwner {
         if (vamper == address(0) || vampToken == address(0))
             revert ZeroAddress();
-        bool success = feeToken.transferFrom(vamper, treasury, fee);
-        if (!success) revert InsufficientBalance();
+
+        if (msg.value == 0) {
+            bool success = feeToken.transferFrom(vamper, treasury, fee);
+            if (!success) revert InsufficientBalance();
+        } else {
+            (bool success, ) = payable(treasury).call{value: msg.value}("");
+            if (!success) revert InsufficientBalance();
+        }
         emit VampInitiated(vamper, vampToken);
     }
 
@@ -55,5 +64,15 @@ contract Vamp is Ownable {
         if (_feeToken == address(0)) revert ZeroAddress();
         feeToken = IERC20(_feeToken);
         emit FeeTokenSet(_feeToken);
+    }
+
+    /// @notice Prevents direct native currency transfers to the contract
+    receive() external payable {
+        revert DirectETHTransferNotAllowed();
+    }
+
+    /// @notice Prevents native currency transfers via fallback
+    fallback() external payable {
+        revert DirectETHTransferNotAllowed();
     }
 }

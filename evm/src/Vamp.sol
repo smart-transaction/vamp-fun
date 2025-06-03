@@ -33,6 +33,10 @@ contract Vamp is Ownable {
         feeToken = IERC20(_feeToken);
     }
 
+    function getFeeToken() external view returns (address) {
+        return address(feeToken);
+    }
+
     function setTreasury(address newTreasury) external onlyOwner {
         if (newTreasury == address(0)) revert ZeroAddress();
         treasury = newTreasury;

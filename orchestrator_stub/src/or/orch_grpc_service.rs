@@ -76,7 +76,7 @@ impl OrchestratorService for OrchestratorGrpcService {
         // Fetch request from storage, only if state is New
         match self
             .storage
-            .get_new_request(req.request_sequence_id)
+            .get_intent_in_state_new(req.request_sequence_id)
             .await
             .map_err(|e| Status::internal(format!("failed to fetch request from redis: {}", e)))?
         {

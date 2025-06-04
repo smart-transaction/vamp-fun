@@ -153,9 +153,9 @@
         "inputs": [
             {
                 "indexed": true,
-                "internalType": "uint256",
-                "name": "requestId",
-                "type": "uint256"
+                "internalType": "bytes32",
+                "name": "intentId",
+                "type": "bytes32"
             },
             {
                 "indexed": true,

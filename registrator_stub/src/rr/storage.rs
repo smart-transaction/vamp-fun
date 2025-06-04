@@ -24,7 +24,8 @@ pub struct StoredRequest {
 impl Storage {
     const SEQUENCE_KEY: &'static str = "vamp:intents:global:sequence_id";
     const LAST_PROCESSED_BLOCK_HASH_KEY: &'static str = "vamp:intents:state:last_processed_block_by_chain_id";
-    const REQUESTS_HASH_KEY: &'static str = "vamp:intents:by_sequence_id";
+    const REQUESTS_BY_INTENT_ID: &'static str = "vamp:intents:by_intent_id";
+    const INTENT_ID_BY_SEQUENCE_ID: &'static str = "vamp:intents:by_sequence_id_to_intent_id";
 
     pub async fn new(cfg: &config::Config, chain_id: u64) -> anyhow::Result<Self> {
         let redis_url: String = cfg.get("storage.redis_url")?;
@@ -40,26 +41,36 @@ impl Storage {
         Ok(sequence_number)
     }
 
-    /// Stores a new request in the 'NEW' state
-    pub async fn save_new_request(&self, sequence_id: &u64, data: &str) -> anyhow::Result<()> {
+    /// Fetches a request by its sequence_id
+    pub async fn get_request_by_sequence_id(&self, sequence_id: u64) -> anyhow::Result<StoredRequest> {
+        let intent_id = self.resolve_intent_id_from_sequence(sequence_id).await?
+            .ok_or_else(|| anyhow::anyhow!("No intent_id found for sequence_id {}", sequence_id))?;
+
+        let mut conn = self.client.get_multiplexed_async_connection().await?;
+        let serialized: String = conn.hget(Self::REQUESTS_BY_INTENT_ID, intent_id).await?;
+        let request: StoredRequest = serde_json::from_str(&serialized)?;
+        Ok(request)
+    }
+    
+    async fn resolve_intent_id_from_sequence(&self, sequence_id: u64) -> anyhow::Result<Option<String>> {
+        let mut conn = self.client.get_multiplexed_async_connection().await?;
+        let intent_id: Option<String> = conn.hget(Self::INTENT_ID_BY_SEQUENCE_ID, sequence_id.to_string()).await.ok();
+        Ok(intent_id)
+    }
+
+    /// Stores a new intent in the 'NEW' state
+    pub async fn save_new_intent(&self, intent_id: &str, sequence_id: u64, data: &str) -> 
+                                                                                  anyhow::Result<()> {
         let stored_request = StoredRequest {
-            sequence_id: *sequence_id,
+            sequence_id,
             data: data.to_string(),
             state: RequestState::New,
         };
-
         let serialized = serde_json::to_string(&stored_request)?;
         let mut conn = self.client.get_multiplexed_async_connection().await?;
-        let _: () = conn.hset(Self::REQUESTS_HASH_KEY, sequence_id.to_string(), serialized).await?;
+        let _: () = conn.hset(Self::REQUESTS_BY_INTENT_ID, intent_id, &serialized).await?;
+        let _: () = conn.hset(Self::INTENT_ID_BY_SEQUENCE_ID, sequence_id.to_string(), intent_id).await?;
         Ok(())
-    }
-
-    /// Fetches a request by its sequence_id
-    pub async fn get_request_by_sequence_id(&self, sequence_id: &u64) -> anyhow::Result<StoredRequest> {
-        let mut conn = self.client.get_multiplexed_async_connection().await?;
-        let serialized: String = conn.hget(Self::REQUESTS_HASH_KEY, sequence_id.to_string()).await?;
-        let request: StoredRequest = serde_json::from_str(&serialized)?;
-        Ok(request)
     }
 
     /// Gets the last processed Ethereum block for the configured chain

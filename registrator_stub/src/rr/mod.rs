@@ -1,3 +1,3 @@
 pub mod ethereum_listener;
-pub mod grpc_service;
+pub mod rr_grpc_service;
 pub mod storage;

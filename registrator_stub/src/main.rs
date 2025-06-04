@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
 
     tokio::spawn(async move { listener.listen().await.unwrap() });
 
-    rr::grpc_service::start_grpc_server(storage, &cfg).await?;
+    rr::rr_grpc_service::start_grpc_server(storage, &cfg).await?;
     Ok(())
 }
 

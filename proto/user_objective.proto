@@ -28,11 +28,12 @@ message AdditionalDataProto {
 }
 
 message UserEventProto {
-  bytes app_id = 1;
-  uint64 chain_id = 2;
-  uint64 block_number = 3;
-  UserObjectiveProto user_objective = 4;
-  repeated AdditionalDataProto additional_data = 5;
+  bytes intent_id = 1;
+  bytes app_id = 2;
+  uint64 chain_id = 3;
+  uint64 block_number = 4;
+  UserObjectiveProto user_objective = 5;
+  repeated AdditionalDataProto additional_data = 6;
 }
 
 enum AppChainResultStatus {
@@ -94,6 +95,16 @@ message SubmitSolutionResponseProto {
   AppChainPayloadProto payload = 2;
 }
 
+message SubmitSolutionForValidationRequestProto {
+  string intent_id = 1;
+  // The solution to be validated in the specific encoding.
+  bytes solution = 3;
+}
+
+message SubmitSolutionForValidationResponseProto {
+  AppChainResultProto result = 1;
+}
+
 service RequestRegistratorService {
   // To be called periodically from the solver to the request registrator
   // to check if there are new requests to be solved.
@@ -115,4 +126,9 @@ service OrchestratorService{
   rpc SubmitSolution(SubmitSolutionRequestProto) returns (SubmitSolutionResponseProto);
   // Getting the recent block hash.
   rpc GetLatestBlockHash(LatestBlockHashRequestProto) returns (LatestBlockHashResponseProto);
+}
+
+service ValidatorService{
+  // To be called from the solver to the orchestrator to deliver the solver decision.
+  rpc SubmitSolution(SubmitSolutionForValidationRequestProto) returns (SubmitSolutionForValidationResponseProto);
 }

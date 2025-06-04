@@ -39,3 +39,6 @@ message TokenVampingInfoProto {
   // The intent ID.
   bytes intent_id = 13;
 }
+
+message VampSolutionForValidation {
+}

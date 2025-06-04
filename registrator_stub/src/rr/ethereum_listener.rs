@@ -40,8 +40,9 @@ impl EthereumListener {
         log::info!("Current chain head block: {}", latest_block);
         if latest_block - last_processed_block > 10000 {
             last_processed_block = latest_block - 9999;
-            log::info!("Reindexing from block {}", last_processed_block);
+            log::info!("Truncating the reindexing gap up to 10k blocks");
         }
+        log::info!("Reindexing from block {}", last_processed_block);
 
         // Catch-up mode (batch fetch)
         let logs = self.provider.get_logs(&Filter::new()
@@ -65,7 +66,10 @@ impl EthereumListener {
             let sequence_id = self.storage.next_sequence_id().await?;
             let event_hash = calculate_hash(json_string.as_bytes());
 
-            self.storage.save_new_request(&sequence_id, &json_string).await?;
+            self.storage.save_new_intent(&hex::encode(user_event_proto.intent_id),
+                                         sequence_id,
+                                         &json_string
+            ).await?;
             log::info!("Stored event seq_id={} hash={}", sequence_id, event_hash);
         }
 
@@ -116,7 +120,10 @@ impl EthereumListener {
             let sequence_id = self.storage.next_sequence_id().await?;
             let event_hash = calculate_hash(json_string.as_bytes());
 
-            self.storage.save_new_request(&sequence_id, &json_string).await?;
+            self.storage.save_new_intent(&hex::encode(user_event_proto.intent_id), 
+                                         sequence_id,
+                                         &json_string
+            ).await?;
             log::info!("Stored event seq_id={} hash={}", sequence_id, event_hash);
         }
 
@@ -131,7 +138,13 @@ fn u256_to_bytes(val: U256) -> Vec<u8> {
 }
 
 fn convert_to_user_event_proto(log: &ethers::abi::Log) -> anyhow::Result<UserEventProto> {
-    // TODO: Add the propper intent_id parsing logic (&log.params[0])
+    let intent_id = match &log.params[0].value {
+        Token::FixedBytes(b) => b.clone(),
+        other => {
+            log::error!("Expected bytes32 for intent_id but got: {:?}", other);
+            return Err(anyhow::anyhow!("Invalid intent_id type"));
+        }
+    };
     let app_id = match &log.params[1].value {
         Token::FixedBytes(b) => b.clone(),
         other => {
@@ -198,6 +211,7 @@ fn convert_to_user_event_proto(log: &ethers::abi::Log) -> anyhow::Result<UserEve
     };
 
     Ok(UserEventProto {
+        intent_id,
         app_id,
         chain_id,
         block_number,

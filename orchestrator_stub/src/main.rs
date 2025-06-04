@@ -19,6 +19,6 @@ async fn main() -> anyhow::Result<()> {
 
     let storage = or::storage::Storage::new(&cfg).await?;
 
-    or::grpc_service::start_grpc_server(storage, &cfg).await?;
+    or::orch_grpc_service::start_grpc_server(storage, &cfg).await?;
     Ok(())
 }

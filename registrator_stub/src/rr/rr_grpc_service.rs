@@ -29,7 +29,7 @@ impl RequestRegistratorService for RRService {
         let next_sequence_id = last_sequence_id + 1;
 
         // Try fetching the next event from storage
-        match self.storage.get_request_by_sequence_id(&next_sequence_id).await {
+        match self.storage.get_request_by_sequence_id(next_sequence_id).await {
             Ok(stored_request) => {
                 // Calculate hash of the event
                 // Temporary; to be replaced with the intent_id from the event
@@ -66,7 +66,7 @@ pub async fn start_grpc_server(storage: Storage, cfg: &config::Config) -> anyhow
     let addr = addr.parse()?;
     let service = RRService { storage };
 
-    log::info!("Readingthe proto descriptor");
+    log::info!("Reading the proto descriptor");
     let descriptor_bytes = fs::read("src/generated/user_descriptor.pb")?;
 
     let reflection_service = ReflectionBuilder::configure()

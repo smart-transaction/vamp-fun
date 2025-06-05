@@ -28,7 +28,7 @@ do
         BASE_RPC_URL_WSS="wss://service.lestnet.org:8888"
         POLYGON_RPC_URL_WSS="wss://service.lestnet.org:8888"
         ARBITRUM_RPC_URL_WSS="wss://service.lestnet.org:8888"
-        REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0xD8095Dd59b1EF20C4C6EE001EfCcAe2cacf876a8"
+        REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x4e01a97f540D830b27F0b31Bd7eB1B477b7B6710"
         REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         BASE_RPC_URL_WSS="wss://service.lestnet.org:8888"

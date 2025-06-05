@@ -158,6 +158,12 @@
                 "type": "bytes32"
             },
             {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "sequenceCounter",
+                "type": "uint256"
+            },
+            {
                 "indexed": true,
                 "internalType": "bytes",
                 "name": "appId",

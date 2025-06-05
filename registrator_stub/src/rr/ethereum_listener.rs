@@ -27,8 +27,10 @@ impl EthereumListener {
         let contract_abi: Abi = serde_json::from_str(abi_json)?;
         let user_event = contract_abi.event("UserObjectivePushed")?;
         let event_sig = user_event.signature();
+        log::info!("Listening for UserObjectivePushed events with signature: {:?}", event_sig);
 
-        log::info!("Starting Ethereum listener for UserObjectivePushed...");
+        log::info!("Starting Ethereum listener for UserObjectivePushed from contract at address: {}",
+                  self.contract_address);
 
         let mut last_processed_block = self.storage.get_last_processed_block().await.unwrap_or(0);
         log::info!("Last processed block from Redis: {}", last_processed_block);
@@ -145,17 +147,18 @@ fn convert_to_user_event_proto(log: &ethers::abi::Log) -> anyhow::Result<UserEve
             return Err(anyhow::anyhow!("Invalid intent_id type"));
         }
     };
-    let app_id = match &log.params[1].value {
+    // param[1] is the sequenceCounter
+    let app_id = match &log.params[2].value {
         Token::FixedBytes(b) => b.clone(),
         other => {
             log::error!("Expected bytes32 for top-level appId but got: {:?}", other);
             return Err(anyhow::anyhow!("Invalid appId type"));
         }
     };
-    let chain_id = log.params[2].value.clone().into_uint().unwrap().as_u64();
-    let block_number = log.params[3].value.clone().into_uint().unwrap().as_u64();
+    let chain_id = log.params[3].value.clone().into_uint().unwrap().as_u64();
+    let block_number = log.params[4].value.clone().into_uint().unwrap().as_u64();
 
-    let user_objective = match &log.params[4].value {
+    let user_objective = match &log.params[5].value {
         Token::Tuple(fields) => {
             let app_id = match &fields[0] {
                 Token::Bytes(b) => b.clone(),
@@ -196,7 +199,7 @@ fn convert_to_user_event_proto(log: &ethers::abi::Log) -> anyhow::Result<UserEve
         _ => return Err(anyhow::anyhow!("Invalid userObjective format")),
     };
 
-    let additional_data = match &log.params[5].value {
+    let additional_data = match &log.params[6].value {
         Token::Array(arr) => arr.iter().map(|entry| {
             if let Token::Tuple(kv) = entry {
                 AdditionalDataProto {

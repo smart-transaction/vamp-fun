@@ -47,6 +47,7 @@ impl ValidatorService for ValidatorGrpcService {
                         message: None,
                     }
                         .into(),
+                    solution_validated_details: vec![],
                 }))
             }
             
@@ -60,6 +61,7 @@ impl ValidatorService for ValidatorGrpcService {
                         .into(),
                 }
                     .into(),
+                solution_validated_details: vec![],
             })),
         }
 

@@ -97,13 +97,16 @@ message SubmitSolutionResponseProto {
 
 message SubmitSolutionForValidationRequestProto {
   string intent_id = 1;
-  // The solution to be validated in the specific encoding.
-  bytes solution = 3;
+  // The generic field for solution to be validated in the encoding specified in the exact app proto description `*SolutionForValidationProto`
+  bytes solution_for_validation = 3;
 }
 
 message SubmitSolutionForValidationResponseProto {
   AppChainResultProto result = 1;
+  // The generic field with solution validation details in the encoding specified in the exact app proto description `*SolutionValidatedDetailsProto`
+  bytes solution_validated_details = 2;
 }
+
 
 service RequestRegistratorService {
   // To be called periodically from the solver to the request registrator

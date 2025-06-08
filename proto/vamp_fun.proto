@@ -40,5 +40,27 @@ message TokenVampingInfoProto {
   bytes intent_id = 13;
 }
 
-message VampSolutionForValidation {
+// Solver-Validator interaction for vamp.fun
+
+// The partial case of SolutionForValidation for vamp.fun
+message VampSolutionForValidationProto {
+  string intent_id = 1;
+  string solver_pubkey = 2;
+
+  map<string, IndividualBalanceEntry> individual_balance_entry_by_oth_address = 3;
+}
+
+message IndividualBalanceEntry {
+  uint64 balance = 1;
+  string solver_individual_balance_sig = 2;
+  string validator_individual_balance_sig = 3;
+}
+
+// The partial case of SolutionValidatedDetails for vamp.fun
+message VampSolutionValidatedDetailsProto {
+  // The root folder CID (IPFS unique ID).
+  // For the flow when Validator submits the IPFS mapping himself.
+  string root_intent_cid = 1;
+  // The mapping of the CID (IPFS unique ID) for individual balance entry by the OriginalTokenHolders (OTH Address)
+  map<string, string> cid_by_oth_address = 2;
 }

@@ -9,12 +9,14 @@ pub struct Storage {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub enum RequestState {
     New,
+    Validated,
     UnderExecution,
     Executed,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct StoredRequest {
+    pub intent_id: String,
     pub sequence_id: u64,
     pub data: String,
     pub state: RequestState,

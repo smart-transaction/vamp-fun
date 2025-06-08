@@ -10,12 +10,14 @@ pub struct Storage {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub enum RequestState {
     New,
-    UnderExecution(String), // solver_id
-    Executed(String), // solver_id,
+    Validated,
+    UnderExecution, 
+    Executed,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct StoredRequest {
+    pub intent_id: String,
     pub sequence_id: u64,
     pub data: String,
     pub state: RequestState,
@@ -62,6 +64,7 @@ impl Storage {
     pub async fn save_new_intent(&self, intent_id: &str, sequence_id: u64, data: &str) -> 
                                                                                   anyhow::Result<()> {
         let stored_request = StoredRequest {
+            intent_id: intent_id.to_string(),
             sequence_id,
             data: data.to_string(),
             state: RequestState::New,

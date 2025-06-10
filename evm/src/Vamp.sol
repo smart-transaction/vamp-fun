@@ -3,8 +3,12 @@ pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract Vamp is Ownable {
+contract Vamp is Ownable, AccessControl {
+    bytes32 public constant FEE_COLLECTOR_ROLE =
+        keccak256("FEE_COLLECTOR_ROLE");
+
     uint256 public fee;
     address public treasury;
     IERC20 public feeToken;
@@ -15,6 +19,7 @@ contract Vamp is Ownable {
     /// @dev Error thrown when direct ETH transfer is attempted
     /// @dev Selector 0x157bd4c3
     error DirectETHTransferNotAllowed();
+    error NotFeeCollector();
 
     event TreasurySet(address indexed newTreasury);
     event VampInitiated(address indexed vamper, address indexed vampToken);
@@ -31,6 +36,18 @@ contract Vamp is Ownable {
         treasury = _treasury;
         fee = _fee;
         feeToken = IERC20(_feeToken);
+        _grantRole(FEE_COLLECTOR_ROLE, msg.sender);
+    }
+
+    function grantFeeCollectorRole(address user) external onlyOwner {
+        if (user == address(0)) {
+            revert ZeroAddress();
+        }
+        _grantRole(FEE_COLLECTOR_ROLE, user);
+    }
+
+    function revokeFeeCollectorRole(address user) external onlyOwner {
+        _revokeRole(FEE_COLLECTOR_ROLE, user);
     }
 
     function getFeeToken() external view returns (address) {
@@ -48,10 +65,15 @@ contract Vamp is Ownable {
         emit FeeSet(newFee);
     }
 
+    modifier onlyFeeCollector() {
+        if (!hasRole(FEE_COLLECTOR_ROLE, msg.sender)) revert NotFeeCollector();
+        _;
+    }
+
     function initiateVamp(
         address vamper,
         address vampToken
-    ) external payable onlyOwner {
+    ) external payable onlyFeeCollector {
         if (vamper == address(0) || vampToken == address(0))
             revert ZeroAddress();
 

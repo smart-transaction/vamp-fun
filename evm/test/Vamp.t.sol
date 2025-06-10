@@ -175,12 +175,7 @@ contract VampTest is Test {
 
         address notOwner = makeAddr("notOwner");
         vm.prank(notOwner);
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "OwnableUnauthorizedAccount(address)",
-                notOwner
-            )
-        );
+        vm.expectRevert(Vamp.NotFeeCollector.selector);
         vamp.initiateVamp(vamper, vampToken);
     }
 
@@ -252,5 +247,40 @@ contract VampTest is Test {
         );
         // after balance
         assertEq(address(vamp).balance, 0);
+    }
+
+    function test_RevokeFeeCollectorRole() public {
+        address newFeeCollector = makeAddr("newFeeCollector");
+        vamp.grantFeeCollectorRole(newFeeCollector);
+    }
+
+    function test_RevertWhen_RevokeFeeCollectorRole_ByNotOwner() public {
+        address newOwner = makeAddr("newOwner");
+        vm.prank(newOwner);
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "OwnableUnauthorizedAccount(address)",
+                newOwner
+            )
+        );
+        vamp.revokeFeeCollectorRole(makeAddr("temporary"));
+    }
+
+    function test_RevertWhen_GrantFeeCollectorRole_ToZeroAddress() public {
+        vm.expectRevert(Vamp.ZeroAddress.selector);
+        vamp.grantFeeCollectorRole(address(0));
+    }
+
+    function test_RevertWhen_GrantFeeCollectorRole_NotByOwner() public {
+        address notOwner = makeAddr("notOwner");
+        vm.prank(notOwner);
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "OwnableUnauthorizedAccount(address)",
+                notOwner
+            )
+        );
+
+        vamp.grantFeeCollectorRole(makeAddr("newUser"));
     }
 }

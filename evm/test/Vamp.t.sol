@@ -9,6 +9,10 @@ contract MockToken is ERC20 {
     constructor() ERC20("Mock Token", "MTK") {
         _mint(msg.sender, 1000000 * 10 ** 18);
     }
+
+    function mint(address to, uint256 value) public {
+        _mint(to, value);
+    }
 }
 
 contract VampTest is Test {
@@ -16,6 +20,11 @@ contract VampTest is Test {
     MockToken public feeToken;
     address public treasury;
     uint256 public fee = 100 * 10 ** 18; // 100 tokens
+    address public CALLBREAKER = makeAddr("CALLBREAKER");
+
+    bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant VAMPER = keccak256("VAMPER");
 
     function setUp() public {
         treasury = makeAddr("treasury");
@@ -97,6 +106,9 @@ contract VampTest is Test {
         vm.prank(vamper);
         feeToken.approve(address(vamp), fee);
 
+        // Grant role
+        vamp.grantRole(VAMPER, address(this));
+
         // Initiate vamp
         vamp.initiateVamp(vamper, vampToken);
 
@@ -107,6 +119,9 @@ contract VampTest is Test {
     function test_InitiateVamp_WithNativeToken() public {
         address vamper = makeAddr("vamper");
         address vampToken = makeAddr("vampToken");
+
+        // Grant role
+        vamp.grantRole(VAMPER, address(this));
 
         // Initiate vamp
 
@@ -122,6 +137,9 @@ contract VampTest is Test {
         address vamper = makeAddr("vamper");
         address vampToken = makeAddr("vampToken");
 
+        // Grant role
+        vamp.grantRole(VAMPER, address(this));
+
         // Initiate vamp
 
         vm.expectRevert(Vamp.InsufficientFee.selector);
@@ -135,6 +153,9 @@ contract VampTest is Test {
         address vamper = makeAddr("vamper");
         address vampToken = makeAddr("vampToken");
 
+        // Grant role
+        vamp.grantRole(VAMPER, address(this));
+
         vm.expectRevert(
             abi.encodeWithSignature(
                 "ERC20InsufficientAllowance(address,uint256,uint256)",
@@ -147,6 +168,8 @@ contract VampTest is Test {
     }
 
     function test_RevertWhen_InitiateVampZeroAddress() public {
+        // Grant role
+        vamp.grantRole(VAMPER, address(this));
         vm.expectRevert(Vamp.ZeroAddress.selector);
         vamp.initiateVamp(address(0), makeAddr("vampToken"));
     }
@@ -164,7 +187,13 @@ contract VampTest is Test {
 
         address notOwner = makeAddr("notOwner");
         vm.prank(notOwner);
-        vm.expectRevert(Vamp.NotFeeCollector.selector);
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "AccessControlUnauthorizedAccount(address,bytes32)",
+                notOwner,
+                VAMPER
+            )
+        );
         vamp.initiateVamp(vamper, vampToken);
     }
 
@@ -176,7 +205,13 @@ contract VampTest is Test {
     function test_RevertWhen_SetTreasuryByNotAdmin() public {
         address notOwner = makeAddr("notOwner");
         vm.prank(notOwner);
-        vm.expectRevert(Vamp.NotAdminRole.selector);
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "AccessControlUnauthorizedAccount(address,bytes32)",
+                notOwner,
+                ADMIN_ROLE
+            )
+        );
         vamp.setTreasury(makeAddr("newTreasury"));
     }
 
@@ -188,7 +223,13 @@ contract VampTest is Test {
     function test_RevertWhen_SetFeeTokenByNotAdmin() public {
         address notOwner = makeAddr("notOwner");
         vm.prank(notOwner);
-        vm.expectRevert(Vamp.NotAdminRole.selector);
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "AccessControlUnauthorizedAccount(address,bytes32)",
+                notOwner,
+                ADMIN_ROLE
+            )
+        );
         vamp.setFeeToken(makeAddr("feeToken"));
     }
 
@@ -197,7 +238,13 @@ contract VampTest is Test {
 
         address notOwner = makeAddr("notOwner");
         vm.prank(notOwner);
-        vm.expectRevert(Vamp.NotAdminRole.selector);
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "AccessControlUnauthorizedAccount(address,bytes32)",
+                notOwner,
+                ADMIN_ROLE
+            )
+        );
         vamp.setFee(newFee);
     }
 
@@ -223,26 +270,35 @@ contract VampTest is Test {
 
     function test_RevokeFeeCollectorRole() public {
         address newFeeCollector = makeAddr("newFeeCollector");
-        vamp.grantFeeCollectorRole(newFeeCollector);
+        vamp.grantRole(VAMPER, newFeeCollector);
     }
 
     function test_RevertWhen_RevokeFeeCollectorRole_ByNotAdmin() public {
         address newOwner = makeAddr("newOwner");
         vm.prank(newOwner);
-        vm.expectRevert(Vamp.NotAdminRole.selector);
-        vamp.revokeFeeCollectorRole(makeAddr("temporary"));
-    }
 
-    function test_RevertWhen_GrantFeeCollectorRole_ToZeroAddress() public {
-        vm.expectRevert(Vamp.ZeroAddress.selector);
-        vamp.grantFeeCollectorRole(address(0));
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "AccessControlUnauthorizedAccount(address,bytes32)",
+                newOwner,
+                DEFAULT_ADMIN_ROLE
+            )
+        );
+        vamp.revokeRole(VAMPER, makeAddr("temporary"));
     }
 
     function test_RevertWhen_GrantFeeCollectorRole_NotByAdmin() public {
         address notOwner = makeAddr("notOwner");
         vm.prank(notOwner);
-        vm.expectRevert(Vamp.NotAdminRole.selector);
 
-        vamp.grantFeeCollectorRole(makeAddr("newUser"));
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "AccessControlUnauthorizedAccount(address,bytes32)",
+                notOwner,
+                DEFAULT_ADMIN_ROLE
+            )
+        );
+
+        vamp.grantRole(VAMPER, makeAddr("newUser"));
     }
 }

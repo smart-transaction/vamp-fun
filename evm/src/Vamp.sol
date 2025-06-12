@@ -20,6 +20,7 @@ contract Vamp is Ownable, AccessControl {
     /// @dev Selector 0x157bd4c3
     error DirectETHTransferNotAllowed();
     error NotFeeCollector();
+    error NotAdminRole();
 
     event TreasurySet(address indexed newTreasury);
     event VampInitiated(address indexed vamper, address indexed vampToken);
@@ -37,16 +38,24 @@ contract Vamp is Ownable, AccessControl {
         fee = _fee;
         feeToken = IERC20(_feeToken);
         _grantRole(FEE_COLLECTOR_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    function grantFeeCollectorRole(address user) external onlyOwner {
+    modifier onlyAdmin() {
+        if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
+            revert NotAdminRole();
+        }
+        _;
+    }
+
+    function grantFeeCollectorRole(address user) external onlyAdmin {
         if (user == address(0)) {
             revert ZeroAddress();
         }
         _grantRole(FEE_COLLECTOR_ROLE, user);
     }
 
-    function revokeFeeCollectorRole(address user) external onlyOwner {
+    function revokeFeeCollectorRole(address user) external onlyAdmin {
         _revokeRole(FEE_COLLECTOR_ROLE, user);
     }
 

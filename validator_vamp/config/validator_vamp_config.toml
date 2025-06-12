@@ -1,0 +1,11 @@
+[grpc]
+binding_url = "127.0.0.1:50053"
+
+[storage]
+redis_url = "redis://127.0.0.1/"
+
+[ipfs]
+api_url = "http://vampfun-dev.stxn.io:5001"
+gateway_url = "https://ipfs.io/"
+pin = true
+enable_mfs_copy = true

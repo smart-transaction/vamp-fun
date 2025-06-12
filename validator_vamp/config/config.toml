@@ -1,9 +1,0 @@
-[ethereum]
-rpc_url = "wss://service.lestnet.org:8888/"
-contract_address = "0x81D0da49057BCC8b2f5c57bfb43A298C2f634362"
-
-[grpc]
-address = "127.0.0.1:50051"
-
-[storage]
-redis_url = "redis://127.0.0.1/"

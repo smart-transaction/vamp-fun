@@ -1,9 +1,24 @@
+use crate::validator_vamp::config;
+use std::collections::HashMap;
+use std::fs;
+use ethers::core::k256::sha2::Digest;
+use ethers::signers::LocalWallet;
+use prost::Message;
+use serde_json::json;
+use sha3::Keccak256;
 use tonic::{Request, Response, Status};
+use tonic::transport::Server;
 use crate::proto::{SubmitSolutionForValidationRequestProto, SubmitSolutionForValidationResponseProto, validator_service_server::{ValidatorService}, AppChainResultProto, AppChainResultStatus};
+use crate::proto::{VampSolutionForValidationProto, VampSolutionValidatedDetailsProto};
+use crate::proto::validator_service_server::ValidatorServiceServer;
+use crate::validator_vamp::ipfs_service::IpfsService;
 use crate::validator_vamp::storage::Storage;
+use tonic_reflection::server::Builder as ReflectionBuilder;
 
 pub struct ValidatorGrpcService {
     pub storage: Storage,
+    pub ipfs_service: IpfsService,
+    pub validator_wallet: LocalWallet,
 }
 
 #[tonic::async_trait]
@@ -21,7 +36,10 @@ impl ValidatorService for ValidatorGrpcService {
         let req = request.into_inner();
         log::info!("Request payload: intent_id = {}", req.intent_id,);
 
-        // 1. Load from Redis
+        let mut solution = VampSolutionForValidationProto::decode(req.solution_for_validation.as_slice())
+            .map_err(|e| Status::internal(format!("Protobuf decode error: {e}")))?;
+
+        // Load from Redis
         // Fetch request from storage, only if state is New
         match self
             .storage
@@ -36,10 +54,53 @@ impl ValidatorService for ValidatorGrpcService {
                     req.intent_id,
                 );
 
-                // Merkle checks
-                // Perform validation (validator signature) 
-                // Upload to IPFS
-                // Save new state: Validated(ipfs_cid)
+                // Sign each entry with validator key
+                for (addr, entry) in solution.individual_balance_entry_by_oth_address.iter_mut() {
+                    let mut hasher = Keccak256::new();
+                    hasher.update(addr.as_bytes());
+                    hasher.update(&entry.balance.to_be_bytes());
+                    hasher.update(req.intent_id.as_bytes());
+                    let hash = hasher.finalize();
+                    let sig = self.validator_wallet.sign_hash(ethers::types::H256::from_slice(&hash))
+                        .map_err(|e| Status::internal(format!("Signing error: {e}")))?;
+                    entry.validator_individual_balance_sig = hex::encode(sig.to_vec());
+                }
+
+                // Serialize individual entries to minimized JSON
+                let mut entry_by_oth_address = HashMap::new();
+                for (addr, entry) in &solution.individual_balance_entry_by_oth_address {
+                    let entry_json = json!({
+                "b": entry.balance.to_string(),
+                "ss": entry.solver_individual_balance_sig,
+                "vs": entry.validator_individual_balance_sig,
+                    });
+                    let entry_str = serde_json::to_string(&entry_json)
+                        .map_err(|e| Status::internal(format!("Entry JSON encode error: {e}")))?;
+                    entry_by_oth_address.insert(addr.clone(), entry_str);
+                }
+
+                // Publish full directory and get root CID and per-address CIDs
+                let intent_path = format!("vamp-fun-hbe-by-int-{}", req.intent_id);
+                let (root_cid, cid_by_oth_address) = self.ipfs_service.publish_balance_map
+                (&intent_path, 
+                                                                            &entry_by_oth_address).await
+                    .map_err(|e| Status::internal(format!("IPFS publish map error: {e}")))?;
+
+                //  Respond with validated details
+                let validated_details = VampSolutionValidatedDetailsProto {
+                    root_intent_cid: root_cid.clone(),
+                    cid_by_oth_address,
+                };
+
+                let mut validated_details_bytes = Vec::with_capacity(validated_details.encoded_len());
+                validated_details.encode(&mut validated_details_bytes)
+                    .map_err(|e| Status::internal(format!("Validated details encode error: {e}")))?;
+
+                
+                // Update lifecycle stage to Validated
+                self.storage.update_request_state_to_validated(&req.intent_id, &solution
+                    .solver_pubkey, &root_cid).await
+                    .map_err(|e| Status::internal(format!("Storage update error: {e}")))?;
                 
                 Ok(Response::new(SubmitSolutionForValidationResponseProto {
                     result: AppChainResultProto {
@@ -47,7 +108,7 @@ impl ValidatorService for ValidatorGrpcService {
                         message: None,
                     }
                         .into(),
-                    solution_validated_details: vec![],
+                    solution_validated_details: validated_details_bytes,
                 }))
             }
             
@@ -64,7 +125,34 @@ impl ValidatorService for ValidatorGrpcService {
                 solution_validated_details: vec![],
             })),
         }
-
-        
     }
+}
+pub async fn start_grpc_server(config: config::Config, storage: Storage, ipfs_service: IpfsService, 
+                               validator_wallet: LocalWallet
+) -> anyhow::Result<()> {
+    let addr: String = config.grpc.binding_url;
+    let addr_parsed = addr.parse()?;
+
+    log::info!("Reading the proto descriptor");
+    let descriptor_bytes = fs::read("src/generated/user_descriptor.pb")?;
+
+    let reflection_service = ReflectionBuilder::configure()
+        .register_encoded_file_descriptor_set(&*descriptor_bytes)
+        .build_v1()?;
+
+    log::info!("Starting gRPC server on {}", addr);
+
+    let validator_service = ValidatorGrpcService {
+        storage,
+        ipfs_service,
+        validator_wallet,
+    };
+
+    Server::builder()
+        .add_service(ValidatorServiceServer::new(validator_service))
+        .add_service(reflection_service)
+        .serve(addr_parsed)
+        .await?;
+
+    Ok(())
 }

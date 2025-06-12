@@ -1,3 +1,5 @@
 pub mod validator;
-mod validator_grpc_service;
-mod storage;
+pub mod config;
+pub mod storage;
+pub mod ipfs_service;
+pub mod validator_grpc_service;

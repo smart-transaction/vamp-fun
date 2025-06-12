@@ -95,6 +95,22 @@ contract VampTest is Test {
         assertEq(vamp.feeToken(), newFeeToken);
     }
 
+    function test_GrantRoleRevert() public {
+        address vamper = makeAddr("vamper");
+        address vampToken = makeAddr("vampToken");
+
+        // Grant role
+        vm.prank(vamper);
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "AccessControlUnauthorizedAccount(address,bytes32)",
+                vamper,
+                DEFAULT_ADMIN_ROLE
+            )
+        );
+        vamp.grantRole(VAMPER, address(this));
+    }
+
     function test_InitiateVamp() public {
         address vamper = makeAddr("vamper");
         address vampToken = makeAddr("vampToken");

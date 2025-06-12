@@ -1,25 +1,39 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
 contract Vamp is AccessControl {
-    bytes32 public constant FEE_COLLECTOR_ROLE =
-        keccak256("FEE_COLLECTOR_ROLE");
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant VAMPER = keccak256("VAMPER");
 
     uint256 public fee;
     address public treasury;
-    IERC20 public feeToken;
+    address public feeToken;
 
+    /// @dev Thrown when a zero address is provided
+    /// @dev Selector 0x8b6f91a3
     error ZeroAddress();
+
+    /// @dev Thrown when fee transfer fails
+    /// @dev Selector 0x7c8c2c0b
     error FeeTransferFailed();
+
+    /// @dev Thrown when insufficient fee is provided
+    /// @dev Selector 0x8f9f5e44
     error InsufficientFee();
+
     /// @dev Error thrown when direct ETH transfer is attempted
     /// @dev Selector 0x157bd4c3
     error DirectETHTransferNotAllowed();
+
+    /// @dev Thrown when caller does not have FEE_COLLECTOR_ROLE
+    /// @dev Selector 0x7e9d5f1a
     error NotFeeCollector();
+
+    /// @dev Thrown when caller does not have ADMIN_ROLE
+    /// @dev Selector 0x7c1b6baf
     error NotAdminRole();
 
     event TreasurySet(address indexed newTreasury);
@@ -28,62 +42,25 @@ contract Vamp is AccessControl {
     event FeeTokenSet(address indexed feeToken);
 
     constructor(address _treasury, uint256 _fee, address _feeToken) {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(ADMIN_ROLE, msg.sender);
+
         if (_treasury == address(0) || _feeToken == address(0))
             revert ZeroAddress();
         treasury = _treasury;
         fee = _fee;
-        feeToken = IERC20(_feeToken);
-        _grantRole(FEE_COLLECTOR_ROLE, msg.sender);
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    }
-
-    modifier onlyAdmin() {
-        if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
-            revert NotAdminRole();
-        }
-        _;
-    }
-
-    function grantFeeCollectorRole(address user) external onlyAdmin {
-        if (user == address(0)) {
-            revert ZeroAddress();
-        }
-        _grantRole(FEE_COLLECTOR_ROLE, user);
-    }
-
-    function revokeFeeCollectorRole(address user) external onlyAdmin {
-        _revokeRole(FEE_COLLECTOR_ROLE, user);
-    }
-
-    function getFeeToken() external view returns (address) {
-        return address(feeToken);
-    }
-
-    function setTreasury(address newTreasury) external onlyAdmin {
-        if (newTreasury == address(0)) revert ZeroAddress();
-        treasury = newTreasury;
-        emit TreasurySet(newTreasury);
-    }
-
-    function setFee(uint256 newFee) external onlyAdmin {
-        fee = newFee;
-        emit FeeSet(newFee);
-    }
-
-    modifier onlyFeeCollector() {
-        if (!hasRole(FEE_COLLECTOR_ROLE, msg.sender)) revert NotFeeCollector();
-        _;
+        feeToken = _feeToken;
     }
 
     function initiateVamp(
         address vamper,
         address vampToken
-    ) external payable onlyFeeCollector {
+    ) external payable onlyRole(VAMPER) {
         if (vamper == address(0) || vampToken == address(0))
             revert ZeroAddress();
 
         if (msg.value == 0) {
-            bool success = feeToken.transferFrom(vamper, treasury, fee);
+            bool success = IERC20(feeToken).transferFrom(vamper, treasury, fee);
             if (!success) revert FeeTransferFailed();
         } else {
             if (msg.value < fee) {
@@ -95,9 +72,20 @@ contract Vamp is AccessControl {
         emit VampInitiated(vamper, vampToken);
     }
 
-    function setFeeToken(address _feeToken) external onlyAdmin {
+    function setTreasury(address newTreasury) external onlyRole(ADMIN_ROLE) {
+        if (newTreasury == address(0)) revert ZeroAddress();
+        treasury = newTreasury;
+        emit TreasurySet(newTreasury);
+    }
+
+    function setFee(uint256 newFee) external onlyRole(ADMIN_ROLE) {
+        fee = newFee;
+        emit FeeSet(newFee);
+    }
+
+    function setFeeToken(address _feeToken) external onlyRole(ADMIN_ROLE) {
         if (_feeToken == address(0)) revert ZeroAddress();
-        feeToken = IERC20(_feeToken);
+        feeToken = _feeToken;
         emit FeeTokenSet(_feeToken);
     }
 

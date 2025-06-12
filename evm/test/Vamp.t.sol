@@ -75,7 +75,7 @@ contract VampTest is Test {
     function test_SetFeeToken() public {
         address newFeeToken = makeAddr("feeToken");
         vamp.setFeeToken(newFeeToken);
-        assertEq(vamp.getFeeToken(), newFeeToken);
+        assertEq(vamp.feeToken(), newFeeToken);
     }
 
     function test_Event_WhenSettingFeeToken() public {
@@ -83,7 +83,7 @@ contract VampTest is Test {
         vm.expectEmit(true, false, false, true);
         emit Vamp.FeeTokenSet(newFeeToken);
         vamp.setFeeToken(newFeeToken);
-        assertEq(vamp.getFeeToken(), newFeeToken);
+        assertEq(vamp.feeToken(), newFeeToken);
     }
 
     function test_InitiateVamp() public {

@@ -46,14 +46,12 @@ contract VampTest is Test {
 
     function test_SetTreasury() public {
         address newTreasury = makeAddr("newTreasury");
-        vm.prank(vamp.owner());
         vamp.setTreasury(newTreasury);
         assertEq(vamp.treasury(), newTreasury);
     }
 
     function test_Event_WhenSettingTreasury() public {
         address newTreasury = makeAddr("newTreasury");
-        vm.prank(vamp.owner());
         vm.expectEmit(true, false, false, true);
         emit Vamp.TreasurySet(newTreasury);
         vamp.setTreasury(newTreasury);
@@ -62,14 +60,12 @@ contract VampTest is Test {
 
     function test_SetFee() public {
         uint256 newFee = 200 * 10 ** 18;
-        vm.prank(vamp.owner());
         vamp.setFee(newFee);
         assertEq(vamp.fee(), newFee);
     }
 
     function test_Event_WhenSettingFee() public {
         uint256 newFee = 200 * 10 ** 18;
-        vm.prank(vamp.owner());
         vm.expectEmit(true, false, false, true);
         emit Vamp.FeeSet(newFee);
         vamp.setFee(newFee);
@@ -78,14 +74,12 @@ contract VampTest is Test {
 
     function test_SetFeeToken() public {
         address newFeeToken = makeAddr("feeToken");
-        vm.prank(vamp.owner());
         vamp.setFeeToken(newFeeToken);
         assertEq(vamp.getFeeToken(), newFeeToken);
     }
 
     function test_Event_WhenSettingFeeToken() public {
         address newFeeToken = makeAddr("feeToken");
-        vm.prank(vamp.owner());
         vm.expectEmit(true, false, false, true);
         emit Vamp.FeeTokenSet(newFeeToken);
         vamp.setFeeToken(newFeeToken);
@@ -104,7 +98,6 @@ contract VampTest is Test {
         feeToken.approve(address(vamp), fee);
 
         // Initiate vamp
-        vm.prank(vamp.owner());
         vamp.initiateVamp(vamper, vampToken);
 
         // Check treasury received fee
@@ -116,7 +109,6 @@ contract VampTest is Test {
         address vampToken = makeAddr("vampToken");
 
         // Initiate vamp
-        vm.prank(vamp.owner());
 
         vm.expectEmit(true, true, false, true);
         emit Vamp.VampInitiated(vamper, vampToken);
@@ -131,7 +123,6 @@ contract VampTest is Test {
         address vampToken = makeAddr("vampToken");
 
         // Initiate vamp
-        vm.prank(vamp.owner());
 
         vm.expectRevert(Vamp.InsufficientFee.selector);
         vamp.initiateVamp{value: fee - 1}(vamper, vampToken);
@@ -144,7 +135,6 @@ contract VampTest is Test {
         address vamper = makeAddr("vamper");
         address vampToken = makeAddr("vampToken");
 
-        vm.prank(vamp.owner());
         vm.expectRevert(
             abi.encodeWithSignature(
                 "ERC20InsufficientAllowance(address,uint256,uint256)",
@@ -157,12 +147,11 @@ contract VampTest is Test {
     }
 
     function test_RevertWhen_InitiateVampZeroAddress() public {
-        vm.prank(vamp.owner());
         vm.expectRevert(Vamp.ZeroAddress.selector);
         vamp.initiateVamp(address(0), makeAddr("vampToken"));
     }
 
-    function test_RevertWhen_InitiateVampByNotOwner() public {
+    function test_RevertWhen_InitiateVampByNotAdmin() public {
         address vamper = makeAddr("vamper");
         address vampToken = makeAddr("vampToken");
 
@@ -180,52 +169,35 @@ contract VampTest is Test {
     }
 
     function test_RevertWhen_SetTreasuryZeroAddress() public {
-        vm.prank(vamp.owner());
         vm.expectRevert(Vamp.ZeroAddress.selector);
         vamp.setTreasury(address(0));
     }
 
-    function test_RevertWhen_SetTreasuryByNotOwner() public {
+    function test_RevertWhen_SetTreasuryByNotAdmin() public {
         address notOwner = makeAddr("notOwner");
         vm.prank(notOwner);
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "OwnableUnauthorizedAccount(address)",
-                notOwner
-            )
-        );
+        vm.expectRevert(Vamp.NotAdminRole.selector);
         vamp.setTreasury(makeAddr("newTreasury"));
     }
 
     function test_RevertWhen_SetFeeTokenZeroAddress() public {
-        vm.prank(vamp.owner());
         vm.expectRevert(Vamp.ZeroAddress.selector);
         vamp.setFeeToken(address(0));
     }
 
-    function test_RevertWhen_SetFeeTokenByNotOwner() public {
+    function test_RevertWhen_SetFeeTokenByNotAdmin() public {
         address notOwner = makeAddr("notOwner");
         vm.prank(notOwner);
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "OwnableUnauthorizedAccount(address)",
-                notOwner
-            )
-        );
+        vm.expectRevert(Vamp.NotAdminRole.selector);
         vamp.setFeeToken(makeAddr("feeToken"));
     }
 
-    function test_RevertWhen_SetFeeByNotOwner() public {
+    function test_RevertWhen_SetFeeByNotAdmin() public {
         uint256 newFee = 200 * 10 ** 18;
 
         address notOwner = makeAddr("notOwner");
         vm.prank(notOwner);
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "OwnableUnauthorizedAccount(address)",
-                notOwner
-            )
-        );
+        vm.expectRevert(Vamp.NotAdminRole.selector);
         vamp.setFee(newFee);
     }
 

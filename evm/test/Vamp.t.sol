@@ -254,15 +254,10 @@ contract VampTest is Test {
         vamp.grantFeeCollectorRole(newFeeCollector);
     }
 
-    function test_RevertWhen_RevokeFeeCollectorRole_ByNotOwner() public {
+    function test_RevertWhen_RevokeFeeCollectorRole_ByNotAdmin() public {
         address newOwner = makeAddr("newOwner");
         vm.prank(newOwner);
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "OwnableUnauthorizedAccount(address)",
-                newOwner
-            )
-        );
+        vm.expectRevert(Vamp.NotAdminRole.selector);
         vamp.revokeFeeCollectorRole(makeAddr("temporary"));
     }
 
@@ -271,15 +266,10 @@ contract VampTest is Test {
         vamp.grantFeeCollectorRole(address(0));
     }
 
-    function test_RevertWhen_GrantFeeCollectorRole_NotByOwner() public {
+    function test_RevertWhen_GrantFeeCollectorRole_NotByAdmin() public {
         address notOwner = makeAddr("notOwner");
         vm.prank(notOwner);
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "OwnableUnauthorizedAccount(address)",
-                notOwner
-            )
-        );
+        vm.expectRevert(Vamp.NotAdminRole.selector);
 
         vamp.grantFeeCollectorRole(makeAddr("newUser"));
     }

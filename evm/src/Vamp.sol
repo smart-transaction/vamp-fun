@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract Vamp is Ownable, AccessControl {
+contract Vamp is AccessControl {
     bytes32 public constant FEE_COLLECTOR_ROLE =
         keccak256("FEE_COLLECTOR_ROLE");
 
@@ -27,11 +27,7 @@ contract Vamp is Ownable, AccessControl {
     event FeeSet(uint256 newFee);
     event FeeTokenSet(address indexed feeToken);
 
-    constructor(
-        address _treasury,
-        uint256 _fee,
-        address _feeToken
-    ) Ownable(msg.sender) {
+    constructor(address _treasury, uint256 _fee, address _feeToken) {
         if (_treasury == address(0) || _feeToken == address(0))
             revert ZeroAddress();
         treasury = _treasury;
@@ -63,13 +59,13 @@ contract Vamp is Ownable, AccessControl {
         return address(feeToken);
     }
 
-    function setTreasury(address newTreasury) external onlyOwner {
+    function setTreasury(address newTreasury) external onlyAdmin {
         if (newTreasury == address(0)) revert ZeroAddress();
         treasury = newTreasury;
         emit TreasurySet(newTreasury);
     }
 
-    function setFee(uint256 newFee) external onlyOwner {
+    function setFee(uint256 newFee) external onlyAdmin {
         fee = newFee;
         emit FeeSet(newFee);
     }
@@ -99,7 +95,7 @@ contract Vamp is Ownable, AccessControl {
         emit VampInitiated(vamper, vampToken);
     }
 
-    function setFeeToken(address _feeToken) external onlyOwner {
+    function setFeeToken(address _feeToken) external onlyAdmin {
         if (_feeToken == address(0)) revert ZeroAddress();
         feeToken = IERC20(_feeToken);
         emit FeeTokenSet(_feeToken);

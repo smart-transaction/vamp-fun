@@ -28,14 +28,6 @@ contract Vamp is AccessControl {
     /// @dev Selector 0x157bd4c3
     error DirectETHTransferNotAllowed();
 
-    /// @dev Thrown when caller does not have FEE_COLLECTOR_ROLE
-    /// @dev Selector 0x7e9d5f1a
-    error NotFeeCollector();
-
-    /// @dev Thrown when caller does not have ADMIN_ROLE
-    /// @dev Selector 0x7c1b6baf
-    error NotAdminRole();
-
     event TreasurySet(address indexed newTreasury);
     event VampInitiated(address indexed vamper, address indexed vampToken);
     event FeeSet(uint256 newFee);

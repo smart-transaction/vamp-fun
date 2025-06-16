@@ -47,18 +47,18 @@ contract Vamp is AccessControl {
     function initiateVamp(
         address vamper,
         address vampToken
-    ) external payable onlyRole(VAMPER) {
+    ) external payable onlyRole(VAMPER) returns (bool success) {
         if (vamper == address(0) || vampToken == address(0))
             revert ZeroAddress();
 
         if (msg.value == 0) {
-            bool success = IERC20(feeToken).transferFrom(vamper, treasury, fee);
+            success = IERC20(feeToken).transferFrom(vamper, treasury, fee);
             if (!success) revert FeeTransferFailed();
         } else {
             if (msg.value < fee) {
                 revert InsufficientFee();
             }
-            (bool success, ) = payable(treasury).call{value: msg.value}("");
+            (success, ) = payable(treasury).call{value: msg.value}("");
             if (!success) revert FeeTransferFailed();
         }
         emit VampInitiated(vamper, vampToken);

@@ -12,6 +12,8 @@ contract Vamp is AccessControl {
     address public treasury;
     address public feeToken;
 
+    mapping(bytes32 => bool) public approvedRequests;
+
     /// @dev Thrown when a zero address is provided
     /// @dev Selector 0x8b6f91a3
     error ZeroAddress();
@@ -28,40 +30,36 @@ contract Vamp is AccessControl {
     /// @dev Selector 0x157bd4c3
     error DirectETHTransferNotAllowed();
 
-    event TreasurySet(address indexed newTreasury);
-    event VampInitiated(address indexed vamper, address indexed vampToken);
-    event FeeSet(uint256 newFee);
-    event FeeTokenSet(address indexed feeToken);
+    error VampRejected(bytes32 requestId);
 
-    constructor(address _treasury, uint256 _fee, address _feeToken) {
+    event TreasurySet(address indexed newTreasury);
+    event VampApproved(bytes32 indexed requestId);
+    event FeeSet(uint256 newFee);
+
+    constructor(address _treasury, uint256 _fee) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
 
-        if (_treasury == address(0) || _feeToken == address(0))
+        if (_treasury == address(0)) {
             revert ZeroAddress();
+        }
         treasury = _treasury;
         fee = _fee;
-        feeToken = _feeToken;
     }
 
-    function initiateVamp(
-        address vamper,
-        address vampToken
-    ) external payable onlyRole(VAMPER) returns (bool success) {
-        if (vamper == address(0) || vampToken == address(0))
-            revert ZeroAddress();
-
-        if (msg.value == 0) {
-            success = IERC20(feeToken).transferFrom(vamper, treasury, fee);
-            if (!success) revert FeeTransferFailed();
+    function preApprove(bytes32 requestId) external payable onlyRole(VAMPER) returns (bool) {
+        if (msg.value < fee) {
+            revert VampRejected(requestId);
         } else {
-            if (msg.value < fee) {
-                revert InsufficientFee();
+            (bool success,) = payable(treasury).call{value: msg.value}("");
+            if (success) {
+                approvedRequests[requestId] = true;
+                emit VampApproved(requestId);
+                return true;
             }
-            (success, ) = payable(treasury).call{value: msg.value}("");
-            if (!success) revert FeeTransferFailed();
         }
-        emit VampInitiated(vamper, vampToken);
+
+        return false;
     }
 
     function setTreasury(address newTreasury) external onlyRole(ADMIN_ROLE) {
@@ -73,12 +71,6 @@ contract Vamp is AccessControl {
     function setFee(uint256 newFee) external onlyRole(ADMIN_ROLE) {
         fee = newFee;
         emit FeeSet(newFee);
-    }
-
-    function setFeeToken(address _feeToken) external onlyRole(ADMIN_ROLE) {
-        if (_feeToken == address(0)) revert ZeroAddress();
-        feeToken = _feeToken;
-        emit FeeTokenSet(_feeToken);
     }
 
     // TODO: Claim extra ETH transferred by user

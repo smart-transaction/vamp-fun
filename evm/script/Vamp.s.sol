@@ -12,11 +12,10 @@ contract VampScript is Script {
         address treasury = vm.envAddress("TREASURY_ADDRESS");
         address callbreakerAddress = vm.envAddress("CALL_BREAKER_ADDRESS");
         uint256 fee = vm.envUint("FEE");
-        address feeToken = vm.envAddress("FEE_TOKEN_ADDRESS");
 
         vm.startBroadcast(deployerPrivateKey);
 
-        Vamp vamp = new Vamp(treasury, fee, feeToken);
+        Vamp vamp = new Vamp(treasury, fee);
         console.log("Vamp deployed at:", address(vamp));
 
         // Set the call breaker address as Vamper

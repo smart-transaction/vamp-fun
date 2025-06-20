@@ -60,13 +60,12 @@ contract Vamp is AccessControl {
         uint256 totalBalance = address(this).balance;
         if (totalBalance == 0){
             revert ZeroBalance();
-        } else {
-            (bool success, ) = receiver.call{value: totalBalance}("");
-            if (!success) {
-                revert FeeTransferFailed(receiver);
-            }
-            emit VampFeeWithdrawn(receiver, totalBalance);
         }
+        (bool success, ) = receiver.call{value: totalBalance}("");
+        if (!success) {
+            revert FeeTransferFailed(receiver);
+        }
+        emit VampFeeWithdrawn(receiver, totalBalance);
     }
 
     function setFee(uint256 newFee) external onlyRole(ADMIN_ROLE) {

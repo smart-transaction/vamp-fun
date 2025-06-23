@@ -5,6 +5,7 @@ MYSQL_PORT=3306
 MYSQL_DATABASE=vampfun
 REQUEST_REGISTRATOR_URL=http://localhost:50051
 ORCHESTRATOR_URL=http://localhost:50052
+VALIDATOR_URL=http://localhost:50053
 POLL_FREQUENCY_SECS=5
 PRIVATE_KEY=0xa16244600268d2379a6e22b0dc1d6064d714b43b346a434f3fd50831103f56bf
 SOLANA_PRIVATE_KEY=5uw3Qy49XG31tVAScho8Ww32A9bjXc3iDVtzdvtPRK6iz3hmp9XYFKBcGNJ1j53gUXoiQDQcFQDuhcmb4ieMb4bR
@@ -14,6 +15,7 @@ cargo run \
   -- \
   --request-registrator-url=${REQUEST_REGISTRATOR_URL} \
   --orchestrator-url=${ORCHESTRATOR_URL} \
+  --validator-url=${VALIDATOR_URL} \
   --mysql-user=${MYSQL_USER} \
   --mysql-password=${MYSQL_PASSWORD} \
   --mysql-host=${MYSQL_HOST} \

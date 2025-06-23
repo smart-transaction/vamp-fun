@@ -17,6 +17,7 @@ use mpl_token_metadata::ID as TOKEN_METADATA_PROGRAM_ID;
 use mysql::TxOpts;
 use mysql::prelude::Queryable;
 use prost::Message;
+use sha3::Digest;
 use solana_sdk::hash::Hash;
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction, pubkey::Pubkey, signature::Keypair,
@@ -24,6 +25,7 @@ use solana_sdk::{
 };
 use spl_associated_token_account::ID as ASSOCIATED_TOKEN_PROGRAM_ID;
 use spl_token::ID as TOKEN_PROGRAM_ID;
+use tonic::Status;
 use tonic::transport::Channel;
 
 use crate::mysql_conn::DbConn;
@@ -31,18 +33,19 @@ use crate::request_registrator_listener::VAMPING_APP_ID;
 use crate::snapshot_indexer::{TokenAmount, TokenRequestData};
 use crate::stats::{IndexerProcesses, VampingStatus};
 use crate::use_proto::proto::chain_selection_proto::Chain;
-use crate::use_proto::proto::{
-    AppChainResultStatus, ChainSelectionProto, LatestBlockHashRequestProto, SolanaCluster,
-};
+use crate::use_proto::proto::{AppChainResultStatus, ChainSelectionProto, LatestBlockHashRequestProto, SolanaCluster, SubmitSolutionForValidationRequestProto, VampSolutionForValidationProto};
 use crate::use_proto::proto::{
     SubmitSolutionRequestProto, TokenMappingProto, TokenVampingInfoProto, UserEventProto,
     orchestrator_service_client::OrchestratorServiceClient,
+    validator_service_client::ValidatorServiceClient,
 };
+use crate::use_proto::proto::VampSolutionValidatedDetailsProto;
 
 pub async fn process_and_send_snapshot(
     request_data: TokenRequestData,
     amount: U256,
     original_snapshot: HashMap<Address, TokenAmount>,
+    validator_url: String,
     orchestrator_url: String,
     indexing_stats: Arc<Mutex<IndexerProcesses>>,
     db_conn: DbConn,
@@ -113,6 +116,57 @@ pub async fn process_and_send_snapshot(
     let mut encoded_vamping_info = Vec::new();
     token_vamping_info.encode(&mut encoded_vamping_info)?;
 
+    // Build the individual_balance_entry_by_oth_address map for the proto
+    let mut individual_balance_entry_by_oth_address = std::collections::HashMap::new();
+    for (address, token_amount) in &original_snapshot {
+        // Convert the balance to u64 using convert_to_sol
+        let (balance, _) = convert_to_sol(&token_amount.amount)?;
+        // Build the message: sha3::Keccak256(eth_address || balance || intent_id)
+        let mut hasher = sha3::Keccak256::new();
+        hasher.update(address.as_bytes());
+        hasher.update(&balance.to_le_bytes());
+        hasher.update(&request_data.intent_id);
+        let message = hasher.finalize();
+        // Sign the message with the solver's private key
+        let solver_sig = eth_private_key.sign_message(message).await?;
+        // Construct the IndividualBalanceEntry
+        let entry = crate::use_proto::proto::IndividualBalanceEntry {
+            balance,
+            solver_individual_balance_sig: hex::encode(solver_sig.to_vec()),
+            validator_individual_balance_sig: String::new(),
+        };
+        individual_balance_entry_by_oth_address.insert(format!("{:#x}", address), entry);
+    }
+    // Now use this map in your VampSolutionForValidationProto
+    let solution_for_validation = VampSolutionForValidationProto {
+        intent_id: hex::encode(request_data.intent_id.clone()),
+        solver_pubkey: eth_private_key.address().to_string(),
+        individual_balance_entry_by_oth_address,
+    };
+    
+    let mut solution_for_validation_encoded = Vec::with_capacity(solution_for_validation.encoded_len());
+    solution_for_validation.encode(&mut solution_for_validation_encoded)
+        .map_err(|e| Status::internal(format!("Protobuf encode error: {e}")))?;
+    
+    let validation_request_proto = SubmitSolutionForValidationRequestProto {
+        intent_id: hex::encode(request_data.intent_id.clone()),
+        solution_for_validation: solution_for_validation_encoded,
+    };
+    
+    // Send the validation request to the validator
+    let mut validator_client: ValidatorServiceClient<Channel> =
+        ValidatorServiceClient::connect(validator_url.clone()).await?;
+    info!("Connected to validator at {}", validator_url);
+    let response = validator_client
+        .submit_solution(validation_request_proto)
+        .await?;
+    let response_proto = response.into_inner();
+    // Handle the response: check for success and extract data
+    let payload: Vec<u8> = response_proto.solution_validated_details;
+    let vamp_validated_details = VampSolutionValidatedDetailsProto::decode(&*payload)?;
+    info!("Validation successful. Root CID: {}", vamp_validated_details.root_intent_cid);
+    // Use vamp_validated_details as needed
+    
     let mut orchestrator_client: OrchestratorServiceClient<Channel> =
         OrchestratorServiceClient::connect(orchestrator_url.clone()).await?;
     info!("Connected to orchestrator at {}", orchestrator_url);

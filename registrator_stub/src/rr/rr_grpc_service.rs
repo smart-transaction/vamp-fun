@@ -4,7 +4,6 @@ use crate::proto::{
     PollRequestProto, PollResponseProto, AppChainResultProto, AppChainResultStatus, UserEventProto,
 };
 use crate::rr::storage::Storage;
-use crate::utils::crypto::calculate_hash;
 use tonic::{transport::Server, Request, Response, Status};
 use tonic_reflection::server::Builder as ReflectionBuilder;
 
@@ -32,8 +31,7 @@ impl RequestRegistratorService for RRService {
         match self.storage.get_request_by_sequence_id(next_sequence_id).await {
             Ok(stored_request) => {
                 // Calculate hash of the event
-                // Temporary; to be replaced with the intent_id from the event
-                let intent_id = calculate_hash(stored_request.data.as_bytes());
+                let intent_id = stored_request.intent_id;
 
                 let user_event: UserEventProto = serde_json::from_str(&stored_request.data)
                     .map_err(|e| Status::internal(format!("Failed to parse UserEventProto from Redis: {}", e)))?;

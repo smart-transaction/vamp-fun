@@ -50,6 +50,7 @@ pub struct SnapshotIndexer {
     chain_info: HashMap<u64, ChainInfo>,
     quicknode_chains: HashMap<u64, String>,
     db_conn: DbConn,
+    validator_url: String,
     orchestrator_url: String,
     private_key: LocalWallet,
     solana_payer_keypair: Arc<Keypair>,
@@ -59,11 +60,13 @@ pub struct SnapshotIndexer {
 const BLOCK_STEP: usize = 9990;
 
 impl SnapshotIndexer {
-    pub fn new(db_conn: DbConn, orchestrator_url: String, private_key: LocalWallet, solana_payer_keypair: Arc<Keypair>, solana_program: Arc<Program<Arc<Keypair>>>) -> Self {
+    pub fn new(db_conn: DbConn, validator_url: String, orchestrator_url: String, private_key: 
+    LocalWallet, solana_payer_keypair: Arc<Keypair>, solana_program: Arc<Program<Arc<Keypair>>>) -> Self {
         Self {
             chain_info: HashMap::new(),
             quicknode_chains: HashMap::new(),
             db_conn,
+            validator_url,
             orchestrator_url,
             private_key,
             solana_payer_keypair,
@@ -104,8 +107,7 @@ impl SnapshotIndexer {
             .iter()
             .map(|(_, v)| v.amount)
             .fold(U256::zero(), |acc, x| acc.checked_add(x).unwrap());
-
-        let orchestrator_url = self.orchestrator_url.clone();
+        
         {
             if let Ok(mut stats) = stats.lock() {
                 let mut item = IndexerStats::default();
@@ -121,6 +123,9 @@ impl SnapshotIndexer {
         let private_key = self.private_key.clone();
         let solana_payer_keypair = self.solana_payer_keypair.clone();
         let solana_program = self.solana_program.clone();
+        let validator_url = self.validator_url.clone();
+        let orchestrator_url = self.orchestrator_url.clone();
+
         spawn(async move {
             let first_block = prev_block_number.unwrap_or(0) + 1;
             let latest_block = request_data.block_number as usize;
@@ -214,6 +219,7 @@ impl SnapshotIndexer {
                 request_data,
                 total_amount,
                 token_supply,
+                validator_url,
                 orchestrator_url,
                 stats.clone(),
                 db_conn.clone(),

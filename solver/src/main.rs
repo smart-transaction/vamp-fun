@@ -44,6 +44,9 @@ pub struct Args {
     pub request_registrator_url: String,
 
     #[arg(long)]
+    pub validator_url: String,
+    
+    #[arg(long)]
     pub orchestrator_url: String,
 
     #[arg(long, default_value = "40s")]
@@ -116,6 +119,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             args.mysql_password.clone(),
             args.mysql_database.clone(),
         ),
+        args.validator_url.clone(),
         args.orchestrator_url.clone(),
         args.private_key.clone(),
         solana_payer_keypair.clone(),

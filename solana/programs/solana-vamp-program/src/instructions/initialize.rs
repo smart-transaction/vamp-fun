@@ -126,7 +126,8 @@ impl<'info> Initialize<'info> {
             solver_public_key,
             validator_public_key,
             vamp_identifier,
-            intent_id
+            intent_id,
+            total_claimed: 0,
         });
 
         Ok(())

@@ -156,6 +156,8 @@ pub fn claim_tokens(
         balance,
     )?;
 
+    ctx.accounts.vamp_state.total_claimed = ctx.accounts.vamp_state.total_claimed.checked_add(balance).ok_or(ErrorCode::ArithmeticOverflow)?;
+
     ctx.accounts.claim_state.is_claimed = true;
     Ok(())
 }

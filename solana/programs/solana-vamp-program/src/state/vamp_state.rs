@@ -12,6 +12,7 @@ pub struct VampState {
     pub vamp_identifier: u64,
     #[max_len(32)]
     pub intent_id: Vec<u8>,
+    pub total_claimed: u64,           // Total number of tokens claimed so far
 }
 
 #[account]

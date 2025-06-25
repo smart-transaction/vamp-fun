@@ -15,7 +15,9 @@ pub enum ErrorCode {
     #[msg("Invalid token mapping provided.")]
     InvalidTokenMapping,
     #[msg("Tokens already claimed.")]
-    TokensAlredyClaimed
+    TokensAlredyClaimed,
+    #[msg("Arithmetic overflow occurred.")]
+    ArithmeticOverflow
 }
 
 #[event]

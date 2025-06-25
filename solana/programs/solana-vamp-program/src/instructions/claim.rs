@@ -11,6 +11,7 @@ use crate::{
     event::ErrorCode,
     state::vamp_state::{ClaimState, VampState},
 };
+use crate::instructions::calculate_claim_cost::calculate_claim_cost;
 
 #[derive(Accounts)]
 #[instruction(eth_address: [u8; 20])]
@@ -42,6 +43,14 @@ pub struct Claim<'info> {
         token::authority = vamp_state,
     )]
     pub vault: Account<'info, TokenAccount>,
+
+    /// CHECK: This is the SOL vault PDA
+    #[account(
+        mut,
+        seeds = [b"sol_vault", mint_account.key().as_ref()],
+        bump,
+    )]
+    pub sol_vault: UncheckedAccount<'info>,
 
     #[account(mut)]
     pub claimer_token_account: Account<'info, TokenAccount>,
@@ -97,7 +106,7 @@ fn verify_ethereum_signature(
     Ok(())
 }
 
-pub fn claim_tokens(
+pub fn buy_claim_tokens(
     ctx: Context<Claim>,
     eth_address: [u8; 20],
     balance: u64,
@@ -134,29 +143,52 @@ pub fn claim_tokens(
         ErrorCode::TokensAlredyClaimed
     );
 
+    // Calculate the SOL cost using the bonding curve
+    let sol_cost = calculate_claim_cost(&ctx.accounts.vamp_state, balance)?;
+
+    // Transfer SOL from claimer to SOL vault using system program
+    let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
+        &ctx.accounts.authority.key(),
+        &ctx.accounts.sol_vault.key(),
+        sol_cost,
+    );
+    
+    anchor_lang::solana_program::program::invoke(
+        &transfer_ix,
+        &[
+            ctx.accounts.authority.to_account_info(),
+            ctx.accounts.sol_vault.to_account_info(),
+        ],
+    )?;
+
+    // Update bonding curve state
+    let vamp_state = &mut ctx.accounts.vamp_state;
+    vamp_state.reserve_balance = vamp_state.reserve_balance.checked_add(sol_cost).ok_or(ErrorCode::ArithmeticOverflow)?;
+
     let mint_key = ctx.accounts.mint_account.key();
     let seeds = &[
         b"vamp".as_ref(),
         mint_key.as_ref(),
-        &[ctx.accounts.vamp_state.bump],
+        &[vamp_state.bump],
     ];
     let signer_seeds = &[&seeds[..]];
 
-    // Transfer from vault to claimer
+    // Transfer tokens from vault to claimer
     anchor_spl::token::transfer(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             Transfer {
                 from: ctx.accounts.vault.to_account_info(),
                 to: ctx.accounts.claimer_token_account.to_account_info(),
-                authority: ctx.accounts.vamp_state.to_account_info(),
+                authority: vamp_state.to_account_info(),
             },
             signer_seeds,
         ),
         balance,
     )?;
 
-    ctx.accounts.vamp_state.total_claimed = ctx.accounts.vamp_state.total_claimed.checked_add(balance).ok_or(ErrorCode::ArithmeticOverflow)?;
+    // Update the total claimed counter
+    vamp_state.total_claimed = vamp_state.total_claimed.checked_add(balance).ok_or(ErrorCode::ArithmeticOverflow)?;
 
     ctx.accounts.claim_state.is_claimed = true;
     Ok(())

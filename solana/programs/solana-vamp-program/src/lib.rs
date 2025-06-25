@@ -66,7 +66,6 @@ pub mod solana_vamp_program {
         Ok(())
     }
 
-    // TDOD: add logic to avoid double claim
     pub fn claim(
         ctx: Context<Claim>,
         eth_address: [u8; 20],
@@ -75,6 +74,6 @@ pub mod solana_vamp_program {
         validator_individual_balance_sig: [u8; 65],
         ownership_sig: [u8; 65],
     ) -> Result<()> {
-        claim_tokens(ctx, eth_address, balance, solver_individual_balance_sig, validator_individual_balance_sig, ownership_sig)
+        buy_claim_tokens(ctx, eth_address, balance, solver_individual_balance_sig, validator_individual_balance_sig, ownership_sig)
     }
 }

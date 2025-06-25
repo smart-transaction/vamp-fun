@@ -54,6 +54,16 @@ pub struct Initialize<'info> {
     )]
     pub vault: Account<'info, TokenAccount>,
 
+    /// CHECK: This is safe because we're creating a SOL vault PDA
+    #[account(
+        init,
+        payer = authority,
+        seeds = [b"sol_vault", mint_account.key().as_ref()],
+        bump,
+        space = 0, // SOL accounts don't need space
+    )]
+    pub sol_vault: UncheckedAccount<'info>,
+
     pub token_program: Program<'info, Token>,
     pub token_metadata_program: Program<'info, Metadata>,
     pub system_program: Program<'info, System>,
@@ -128,6 +138,11 @@ impl<'info> Initialize<'info> {
             vamp_identifier,
             intent_id,
             total_claimed: 0,
+            reserve_balance: 0,
+            token_supply: amount,
+            curve_exponent: 2,
+            initial_price: 1_000_000,
+            sol_vault: self.sol_vault.key(),
         });
 
         Ok(())

@@ -26,6 +26,7 @@ pub mod solana_vamp_program {
         ctx: Context<Initialize>,
         vamp_identifier: u64,
         vamping_data: Vec<u8>,
+        token_decimals: u8,
     ) -> Result<()> {
         let vamping_info = TokenVampingInfoProto::decode(&vamping_data[..]).unwrap();
         let token_mapping_proto = vamping_info.token_mapping.unwrap_or_default();
@@ -41,7 +42,7 @@ pub mod solana_vamp_program {
             vamping_info.token_symbol.clone(),
             vamping_info.token_uri.unwrap_or_default(),
             vamping_info.amount,
-            vamping_info.decimal as u8,
+            token_decimals,
             vamping_info.solver_public_key,
             vamping_info.validator_public_key,
             vamping_info.intent_id,

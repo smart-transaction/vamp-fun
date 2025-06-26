@@ -11,7 +11,7 @@ use anchor_spl::{
 };
 
 #[derive(Accounts)]
-#[instruction(vamp_identifier: u64)]
+#[instruction(vamp_identifier: u64, token_decimals: u8)]
 pub struct Initialize<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -21,7 +21,7 @@ pub struct Initialize<'info> {
         payer = authority,
         seeds = [b"mint", authority.key().as_ref(), &vamp_identifier.to_le_bytes()],
         bump,
-        mint::decimals = 9,
+        mint::decimals = token_decimals,
         mint::authority = mint_account.key(),
     )]
     pub mint_account: Account<'info, Mint>,

@@ -16,11 +16,14 @@ pub fn calculate_claim_cost(
     
     // Calculate the area under the curve from current_claimed to new_total_claimed
     // For quadratic curve: integral = initial_price * (new_total_claimed^2 - current_claimed^2) / 2
-    let current_claimed_squared = (current_claimed as f64).powf(2.0);
-    let new_total_claimed_squared = (new_total_claimed as f64).powf(2.0);
+    // Use integer arithmetic to avoid overflow
     
-    let area_under_curve = (new_total_claimed_squared - current_claimed_squared) * vamp_state.initial_price as f64 / 2.0;
-    let sol_cost = area_under_curve as u64;
+    let current_claimed_squared = current_claimed.checked_mul(current_claimed).ok_or(ErrorCode::ArithmeticOverflow)?;
+    let new_total_claimed_squared = new_total_claimed.checked_mul(new_total_claimed).ok_or(ErrorCode::ArithmeticOverflow)?;
+    
+    let area_difference = new_total_claimed_squared.checked_sub(current_claimed_squared).ok_or(ErrorCode::ArithmeticOverflow)?;
+    let area_under_curve = area_difference.checked_mul(vamp_state.initial_price).ok_or(ErrorCode::ArithmeticOverflow)?;
+    let sol_cost = area_under_curve.checked_div(2).ok_or(ErrorCode::ArithmeticOverflow)?;
     
     Ok(sol_cost)
 } 

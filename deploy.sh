@@ -23,6 +23,7 @@ do
         PORT=8000
         REQUEST_REGISTRATOR_URL="http://vamp_fun_request_registrator_ethereum:50051"
         ORCHESTRATOR_URL="http://vamp_fun_orchestrator:50052"
+        VALIDATOR_URL="http://vamp_fun_validator_vamp:50053"
         POLL_FREQUENCY_SECS=5
         ETHEREUM_RPC_URL_WSS="wss://service.lestnet.org:8888"
         BASE_RPC_URL_WSS="wss://service.lestnet.org:8888"
@@ -38,6 +39,10 @@ do
         ORCHESTRATOR_SOLANA_DEFAULT_URL="${ORCHESTRATOR_SOLANA_DEVNET_URL}"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
         ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
+        VALIDATOR_GRPC_ADDRESS="[::]:50053"
+        VALIDATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
+        VALIDATOR_IPFS_API_URL="http://vampfun-dev.stxn.io:5001"
+        VALIDATOR_IPFS_GATEWAY_URL="https://ipfs.io/"
         DEFAULT_SOLANA_CLUSTER="DEVNET"
         break
         ;;
@@ -51,6 +56,7 @@ do
         PORT=8000
         REQUEST_REGISTRATOR_URL="http://vamp_fun_request_registrator_ethereum:50051"
         ORCHESTRATOR_URL="http://vamp_fun_orchestrator:50052"
+        VALIDATOR_URL="http://vamp_fun_validator_vamp:50053"
         POLL_FREQUENCY_SECS=5
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x672bbf1E4bEdC6Cce3FD1c1B47883641FcAB5088"
         REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
@@ -65,6 +71,10 @@ do
         ORCHESTRATOR_SOLANA_DEFAULT_URL="${ORCHESTRATOR_SOLANA_MAINNET_URL}"
         ORCHESTRATOR_GRPC_ADDRESS="[::]:50052"
         ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
+        VALIDATOR_GRPC_ADDRESS="[::]:50053"
+        VALIDATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
+        VALIDATOR_IPFS_API_URL="http://vampfun-prod.stxn.io:5001"
+        VALIDATOR_IPFS_GATEWAY_URL="https://ipfs.io/"
         DEFAULT_SOLANA_CLUSTER="MAINNET"
         break
         ;;
@@ -89,6 +99,7 @@ MYSQL_APP_PASSWORD=\$(gcloud secrets versions access ${MYSQL_PASSWORD_VERSION} -
 MYSQL_READER_PASSWORD=\$(gcloud secrets versions access ${MYSQL_PASSWORD_VERSION} --secret="VAMP_FUN_MYSQL_READER_PASSWORD_${SECRET_SUFFIX}")
 SOLANA_PRIVATE_KEY=\$(gcloud secrets versions access 2 --secret="VAMP_FUN_SOLANA_PRIVATE_KEY_${SECRET_SUFFIX}")
 SOLVER_PRIVATE_KEY=\$(gcloud secrets versions access 1 --secret="VAMP_FUN_SOLVER_PRIVATE_KEY_${SECRET_SUFFIX}")
+VALIDATOR_PRIVATE_KEY=\$(gcloud secrets versions access 1 --secret="VAMP_FUN_VALIDATOR_PRIVATE_KEY_${SECRET_SUFFIX}")
 
 ENV
 
@@ -113,6 +124,7 @@ SOLVER_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-solver-image:${OPT}"
 DB_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-db-image:live"
 ORCHESTRATOR_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-orchestrator-image:${OPT}"
 REQUEST_REGISTRATOR_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-request-registrator-image:${OPT}"
+VALIDATOR_VAMP_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-validator-vamp-image:${OPT}"
 REDIS_DOCKER_IMAGE=redis/redis-stack-server:latest
 
 # Create docker-compose.yml file.
@@ -136,6 +148,8 @@ services:
         condition: service_started
       vamp_fun_orchestrator:
         condition: service_started
+      vamp_fun_validator_vamp:
+        condition: service_started
     environment:
       - MYSQL_USER=${MYSQL_USER}
       - MYSQL_HOST=${MYSQL_HOST}
@@ -145,6 +159,7 @@ services:
       - PORT=${PORT}
       - REQUEST_REGISTRATOR_URL=${REQUEST_REGISTRATOR_URL}
       - ORCHESTRATOR_URL=${ORCHESTRATOR_URL}
+      - VALIDATOR_URL=${VALIDATOR_URL}
       - POLL_FREQUENCY_SECS=${POLL_FREQUENCY_SECS}
       - QUICKNODE_API_KEY=${QUICKNODE_API_KEY}
       - SOLVER_PRIVATE_KEY=\${SOLVER_PRIVATE_KEY}
@@ -243,6 +258,24 @@ services:
         max-size: 100m
         max-file: "15"
 
+  vamp_fun_validator_vamp:
+    container_name: vamp_fun_validator_vamp
+    image: validator-vamp-updated-image
+    restart: unless-stopped
+    depends_on:
+      vamp_fun_redis:
+        condition: service_started
+    environment:
+      - RUST_LOG=debug
+      - VALIDATOR_PRIVATE_KEY=\${VALIDATOR_PRIVATE_KEY}
+    ports:
+      - 50053:50053
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+        max-file: "15"
+
   vamp_fun_redis:
     container_name: vamp_fun_redis
     image: ${REDIS_DOCKER_IMAGE}
@@ -271,6 +304,7 @@ docker pull ${SOLVER_DOCKER_IMAGE}
 docker pull ${DB_DOCKER_IMAGE}
 docker pull ${ORCHESTRATOR_DOCKER_IMAGE}
 docker pull ${REQUEST_REGISTRATOR_DOCKER_IMAGE}
+docker pull ${VALIDATOR_VAMP_DOCKER_IMAGE}
 docker pull ${REDIS_DOCKER_IMAGE}
 
 # Push configs into docker images.
@@ -377,6 +411,36 @@ docker cp orchestrator_config.toml orchestrator-temp-container:/config/orchestra
 docker commit orchestrator-temp-container orchestrator-updated-image
 docker rm ${TMP_CONTAINER}
 rm orchestrator_config.toml
+
+# Validator Vamp
+cat >validator_vamp_config.toml << VALIDATOR_VAMP_CONFIG
+[grpc]
+binding_url = "${VALIDATOR_GRPC_ADDRESS}"
+
+[storage]
+redis_url = "${VALIDATOR_STORAGE_REDIS_URL}"
+
+[ipfs]
+api_url = "${VALIDATOR_IPFS_API_URL}"
+gateway_url = "${VALIDATOR_IPFS_GATEWAY_URL}"
+pin = true
+enable_mfs_copy = true
+
+VALIDATOR_VAMP_CONFIG
+
+echo "Created validator_vamp_config.toml:"
+cat validator_vamp_config.toml
+
+TMP_CONTAINER=$(docker create --name validator-vamp-temp-container ${VALIDATOR_VAMP_DOCKER_IMAGE})
+docker cp validator_vamp_config.toml validator-vamp-temp-container:/config/validator_vamp_config.toml
+
+echo "Verifying config file was copied to container:"
+docker exec validator-vamp-temp-container ls -la /config/
+docker exec validator-vamp-temp-container cat /config/validator_vamp_config.toml
+
+docker commit --change='CMD ["validator_vamp", "/config/validator_vamp_config.toml"]' validator-vamp-temp-container validator-vamp-updated-image
+docker rm ${TMP_CONTAINER}
+rm validator_vamp_config.toml
 
 # Start our docker images.
 ./up.sh

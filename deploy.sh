@@ -431,12 +431,11 @@ VALIDATOR_VAMP_CONFIG
 echo "Created validator_vamp_config.toml:"
 cat validator_vamp_config.toml
 
+# Clean up any existing temporary container
+docker rm -f validator-vamp-temp-container 2>/dev/null || true
+
 TMP_CONTAINER=$(docker create --name validator-vamp-temp-container ${VALIDATOR_VAMP_DOCKER_IMAGE})
 docker cp validator_vamp_config.toml validator-vamp-temp-container:/config/validator_vamp_config.toml
-
-echo "Verifying config file was copied to container:"
-docker exec validator-vamp-temp-container ls -la /config/
-docker exec validator-vamp-temp-container cat /config/validator_vamp_config.toml
 
 docker commit --change='CMD ["validator_vamp", "/config/validator_vamp_config.toml"]' validator-vamp-temp-container validator-vamp-updated-image
 docker rm ${TMP_CONTAINER}

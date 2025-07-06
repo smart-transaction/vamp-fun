@@ -1,11 +1,10 @@
 [package]
 name = "vamp_fun_registrator_stub"
-version = "1.0.26"
+version = "1.0.27"
 edition = "2024"
 build = "build.rs"
 
 [dependencies]
-web3 = { version = "0.19.0" }
 ethers = { version = "2.0.14", features = ["ws"] }
 tokio = { version = "1.44.1", features = ["full"] }
 tonic = { version = "0.13.0", features = ["transport"] }

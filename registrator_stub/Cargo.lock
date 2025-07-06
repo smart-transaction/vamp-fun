@@ -4515,7 +4515,7 @@ dependencies = [
 
 [[package]]
 name = "vamp_fun_registrator_stub"
-version = "1.0.26"
+version = "1.0.27"
 dependencies = [
  "anyhow",
  "config",

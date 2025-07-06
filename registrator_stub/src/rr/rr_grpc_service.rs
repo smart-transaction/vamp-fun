@@ -6,6 +6,7 @@ use crate::proto::{
 use crate::rr::storage::Storage;
 use tonic::{transport::Server, Request, Response, Status};
 use tonic_reflection::server::Builder as ReflectionBuilder;
+use prost::Message;
 
 #[derive(Clone)]
 pub struct RRService {
@@ -33,8 +34,10 @@ impl RequestRegistratorService for RRService {
                 // Calculate hash of the event
                 let intent_id = stored_request.intent_id;
 
-                let user_event: UserEventProto = serde_json::from_str(&stored_request.data)
-                    .map_err(|e| Status::internal(format!("Failed to parse UserEventProto from Redis: {}", e)))?;
+                let proto_bytes = hex::decode(&stored_request.proto_data)
+                    .map_err(|e| Status::internal(format!("Failed to decode hex data from Redis: {}", e)))?;
+                let user_event = UserEventProto::decode(&proto_bytes[..])
+                    .map_err(|e| Status::internal(format!("Failed to decode UserEventProto from Redis: {}", e)))?;
 
                 Ok(Response::new(PollResponseProto {
                     result: AppChainResultProto {

@@ -6,6 +6,7 @@ use ethers::providers::{Provider, Ws};
 use ethers::prelude::*;
 use ethers::types::U256;
 use futures_util::StreamExt;
+use prost::Message;
 
 pub struct EthereumListener {
     storage: Storage,
@@ -63,14 +64,19 @@ impl EthereumListener {
             };
             let decoded_log = user_event.parse_log(raw_log)?;
             let user_event_proto = convert_to_user_event_proto(&decoded_log)?;
+            
+            // Store both JSON (for readability) and Protobuf (for gRPC)
             let json_string = serde_json::to_string(&user_event_proto)?;
+            let mut proto_bytes = Vec::new();
+            user_event_proto.encode(&mut proto_bytes)?;
 
             let sequence_id = self.storage.next_sequence_id().await?;
-            let event_hash = calculate_hash(json_string.as_bytes());
+            let event_hash = calculate_hash(&proto_bytes);
 
             self.storage.save_new_intent(&hex::encode(user_event_proto.intent_id),
                                          sequence_id,
-                                         &json_string
+                                         &json_string,
+                                         &hex::encode(&proto_bytes)
             ).await?;
             log::info!("Stored event seq_id={} hash={}", sequence_id, event_hash);
         }
@@ -117,14 +123,19 @@ impl EthereumListener {
 
             let decoded_log = user_event.parse_log(raw_log)?;
             let user_event_proto = convert_to_user_event_proto(&decoded_log)?;
+            
+            // Store both JSON (for readability) and Protobuf (for gRPC)
             let json_string = serde_json::to_string(&user_event_proto)?;
+            let mut proto_bytes = Vec::new();
+            user_event_proto.encode(&mut proto_bytes)?;
 
             let sequence_id = self.storage.next_sequence_id().await?;
-            let event_hash = calculate_hash(json_string.as_bytes());
+            let event_hash = calculate_hash(&proto_bytes);
 
             self.storage.save_new_intent(&hex::encode(user_event_proto.intent_id), 
                                          sequence_id,
-                                         &json_string
+                                         &json_string,
+                                         &hex::encode(&proto_bytes)
             ).await?;
             log::info!("Stored event seq_id={} hash={}", sequence_id, event_hash);
         }
@@ -221,5 +232,100 @@ fn convert_to_user_event_proto(log: &ethers::abi::Log) -> anyhow::Result<UserEve
         user_objective: Some(user_objective),
         additional_data,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::proto::{UserObjectiveProto, CallObjectProto, AdditionalDataProto};
+
+    #[test]
+    fn test_user_event_proto_encoding_decoding() {
+        // Create a test UserEventProto
+        let user_objective = UserObjectiveProto {
+            app_id: vec![1, 2, 3, 4],
+            nonse: 123,
+            chain_id: 1,
+            call_objects: vec![
+                CallObjectProto {
+                    id: 1,
+                    chain_id: 1,
+                    salt: vec![5, 6, 7, 8],
+                    amount: vec![9, 10, 11, 12],
+                    gas: vec![13, 14, 15, 16],
+                    address: vec![17, 18, 19, 20],
+                    skippable: false,
+                    verifiable: true,
+                    callvalue: vec![21, 22, 23, 24],
+                    returnvalue: vec![25, 26, 27, 28],
+                }
+            ],
+        };
+
+        let user_event = UserEventProto {
+            intent_id: vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+            app_id: vec![33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64],
+            chain_id: 1,
+            block_number: 12345,
+            user_objective: Some(user_objective),
+            additional_data: vec![
+                AdditionalDataProto {
+                    key: vec![65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96],
+                    value: vec![97, 98, 99, 100],
+                }
+            ],
+        };
+
+        // Encode to Protobuf bytes
+        let mut proto_bytes = Vec::new();
+        user_event.encode(&mut proto_bytes).unwrap();
+
+        // Decode from Protobuf bytes
+        let decoded_user_event = UserEventProto::decode(&proto_bytes[..]).unwrap();
+
+        // Verify the decoded event matches the original
+        assert_eq!(user_event.intent_id, decoded_user_event.intent_id);
+        assert_eq!(user_event.app_id, decoded_user_event.app_id);
+        assert_eq!(user_event.chain_id, decoded_user_event.chain_id);
+        assert_eq!(user_event.block_number, decoded_user_event.block_number);
+        assert_eq!(user_event.additional_data.len(), decoded_user_event.additional_data.len());
+
+        // Verify user_objective
+        assert!(user_event.user_objective.is_some());
+        assert!(decoded_user_event.user_objective.is_some());
+        let original_obj = user_event.user_objective.as_ref().unwrap();
+        let decoded_obj = decoded_user_event.user_objective.as_ref().unwrap();
+        assert_eq!(original_obj.app_id, decoded_obj.app_id);
+        assert_eq!(original_obj.nonse, decoded_obj.nonse);
+        assert_eq!(original_obj.chain_id, decoded_obj.chain_id);
+        assert_eq!(original_obj.call_objects.len(), decoded_obj.call_objects.len());
+
+        // Verify call_objects
+        assert_eq!(original_obj.call_objects[0].id, decoded_obj.call_objects[0].id);
+        assert_eq!(original_obj.call_objects[0].chain_id, decoded_obj.call_objects[0].chain_id);
+        assert_eq!(original_obj.call_objects[0].salt, decoded_obj.call_objects[0].salt);
+        assert_eq!(original_obj.call_objects[0].amount, decoded_obj.call_objects[0].amount);
+        assert_eq!(original_obj.call_objects[0].gas, decoded_obj.call_objects[0].gas);
+        assert_eq!(original_obj.call_objects[0].address, decoded_obj.call_objects[0].address);
+        assert_eq!(original_obj.call_objects[0].skippable, decoded_obj.call_objects[0].skippable);
+        assert_eq!(original_obj.call_objects[0].verifiable, decoded_obj.call_objects[0].verifiable);
+        assert_eq!(original_obj.call_objects[0].callvalue, decoded_obj.call_objects[0].callvalue);
+        assert_eq!(original_obj.call_objects[0].returnvalue, decoded_obj.call_objects[0].returnvalue);
+
+        // Verify additional_data
+        assert_eq!(user_event.additional_data[0].key, decoded_user_event.additional_data[0].key);
+        assert_eq!(user_event.additional_data[0].value, decoded_user_event.additional_data[0].value);
+
+        // Test that both JSON and Protobuf formats work
+        let json_string = serde_json::to_string(&user_event).unwrap();
+        let decoded_from_json: UserEventProto = serde_json::from_str(&json_string).unwrap();
+        
+        // Verify JSON round-trip works
+        assert_eq!(user_event.chain_id, decoded_from_json.chain_id);
+        assert_eq!(user_event.block_number, decoded_from_json.block_number);
+        
+        println!("✅ UserEventProto encoding/decoding test passed!");
+        println!("✅ Both JSON and Protobuf formats work correctly!");
+    }
 }
 

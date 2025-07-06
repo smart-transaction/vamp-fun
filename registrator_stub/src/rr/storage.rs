@@ -19,7 +19,8 @@ pub enum RequestState {
 pub struct StoredRequest {
     pub intent_id: String,
     pub sequence_id: u64,
-    pub data: String,
+    pub data: String,  // JSON format for readability
+    pub proto_data: String,  // Hex-encoded Protobuf for gRPC
     pub state: RequestState,
 }
 
@@ -61,12 +62,13 @@ impl Storage {
     }
 
     /// Stores a new intent in the 'NEW' state
-    pub async fn save_new_intent(&self, intent_id: &str, sequence_id: u64, data: &str) -> 
+    pub async fn save_new_intent(&self, intent_id: &str, sequence_id: u64, json_data: &str, proto_data: &str) -> 
                                                                                   anyhow::Result<()> {
         let stored_request = StoredRequest {
             intent_id: intent_id.to_string(),
             sequence_id,
-            data: data.to_string(),
+            data: json_data.to_string(),
+            proto_data: proto_data.to_string(),
             state: RequestState::New,
         };
         let serialized = serde_json::to_string(&stored_request)?;

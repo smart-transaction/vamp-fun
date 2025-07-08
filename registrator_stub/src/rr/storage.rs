@@ -28,7 +28,7 @@ impl Storage {
     const SEQUENCE_KEY: &'static str = "vamp:intents:global:sequence_id";
     const LAST_PROCESSED_BLOCK_HASH_KEY: &'static str = "vamp:intents:state:last_processed_block_by_chain_id";
     const REQUESTS_BY_INTENT_ID: &'static str = "vamp:intents:by_intent_id";
-    const INTENT_ID_BY_SEQUENCE_ID: &'static str = "vamp:intents:by_sequence_id_to_intent_id";
+    const INTENT_ID_BY_SEQUENCE_ID: &'static str = "vamp:intents:sequence_id_to_intent_id";
 
     pub async fn new(cfg: &config::Config, chain_id: u64) -> anyhow::Result<Self> {
         let redis_url: String = cfg.get("storage.redis_url")?;

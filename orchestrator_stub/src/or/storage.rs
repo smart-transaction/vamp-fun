@@ -24,7 +24,7 @@ pub struct StoredRequest {
 
 impl Storage {
     const REQUESTS_BY_INTENT_ID: &'static str = "vamp:intents:by_intent_id";
-    const INTENT_ID_BY_SEQUENCE_ID: &'static str = "vamp:intents:by_sequence_id_to_intent_id";
+    const INTENT_ID_BY_SEQUENCE_ID: &'static str = "vamp:intents:sequence_id_to_intent_id";
 
     pub async fn new(cfg: &config::Config) -> anyhow::Result<Self> {
         let redis_url: String = cfg.get("storage.redis_url")?;

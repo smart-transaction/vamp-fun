@@ -1,6 +1,6 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', '${_TAG}', '.']
+    args: ['build', '--build-arg', 'GIT_COMMIT=${COMMIT_SHA}', '-t', '${_TAG}', '.']
 
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', '${_TAG}']

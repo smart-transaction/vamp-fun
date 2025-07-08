@@ -26,13 +26,12 @@ do
         VALIDATOR_URL="http://vamp_fun_validator_vamp:50053"
         POLL_FREQUENCY_SECS=5
         ETHEREUM_RPC_URL_WSS="wss://service.lestnet.org:8888"
-        BASE_RPC_URL_WSS="wss://service.lestnet.org:8888"
-        POLYGON_RPC_URL_WSS="wss://service.lestnet.org:8888"
-        ARBITRUM_RPC_URL_WSS="wss://service.lestnet.org:8888"
+        BASE_RPC_URL_WSS=""
+        POLYGON_RPC_URL_WSS=""
+        ARBITRUM_RPC_URL_WSS=""
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x4e01a97f540D830b27F0b31Bd7eB1B477b7B6710"
         REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
-        BASE_RPC_URL_WSS="wss://service.lestnet.org:8888"
         QUICKNODE_API_KEY=$(gcloud secrets versions access 1 --secret="QUICKNODE_API_KEY")
         ORCHESTRATOR_SOLANA_DEVNET_URL="https://red-burned-rain.solana-devnet.quiknode.pro/${QUICKNODE_API_KEY}"
         ORCHESTRATOR_SOLANA_MAINNET_URL="${ORCHESTRATOR_SOLANA_DEVNET_URL}"

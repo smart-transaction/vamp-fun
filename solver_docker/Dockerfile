@@ -1,5 +1,9 @@
 FROM rust:1.86 AS builder
 
+# Add build argument for git commit
+ARG GIT_COMMIT=unknown
+LABEL git.commit=${GIT_COMMIT}
+
 RUN apt-get update \
    && DEBIAN_FRONTEND=noninteractive \
       apt-get install --no-install-recommends --assume-yes \
@@ -13,6 +17,10 @@ COPY target/idls idls
 RUN cargo install --path ./solver
 
 FROM --platform=linux/amd64 ubuntu:22.04
+
+# Add build argument for git commit
+ARG GIT_COMMIT=unknown
+LABEL git.commit=${GIT_COMMIT}
 
 RUN echo 'APT::Install-Suggests "0";' >> /etc/apt/apt.conf.d/00-docker
 RUN echo 'APT::Install-Recommends "0";' >> /etc/apt/apt.conf.d/00-docker
@@ -30,6 +38,9 @@ COPY certificates/* /usr/local/share/ca-certificates/
 RUN update-ca-certificates
 
 COPY --from=builder /usr/local/cargo/bin/vamp-fun-solver /usr/local/bin/vamp-fun-solver
+
+# Add environment variable for runtime access
+ENV GIT_COMMIT=${GIT_COMMIT}
 
 EXPOSE 8000/tcp
 CMD \

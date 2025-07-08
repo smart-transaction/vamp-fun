@@ -1,5 +1,9 @@
 FROM rust:1.86 AS builder
 
+# Add build argument for git commit
+ARG GIT_COMMIT=unknown
+LABEL git.commit=${GIT_COMMIT}
+
 RUN apt-get update \
    && DEBIAN_FRONTEND=noninteractive \
       apt-get install --no-install-recommends --assume-yes \
@@ -12,6 +16,10 @@ COPY target/abis abis
 RUN cargo install --path ./registrator_stub
 
 FROM --platform=linux/amd64 ubuntu:22.04
+
+# Add build argument for git commit
+ARG GIT_COMMIT=unknown
+LABEL git.commit=${GIT_COMMIT}
 
 RUN echo 'APT::Install-Suggests "0";' >> /etc/apt/apt.conf.d/00-docker
 RUN echo 'APT::Install-Recommends "0";' >> /etc/apt/apt.conf.d/00-docker
@@ -34,6 +42,9 @@ COPY --from=builder /usr/src/vamp-fun-registrator-stub/registrator_stub/src/gene
 
 # Required for future copying of the config before running the container
 RUN mkdir -p config
+
+# Add environment variable for runtime access
+ENV GIT_COMMIT=${GIT_COMMIT}
 
 EXPOSE 50051
 CMD "vamp_fun_registrator_stub"

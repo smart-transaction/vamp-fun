@@ -6,7 +6,7 @@ pub struct Storage {
     client: Arc<redis::Client>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub enum RequestState {
     New,
     Validated,

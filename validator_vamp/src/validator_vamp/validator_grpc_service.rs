@@ -37,7 +37,10 @@ impl ValidatorService for ValidatorGrpcService {
         log::info!("Request payload: intent_id = {}", req.intent_id,);
 
         let mut solution = VampSolutionForValidationProto::decode(req.solution_for_validation.as_slice())
-            .map_err(|e| Status::internal(format!("Protobuf decode error: {e}")))?;
+            .map_err(|e| {
+                log::warn!("Protobuf decode error for intent_id: {} - {}", req.intent_id, e);
+                Status::internal(format!("Protobuf decode error: {e}"))
+            })?;
 
         // Load from Redis
         // Fetch request from storage, only if state is New
@@ -45,7 +48,10 @@ impl ValidatorService for ValidatorGrpcService {
             .storage
             .get_intent_in_state_new(req.intent_id.as_str())
             .await
-            .map_err(|e| Status::internal(format!("failed to fetch request from redis: {}", e)))?
+            .map_err(|e| {
+                log::warn!("Redis fetch error for intent_id: {} - {}", req.intent_id, e);
+                Status::internal(format!("failed to fetch request from redis: {}", e))
+            })?
         {
             Some(_stored_request) => {
                 // Forward request data to Solana program
@@ -62,7 +68,10 @@ impl ValidatorService for ValidatorGrpcService {
                     hasher.update(req.intent_id.as_bytes());
                     let hash = hasher.finalize();
                     let sig = self.validator_wallet.sign_hash(ethers::types::H256::from_slice(&hash))
-                        .map_err(|e| Status::internal(format!("Signing error: {e}")))?;
+                        .map_err(|e| {
+                            log::warn!("Signing error for intent_id: {} - {}", req.intent_id, e);
+                            Status::internal(format!("Signing error: {e}"))
+                        })?;
                     entry.validator_individual_balance_sig = hex::encode(sig.to_vec());
                 }
 
@@ -75,7 +84,10 @@ impl ValidatorService for ValidatorGrpcService {
                 "vs": entry.validator_individual_balance_sig,
                     });
                     let entry_str = serde_json::to_string(&entry_json)
-                        .map_err(|e| Status::internal(format!("Entry JSON encode error: {e}")))?;
+                        .map_err(|e| {
+                            log::warn!("JSON encode error for intent_id: {} - {}", req.intent_id, e);
+                            Status::internal(format!("Entry JSON encode error: {e}"))
+                        })?;
                     entry_by_oth_address.insert(addr.clone(), entry_str);
                 }
 
@@ -84,7 +96,10 @@ impl ValidatorService for ValidatorGrpcService {
                 let (root_cid, cid_by_oth_address) = self.ipfs_service.publish_balance_map
                 (&intent_path, 
                                                                             &entry_by_oth_address).await
-                    .map_err(|e| Status::internal(format!("IPFS publish map error: {e}")))?;
+                    .map_err(|e| {
+                        log::warn!("IPFS publish error for intent_id: {} - {}", req.intent_id, e);
+                        Status::internal(format!("IPFS publish map error: {e}"))
+                    })?;
 
                 //  Respond with validated details
                 let validated_details = VampSolutionValidatedDetailsProto {
@@ -94,13 +109,21 @@ impl ValidatorService for ValidatorGrpcService {
 
                 let mut validated_details_bytes = Vec::with_capacity(validated_details.encoded_len());
                 validated_details.encode(&mut validated_details_bytes)
-                    .map_err(|e| Status::internal(format!("Validated details encode error: {e}")))?;
+                    .map_err(|e| {
+                        log::warn!("Protobuf encode error for intent_id: {} - {}", req.intent_id, e);
+                        Status::internal(format!("Validated details encode error: {e}"))
+                    })?;
 
                 
                 // Update lifecycle stage to Validated
                 self.storage.update_request_state_to_validated(&req.intent_id, &solution
                     .solver_pubkey, &root_cid).await
-                    .map_err(|e| Status::internal(format!("Storage update error: {e}")))?;
+                    .map_err(|e| {
+                        log::warn!("Storage update error for intent_id: {} - {}", req.intent_id, e);
+                        Status::internal(format!("Storage update error: {e}"))
+                    })?;
+                
+                log::info!("Validation successful for intent_id: {}, Root CID: {}", req.intent_id, root_cid);
                 
                 Ok(Response::new(SubmitSolutionForValidationResponseProto {
                     result: AppChainResultProto {
@@ -112,18 +135,22 @@ impl ValidatorService for ValidatorGrpcService {
                 }))
             }
             
-            None => Ok(Response::new(SubmitSolutionForValidationResponseProto {
-                result: AppChainResultProto {
-                    status: AppChainResultStatus::EventNotFound.into(),
-                    message: format!(
-                        "Request with intent_id {} is not in 'New' state or does not exist",
-                        req.intent_id
-                    )
+            None => {
+                let error_msg = format!(
+                    "Request with intent_id {} is not in 'New' state or does not exist",
+                    req.intent_id
+                );
+                log::warn!("Validation failed for intent_id: {} - {}", req.intent_id, error_msg);
+                
+                Ok(Response::new(SubmitSolutionForValidationResponseProto {
+                    result: AppChainResultProto {
+                        status: AppChainResultStatus::EventNotFound.into(),
+                        message: error_msg.into(),
+                    }
                         .into(),
-                }
-                    .into(),
-                solution_validated_details: vec![],
-            })),
+                    solution_validated_details: vec![],
+                }))
+            }
         }
     }
 }

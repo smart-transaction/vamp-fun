@@ -260,6 +260,7 @@ pub async fn process_and_send_snapshot(
             }
             AppChainResultStatus::Ok => {
                 if let Some(payload) = response_proto.payload {
+                    info!("Solution transaction submitted: {}", payload.solana_txid);
                     write_cloning(
                         db_conn.clone(),
                         request_data.chain_id,

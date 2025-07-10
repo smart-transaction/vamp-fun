@@ -20,8 +20,10 @@ pub struct StoredRequest {
     pub intent_id: String,
     pub sequence_id: u64,
     pub data: String,
+    pub proto_data: Option<String>,  // Optional field from registrator
     pub state: RequestState,
-    pub vamp_solution_validated_details: VampSolutionValidatedDetails,
+    #[serde(default)]  // Default to None if field is missing
+    pub vamp_solution_validated_details: Option<VampSolutionValidatedDetails>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -73,10 +75,10 @@ impl Storage {
 
         let mut request: StoredRequest = serde_json::from_str(&data)?;
         request.state = RequestState::Validated;
-        request.vamp_solution_validated_details = VampSolutionValidatedDetails {
+        request.vamp_solution_validated_details = Some(VampSolutionValidatedDetails {
             solver_pubkey: solver_pubkey.to_string(),
             root_cid: root_cid.to_string(),
-        };
+        });
 
         let updated = serde_json::to_string(&request)?;
         let _: () = conn.hset(Self::REQUESTS_BY_INTENT_ID, intent_id, updated).await?;

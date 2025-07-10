@@ -33,7 +33,19 @@ impl IpfsService {
             fs::write(&file_path, json_string).await?;
         }
 
-        let form = reqwest::multipart::Form::new().file("file", dir.path()).await?;
+        let mut form = reqwest::multipart::Form::new();
+        
+        // Add each file to the form
+        for entry in std::fs::read_dir(dir.path())? {
+            let entry = entry?;
+            let file_path = entry.path();
+            if file_path.is_file() {
+                let file_name = file_path.file_name().unwrap().to_string_lossy();
+                let content = std::fs::read(&file_path)?;
+                let part = reqwest::multipart::Part::bytes(content).file_name(file_name.to_string());
+                form = form.part("file", part);
+            }
+        }
 
         let url = format!(
             "{}/api/v0/add?recursive=true&wrap-with-directory=true&pin=true",

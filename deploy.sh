@@ -40,7 +40,9 @@ do
         ORCHESTRATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
         VALIDATOR_GRPC_ADDRESS="[::]:50053"
         VALIDATOR_STORAGE_REDIS_URL="redis://vamp_fun_redis:6379"
-        VALIDATOR_IPFS_API_URL="http://vampfun-dev.stxn.io:5001"
+        # VALIDATOR_IPFS_API_URL="http://vampfun-dev.stxn.io:5001"
+        # For native host to be accessible from inside the docker
+        VALIDATOR_IPFS_API_URL="http://172.19.0.1:5001"
         VALIDATOR_IPFS_GATEWAY_URL="https://ipfs.io/"
         DEFAULT_SOLANA_CLUSTER="DEVNET"
         break

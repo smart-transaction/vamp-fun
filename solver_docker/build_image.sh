@@ -1,4 +1,4 @@
-echo "Buiding solver docker image..."
+echo "Building solver docker image..."
 
 # Choose the environment
 PS3="Please choose the environment: "
@@ -20,6 +20,16 @@ do
     *) echo "invalid option $REPLY";;
   esac
 done
+
+# Get current git commit (this should be run from the git repository)
+if git rev-parse HEAD >/dev/null 2>&1; then
+    GIT_COMMIT=$(git rev-parse HEAD)
+    GIT_COMMIT_SHORT=$(git rev-parse --short HEAD)
+    echo "Using git commit: ${GIT_COMMIT_SHORT} (${GIT_COMMIT})"
+else
+    echo "Warning: Not in a git repository, using 'unknown' for git commit"
+    GIT_COMMIT="unknown"
+fi
 
 test -d target && rm -rf target
 
@@ -64,7 +74,7 @@ if [ "${OPT}" == "dev" ]; then
   rm -rf target/crates/**/target
   gcloud builds submit \
     --region=${CLOUD_REGION} \
-    --substitutions=_TAG=${DOCKER_TAG}:${BUILD_VERSION} \
+    --substitutions=_TAG=${DOCKER_TAG}:${BUILD_VERSION},_GIT_COMMIT=${GIT_COMMIT} \
     --config ../cloudbuild.yaml
 fi
 

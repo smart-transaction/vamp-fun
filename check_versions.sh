@@ -22,10 +22,20 @@ echo "Request Registrator Environment Variable:"
 docker exec vamp_fun_request_registrator_ethereum env | grep GIT_COMMIT 2>/dev/null || echo "Container not found or no GIT_COMMIT env var"
 echo
 
-# Show current git commit
-echo "Current Git Commit:"
-git rev-parse HEAD
+# Note: This script runs on deployment server which doesn't have git access
+echo "Note: Git commit information comes from Docker image labels and environment variables"
 echo
 
 echo "=== Container Details ==="
-docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep -E "(solver|registrator)" 
+docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep -E "(solver|registrator|validator)"
+
+echo
+echo "=== All Container Labels ==="
+echo "Solver labels:"
+docker inspect vamp_fun_solver --format='{{range $k, $v := .Config.Labels}}{{$k}}={{$v}}{{"\n"}}{{end}}' 2>/dev/null || echo "Container not found"
+
+echo "Request Registrator labels:"
+docker inspect vamp_fun_request_registrator_ethereum --format='{{range $k, $v := .Config.Labels}}{{$k}}={{$v}}{{"\n"}}{{end}}' 2>/dev/null || echo "Container not found"
+
+echo "Validator labels:"
+docker inspect vamp_fun_validator_vamp --format='{{range $k, $v := .Config.Labels}}{{$k}}={{$v}}{{"\n"}}{{end}}' 2>/dev/null || echo "Container not found" 

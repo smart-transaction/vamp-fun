@@ -73,10 +73,10 @@ impl OrchestratorService for OrchestratorGrpcService {
         let req = request.into_inner();
         log::info!("Request payload: sequence_id = {}", req.request_sequence_id,);
 
-        // Fetch request from storage, only if state is New
+        // Fetch request from storage, accepting both New and Validated states for backward compatibility
         match self
             .storage
-            .get_intent_in_state_new(req.request_sequence_id)
+            .get_intent_in_state_new_or_validated(req.request_sequence_id)
             .await
             .map_err(|e| Status::internal(format!("failed to fetch request from redis: {}", e)))?
         {
@@ -129,10 +129,10 @@ impl OrchestratorService for OrchestratorGrpcService {
             None => Ok(Response::new(SubmitSolutionResponseProto {
                 result: AppChainResultProto {
                     status: AppChainResultStatus::EventNotFound.into(),
-                    message: format!(
-                        "Request with sequence_id {} is not in 'New' state or does not exist",
-                        req.request_sequence_id
-                    )
+                                    message: format!(
+                    "Request with sequence_id {} is not in 'New' or 'Validated' state or does not exist",
+                    req.request_sequence_id
+                )
                     .into(),
                 }
                 .into(),

@@ -58,6 +58,38 @@ impl Storage {
 
         Ok(None)
     }
+
+    pub async fn get_intent_in_state_new_or_validated(&self, sequence_id: u64) -> 
+                                                           anyhow::Result<Option<StoredRequest>> {
+        let intent_id = self.resolve_intent_id_from_sequence(sequence_id).await?;
+        if let Some(intent_id) = intent_id {
+            log::debug!(
+                    "Found intent_id: {} by sequence_id: {}. Checking the according intent...",
+                    intent_id,
+                    sequence_id
+                );
+            let mut conn = self.client.get_multiplexed_async_connection().await?;
+            let serialized: Option<String> = conn.hget(Self::REQUESTS_BY_INTENT_ID, &intent_id).await.ok();
+
+            if let Some(data) = serialized {
+                log::debug!(
+                    "Found intent by intent_id: {}. Checking the propper State...",
+                    intent_id,
+                );
+                let request: StoredRequest = serde_json::from_str(&data)?;
+                match request.state {
+                    RequestState::New | RequestState::Validated => {
+                        return Ok(Some(request));
+                    }
+                    _ => {
+                        log::debug!("Intent {} is in state {:?}, not New or Validated", intent_id, request.state);
+                    }
+                }
+            }
+        }
+
+        Ok(None)
+    }
     
     pub async fn update_request_state_to_under_execution(&self, sequence_id: u64) -> anyhow::Result<()> {
         let intent_id = self.resolve_intent_id_from_sequence(sequence_id)

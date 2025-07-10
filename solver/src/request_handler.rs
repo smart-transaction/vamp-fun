@@ -58,13 +58,8 @@ impl DeployTokenHandler {
         request_data.sequence_id = sequence_id;
         request_data.chain_id = event.chain_id;
         request_data.block_number = event.block_number;
-        // Temporary random value for the intent_id
-        let mut hash_message = Keccak256::new();
-        hash_message.update(&sequence_id.to_le_bytes());
-        hash_message.update(&event.chain_id.to_le_bytes());
-        hash_message.update(&event.block_number.to_le_bytes());
-        hash_message.update(Utc::now().timestamp().to_le_bytes());
-        request_data.intent_id = hash_message.finalize().to_vec();
+        // Use the intent_id from the blockchain event
+        request_data.intent_id = event.intent_id;
 
         for add_data in event.additional_data {
             if add_data.key == self.contract_address_name {

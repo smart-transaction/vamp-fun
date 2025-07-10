@@ -161,10 +161,30 @@ pub async fn process_and_send_snapshot(
         .submit_solution(validation_request_proto)
         .await?;
     let response_proto = response.into_inner();
-    // Handle the response: check for success and extract data
-    let payload: Vec<u8> = response_proto.solution_validated_details;
-    let vamp_validated_details = VampSolutionValidatedDetailsProto::decode(&*payload)?;
-    info!("Validation successful. Root CID: {}", vamp_validated_details.root_intent_cid);
+    
+    // Check validator response status first
+    let _vamp_validated_details = if let Some(result) = response_proto.result {
+        let status: AppChainResultStatus = AppChainResultStatus::try_from(result.status)?;
+        match status {
+            AppChainResultStatus::Ok => {
+                // Handle the response: check for success and extract data
+                let payload: Vec<u8> = response_proto.solution_validated_details;
+                let vamp_validated_details = VampSolutionValidatedDetailsProto::decode(&*payload)?;
+                info!("Validation successful. Root CID: {}", vamp_validated_details.root_intent_cid);
+                vamp_validated_details
+            }
+            AppChainResultStatus::EventNotFound => {
+                let message = result.message.unwrap_or("Unknown error".to_string());
+                return Err(format!("Validator error: event not found - {}", message).into());
+            }
+            AppChainResultStatus::Error => {
+                let message = result.message.unwrap_or("Unknown error".to_string());
+                return Err(format!("Validator error: {}", message).into());
+            }
+        }
+    } else {
+        return Err("Validator response missing result status".into());
+    };
     // Use vamp_validated_details as needed
     
     let mut orchestrator_client: OrchestratorServiceClient<Channel> =

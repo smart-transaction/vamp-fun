@@ -121,11 +121,29 @@
           }
         },
         {
-          "name": "amount",
+          "name": "balance",
           "type": "u64"
         },
         {
-          "name": "eth_signature",
+          "name": "solver_individual_balance_sig",
+          "type": {
+            "array": [
+              "u8",
+              65
+            ]
+          }
+        },
+        {
+          "name": "validator_individual_balance_sig",
+          "type": {
+            "array": [
+              "u8",
+              65
+            ]
+          }
+        },
+        {
+          "name": "ownership_sig",
           "type": {
             "array": [
               "u8",
@@ -173,7 +191,7 @@
               },
               {
                 "kind": "arg",
-                "path": "_vamp_identifier"
+                "path": "vamp_identifier"
               }
             ]
           }
@@ -360,6 +378,11 @@
       "code": 6005,
       "name": "InvalidTokenMapping",
       "msg": "Invalid token mapping provided."
+    },
+    {
+      "code": 6006,
+      "name": "TokensAlredyClaimed",
+      "msg": "Tokens already claimed."
     }
   ],
   "types": [
@@ -415,6 +438,22 @@
           {
             "name": "mint",
             "type": "pubkey"
+          },
+          {
+            "name": "solver_public_key",
+            "type": "bytes"
+          },
+          {
+            "name": "validator_public_key",
+            "type": "bytes"
+          },
+          {
+            "name": "vamp_identifier",
+            "type": "u64"
+          },
+          {
+            "name": "intent_id",
+            "type": "bytes"
           }
         ]
       }

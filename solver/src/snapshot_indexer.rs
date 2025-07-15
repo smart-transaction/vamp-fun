@@ -172,7 +172,11 @@ impl SnapshotIndexer {
                                 v.amount = v.amount.checked_add(value).unwrap();
                             }
                             None => {
-                                token_supply.insert(to_address, TokenAmount::default());
+                                // Fix: Create new entry with the transfer amount instead of zero
+                                token_supply.insert(to_address, TokenAmount {
+                                    amount: value,
+                                    signature: Vec::new(),
+                                });
                             }
                         }
                     }

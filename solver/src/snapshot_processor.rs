@@ -163,7 +163,7 @@ pub async fn process_and_send_snapshot(
     let response_proto = response.into_inner();
     
     // Check validator response status first
-    let _vamp_validated_details = if let Some(result) = response_proto.result {
+    let vamp_validated_details = if let Some(result) = response_proto.result {
         let status: AppChainResultStatus = AppChainResultStatus::try_from(result.status)?;
         match status {
             AppChainResultStatus::Ok => {
@@ -268,6 +268,7 @@ pub async fn process_and_send_snapshot(
                         &payload.solana_txid,
                         &mint_account.to_string(),
                         &vamp_state.to_string(),
+                        &vamp_validated_details.root_intent_cid,
                     )?;
 
                     let mut ethereum_snapshot = original_snapshot.clone();
@@ -366,12 +367,13 @@ fn write_cloning(
     target_txid: &str,
     mint_account_address: &str,
     vamp_state_address: &str,
+    root_intent_cid: &str,
 ) -> Result<(), Box<dyn Error>> {
     let mut conn = db_conn.create_db_conn()?;
     let addr_str = format!("{:#x}", erc20_address);
     conn.exec_drop(
-        "INSERT INTO clonings (chain_id, erc20_address, target_txid, mint_account_address, token_spl_address) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE target_txid = ?, mint_account_address = ?, token_spl_address = ?",
-        (chain_id, &addr_str, target_txid, mint_account_address, vamp_state_address, target_txid, mint_account_address, vamp_state_address),
+        "INSERT INTO clonings (chain_id, erc20_address, target_txid, mint_account_address, token_spl_address, root_intent_cid) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE target_txid = ?, mint_account_address = ?, token_spl_address = ?, root_intent_cid = ?",
+        (chain_id, &addr_str, target_txid, mint_account_address, vamp_state_address, root_intent_cid, target_txid, mint_account_address, vamp_state_address, root_intent_cid),
     )?;
     Ok(())
 }

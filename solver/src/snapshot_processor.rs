@@ -372,8 +372,8 @@ fn write_cloning(
     let mut conn = db_conn.create_db_conn()?;
     let addr_str = format!("{:#x}", erc20_address);
     conn.exec_drop(
-        "INSERT INTO clonings (chain_id, erc20_address, target_txid, mint_account_address, token_spl_address, root_intent_cid) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE target_txid = ?, mint_account_address = ?, token_spl_address = ?, root_intent_cid = ?",
-        (chain_id, &addr_str, target_txid, mint_account_address, vamp_state_address, root_intent_cid, target_txid, mint_account_address, vamp_state_address, root_intent_cid),
+        "INSERT INTO clonings (chain_id, erc20_address, target_txid, mint_account_address, token_spl_address, root_intent_cid, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())",
+        (chain_id, &addr_str, target_txid, mint_account_address, vamp_state_address, root_intent_cid),
     )?;
     Ok(())
 }

@@ -110,7 +110,7 @@ pub fn handle_get_claim_amount(
         }
     }
 
-    let stmt = "SELECT target_txid, token_spl_address, mint_account_address, root_intent_cid FROM clonings WHERE chain_id = ? AND erc20_address = ?";
+    let stmt = "SELECT target_txid, token_spl_address, mint_account_address, root_intent_cid FROM clonings WHERE chain_id = ? AND erc20_address = ? ORDER BY created_at DESC LIMIT 1";
     match db_conn.exec_first(stmt, (&chain_id, &token_address)) {
         Ok(row) => {
             let row: Row = row.unwrap();

@@ -34,6 +34,8 @@ returning the last cloning and so on.
 ### Claim frontend
 
    - TBD
+   - claimers can receive the "aggressive marketing" suggesting to claim the tokens they are eligible for, based on the cloning history from same or other 
+     vampers.
 
 ### Library frontend (new component)
 

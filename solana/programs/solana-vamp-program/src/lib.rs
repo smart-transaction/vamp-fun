@@ -26,6 +26,7 @@ pub mod solana_vamp_program {
         ctx: Context<Initialize>,
         vamp_identifier: u64,
         vamping_data: Vec<u8>,
+        token_decimals: u8,
     ) -> Result<()> {
         let vamping_info = TokenVampingInfoProto::decode(&vamping_data[..]).unwrap();
         let token_mapping_proto = vamping_info.token_mapping.unwrap_or_default();
@@ -41,7 +42,7 @@ pub mod solana_vamp_program {
             vamping_info.token_symbol.clone(),
             vamping_info.token_uri.unwrap_or_default(),
             vamping_info.amount,
-            vamping_info.decimal as u8,
+            token_decimals,
             vamping_info.solver_public_key,
             vamping_info.validator_public_key,
             vamping_info.intent_id,
@@ -66,7 +67,6 @@ pub mod solana_vamp_program {
         Ok(())
     }
 
-    // TDOD: add logic to avoid double claim
     pub fn claim(
         ctx: Context<Claim>,
         eth_address: [u8; 20],
@@ -75,6 +75,6 @@ pub mod solana_vamp_program {
         validator_individual_balance_sig: [u8; 65],
         ownership_sig: [u8; 65],
     ) -> Result<()> {
-        claim_tokens(ctx, eth_address, balance, solver_individual_balance_sig, validator_individual_balance_sig, ownership_sig)
+        buy_claim_tokens(ctx, eth_address, balance, solver_individual_balance_sig, validator_individual_balance_sig, ownership_sig)
     }
 }

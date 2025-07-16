@@ -11,7 +11,7 @@ use anchor_spl::{
 };
 
 #[derive(Accounts)]
-#[instruction(vamp_identifier: u64)]
+#[instruction(vamp_identifier: u64, token_decimals: u8)]
 pub struct Initialize<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -21,7 +21,7 @@ pub struct Initialize<'info> {
         payer = authority,
         seeds = [b"mint", authority.key().as_ref(), &vamp_identifier.to_le_bytes()],
         bump,
-        mint::decimals = 9,
+        mint::decimals = token_decimals,
         mint::authority = mint_account.key(),
     )]
     pub mint_account: Account<'info, Mint>,
@@ -53,6 +53,16 @@ pub struct Initialize<'info> {
         bump,
     )]
     pub vault: Account<'info, TokenAccount>,
+
+    /// CHECK: This is safe because we're creating a SOL vault PDA
+    #[account(
+        init,
+        payer = authority,
+        seeds = [b"sol_vault", mint_account.key().as_ref()],
+        bump,
+        space = 0, // SOL accounts don't need space
+    )]
+    pub sol_vault: UncheckedAccount<'info>,
 
     pub token_program: Program<'info, Token>,
     pub token_metadata_program: Program<'info, Metadata>,
@@ -126,7 +136,13 @@ impl<'info> Initialize<'info> {
             solver_public_key,
             validator_public_key,
             vamp_identifier,
-            intent_id
+            intent_id,
+            total_claimed: 0,
+            reserve_balance: 0,
+            token_supply: amount,
+            curve_exponent: 2,
+            initial_price: 1_000_000,
+            sol_vault: self.sol_vault.key(),
         });
 
         Ok(())

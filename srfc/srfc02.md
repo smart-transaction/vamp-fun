@@ -5,7 +5,7 @@
 In our stxn2.0/vamp.fun AppChain API process we need to move our informative/helper client REST API from solver to AppChain side.
 Currently, both vamping and claiming frontend do not have a way to deterministically define the intent_id of exact cloning process, e.g. in case we talk 
 about the cloning of the same token multiple times into the same or different destination networks.
-We may just guess it, like the last cloning or so on by nin deterministic criteria like source address. 
+We may just guess it, like the last cloning or so on by non-deterministic criteria like source address. 
 Technically the vamping frontend 
 We need to implement the vamp.library - the new API + several client side integrations to browse through the cloning history by combinations of the  number of 
 criteria like source token address, destination token address, source chain_id, destination chain_id, source transaction, source target_block, one of solution 

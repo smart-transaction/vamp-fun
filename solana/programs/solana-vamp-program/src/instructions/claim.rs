@@ -122,21 +122,21 @@ pub fn buy_claim_tokens(
     .expect("eth message hash error");
 
     // Verify the owner signature
-    // verify_ethereum_signature(&message, ownership_sig, &eth_address.to_vec())?;
+    verify_ethereum_signature(&message, ownership_sig, &eth_address.to_vec())?;
 
-    // // Verify the solver signature
-    // verify_ethereum_signature(
-    //     &message,
-    //     solver_individual_balance_sig,
-    //     &ctx.accounts.vamp_state.solver_public_key,
-    // )?;
+    // Verify the solver signature
+    verify_ethereum_signature(
+        &message,
+        solver_individual_balance_sig,
+        &ctx.accounts.vamp_state.solver_public_key,
+    )?;
 
-    // // Verify the validator signature
-    // verify_ethereum_signature(
-    //     &message,
-    //     validator_individual_balance_sig,
-    //     &ctx.accounts.vamp_state.validator_public_key,
-    // )?;
+    // Verify the validator signature
+    verify_ethereum_signature(
+        &message,
+        validator_individual_balance_sig,
+        &ctx.accounts.vamp_state.validator_public_key,
+    )?;
 
     require!(
         ctx.accounts.claim_state.is_claimed == false,

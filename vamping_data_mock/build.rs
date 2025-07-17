@@ -3,7 +3,7 @@ pub fn main() {
         .protoc_arg("--experimental_allow_proto3_optional")
         .compile_protos(
             &[
-                "../proto/user_objective.proto",
+                "../proto/stxn.proto",
                 "../proto/vamp_fun.proto",
             ],
             &["../proto"],

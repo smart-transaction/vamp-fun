@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package vamp.fun;
+package stxn.io;
 
 message CallObjectProto {
   uint64 id = 1;
@@ -134,4 +134,4 @@ service OrchestratorService{
 service ValidatorService{
   // To be called from the solver to the orchestrator to deliver the solver decision.
   rpc SubmitSolution(SubmitSolutionForValidationRequestProto) returns (SubmitSolutionForValidationResponseProto);
-}
+} 

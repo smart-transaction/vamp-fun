@@ -3,7 +3,7 @@ use pbjson_build::Builder;
 use std::{error::Error, fs};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let proto_files = &["../proto/user_objective.proto", "../proto/vamp_fun.proto"];
+    let proto_files = &["../proto/stxn.proto", "../proto/vamp_fun.proto"];
     let proto_includes = &["../proto"];
 
     fs::create_dir_all("src/generated")?; // Be sure that the output directory exists
@@ -21,8 +21,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     Builder::new()
         .register_descriptors(&descriptor_bytes)?
         .out_dir("src/generated")
+        .extern_path(".stxn.io", "crate::proto::stxn")
         .extern_path(".vamp.fun", "crate::proto::vamp_fun")
         .build(&[
+            ".stxn.io",
             ".vamp.fun",
         ])?;
 

@@ -53,7 +53,7 @@ pub async fn process_and_send_snapshot(
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,
 ) -> Result<(), Box<dyn Error>> {
-    info!("Received indexed snapshot");
+    info!("Received indexed snapshot for intent_id: {}", hex::encode(&request_data.intent_id));
     {
         if let Ok(mut stats) = indexing_stats.lock() {
             if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address))
@@ -170,20 +170,20 @@ pub async fn process_and_send_snapshot(
                 // Handle the response: check for success and extract data
                 let payload: Vec<u8> = response_proto.solution_validated_details;
                 let vamp_validated_details = VampSolutionValidatedDetailsProto::decode(&*payload)?;
-                info!("Validation successful. Root CID: {}", vamp_validated_details.root_intent_cid);
+                info!("Validation successful for intent_id: {}. Root CID: {}", hex::encode(&request_data.intent_id), vamp_validated_details.root_intent_cid);
                 vamp_validated_details
             }
             AppChainResultStatus::EventNotFound => {
                 let message = result.message.unwrap_or("Unknown error".to_string());
-                return Err(format!("Validator error: event not found - {}", message).into());
+                return Err(format!("Validator error for intent_id {}: event not found - {}", hex::encode(&request_data.intent_id), message).into());
             }
             AppChainResultStatus::Error => {
                 let message = result.message.unwrap_or("Unknown error".to_string());
-                return Err(format!("Validator error: {}", message).into());
+                return Err(format!("Validator error for intent_id {}: {}", hex::encode(&request_data.intent_id), message).into());
             }
         }
     } else {
-        return Err("Validator response missing result status".into());
+        return Err(format!("Validator response missing result status for intent_id: {}", hex::encode(&request_data.intent_id)).into());
     };
     // Use vamp_validated_details as needed
     
@@ -256,7 +256,7 @@ pub async fn process_and_send_snapshot(
                         item.message = message.clone();
                     }
                 }
-                return Err(format!("Error in orchestrator response: {}", message).into());
+                return Err(format!("Error in orchestrator response for intent_id {}: {}", hex::encode(&request_data.intent_id), message).into());
             }
             AppChainResultStatus::Ok => {
                 if let Some(payload) = response_proto.payload {
@@ -269,6 +269,7 @@ pub async fn process_and_send_snapshot(
                         &mint_account.to_string(),
                         &vamp_state.to_string(),
                         &vamp_validated_details.root_intent_cid,
+                        &hex::encode(&request_data.intent_id),
                     )?;
 
                     let mut ethereum_snapshot = original_snapshot.clone();
@@ -290,7 +291,7 @@ pub async fn process_and_send_snapshot(
                         &ethereum_snapshot,
                     )?;
                 } else {
-                    return Err("Payload not found in orchestrator response".into());
+                    return Err(format!("Payload not found in orchestrator response for intent_id: {}", hex::encode(&request_data.intent_id)).into());
                 }
                 if let Ok(mut stats) = indexing_stats.lock() {
                     if let Some(item) =
@@ -299,7 +300,7 @@ pub async fn process_and_send_snapshot(
                         item.status = VampingStatus::Success;
                     }
                 }
-                info!("The solver decision is successfully sent to the orchestrator.");
+                info!("The solution is successfully executed on the orchestrator for intent_id: {}", hex::encode(&request_data.intent_id));
             }
             AppChainResultStatus::EventNotFound => {
                 let message = format!(
@@ -315,7 +316,7 @@ pub async fn process_and_send_snapshot(
                         item.message = "Orchestrator error: event not found".to_string();
                     }
                 }
-                return Err(format!("Error in orchestrator response: {}", message).into());
+                return Err(format!("Error in orchestrator response for intent_id {}: {}", hex::encode(&request_data.intent_id), message).into());
             }
         }
     }
@@ -368,12 +369,13 @@ fn write_cloning(
     mint_account_address: &str,
     vamp_state_address: &str,
     root_intent_cid: &str,
+    intent_id: &str,
 ) -> Result<(), Box<dyn Error>> {
     let mut conn = db_conn.create_db_conn()?;
     let addr_str = format!("{:#x}", erc20_address);
     conn.exec_drop(
-        "INSERT INTO clonings (chain_id, erc20_address, target_txid, mint_account_address, token_spl_address, root_intent_cid, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())",
-        (chain_id, &addr_str, target_txid, mint_account_address, vamp_state_address, root_intent_cid),
+        "INSERT INTO clonings (chain_id, erc20_address, target_txid, mint_account_address, token_spl_address, root_intent_cid, intent_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
+        (chain_id, &addr_str, target_txid, mint_account_address, vamp_state_address, root_intent_cid, intent_id),
     )?;
     Ok(())
 }

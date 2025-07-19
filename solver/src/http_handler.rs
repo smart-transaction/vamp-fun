@@ -26,6 +26,7 @@ pub struct TokenClaimData {
     pub mint_account_address: String,
     pub token_spl_address: String,
     pub root_intent_cid: String,
+    pub intent_id: String,
 }
 
 pub fn handle_get_claim_amount(
@@ -77,6 +78,7 @@ pub fn handle_get_claim_amount(
         mint_account_address: "".to_string(),
         token_spl_address: "".to_string(),
         root_intent_cid: "".to_string(),
+        intent_id: "".to_string(),
     };
 
     let stmt = "SELECT holder_amount, signature FROM tokens WHERE chain_id = ? AND erc20_address = ? AND holder_address = ?";
@@ -110,7 +112,7 @@ pub fn handle_get_claim_amount(
         }
     }
 
-    let stmt = "SELECT target_txid, token_spl_address, mint_account_address, root_intent_cid FROM clonings WHERE chain_id = ? AND erc20_address = ? ORDER BY created_at DESC LIMIT 1";
+    let stmt = "SELECT target_txid, token_spl_address, mint_account_address, root_intent_cid, intent_id FROM clonings WHERE chain_id = ? AND erc20_address = ? ORDER BY created_at DESC LIMIT 1";
     match db_conn.exec_first(stmt, (&chain_id, &token_address)) {
         Ok(row) => {
             let row: Row = row.unwrap();
@@ -118,10 +120,12 @@ pub fn handle_get_claim_amount(
             let token_spl_address: Option<String> = row.get(1);
             let mint_account_address: Option<String> = row.get(2);
             let root_intent_cid: Option<String> = row.get(3);
+            let intent_id: Option<String> = row.get(4);
             claim_data.target_txid = target_txid.unwrap_or("".to_string());
             claim_data.token_spl_address = token_spl_address.unwrap_or("".to_string());
             claim_data.mint_account_address = mint_account_address.unwrap_or("".to_string());
             claim_data.root_intent_cid = root_intent_cid.unwrap_or("".to_string());
+            claim_data.intent_id = intent_id.unwrap_or("".to_string());
         }
         Err(err) => {
             log::error!("Failed to execute query: {:?}", err);

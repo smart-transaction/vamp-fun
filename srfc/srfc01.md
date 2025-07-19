@@ -191,9 +191,9 @@ more generic `SubmitSolutionForValidationRequestProto` and `SubmitSolutionForVal
 ### Validator vamp
 
    + create new component (validator_vamp)
-   + protocol changes - validator_vamp will be application aware so it will use both our `stxn.proto` - 
+   + protocol changes - validator_vamp will be application aware so it will use both our `user_objective.proto` - 
       with generic intent network protocol as well as `vamp_fun.proto` - vamping specific protocol
-                  + add SubmitSolutionForValidationRequestProto into `stxn.proto`
+        + add SubmitSolutionForValidationRequestProto into `user_objective.proto`
             message SubmitSolutionForValidationRequestProto {
               uint64 intent_id = 1;
               // The solution to be validated in the specific encoding.

@@ -95,6 +95,32 @@
           }
         },
         {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint_account"
+              }
+            ]
+          }
+        },
+        {
           "name": "claimer_token_account",
           "writable": true
         },
@@ -273,6 +299,32 @@
           }
         },
         {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint_account"
+              }
+            ]
+          }
+        },
+        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
@@ -301,6 +353,10 @@
         {
           "name": "vamping_data",
           "type": "bytes"
+        },
+        {
+          "name": "token_decimals",
+          "type": "u8"
         }
       ]
     }
@@ -383,6 +439,11 @@
       "code": 6006,
       "name": "TokensAlredyClaimed",
       "msg": "Tokens already claimed."
+    },
+    {
+      "code": 6007,
+      "name": "ArithmeticOverflow",
+      "msg": "Arithmetic overflow occurred."
     }
   ],
   "types": [
@@ -454,6 +515,30 @@
           {
             "name": "intent_id",
             "type": "bytes"
+          },
+          {
+            "name": "total_claimed",
+            "type": "u64"
+          },
+          {
+            "name": "reserve_balance",
+            "type": "u64"
+          },
+          {
+            "name": "token_supply",
+            "type": "u64"
+          },
+          {
+            "name": "curve_exponent",
+            "type": "u64"
+          },
+          {
+            "name": "initial_price",
+            "type": "u64"
+          },
+          {
+            "name": "sol_vault",
+            "type": "pubkey"
           }
         ]
       }

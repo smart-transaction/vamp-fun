@@ -64,7 +64,7 @@ impl ValidatorService for ValidatorGrpcService {
                 for (addr, entry) in solution.individual_balance_entry_by_oth_address.iter_mut() {
                     let mut hasher = Keccak256::new();
                     hasher.update(addr.as_bytes());
-                    hasher.update(&entry.balance.to_be_bytes());
+                    hasher.update(&entry.balance.to_le_bytes());
                     hasher.update(req.intent_id.as_bytes());
                     let hash = hasher.finalize();
                     let sig = self.validator_wallet.sign_hash(ethers::types::H256::from_slice(&hash))

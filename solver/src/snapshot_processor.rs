@@ -453,6 +453,9 @@ fn prepare_transaction(
 
     let (vault, _) =
         Pubkey::find_program_address(&[b"vault", mint_account.as_ref()], &solana_vamp_program::ID);
+    
+    let (sol_vault, _) =
+        Pubkey::find_program_address(&[b"sol_vault", mint_account.as_ref()], &solana_vamp_program::ID);
     let program_instructions = program
         .request()
         .accounts(accounts::CreateTokenMint {
@@ -462,6 +465,7 @@ fn prepare_transaction(
             metadata_account,
             vamp_state,
             vault,
+            sol_vault,
             token_program: TOKEN_PROGRAM_ID,
             token_metadata_program: TOKEN_METADATA_PROGRAM_ID,
             system_program: system_program::ID,
@@ -471,6 +475,7 @@ fn prepare_transaction(
         .args(args::CreateTokenMint {
             vamp_identifier: fold_intent_id(&intent_id)?,
             vamping_data: vamping_data_bytes,
+            token_decimals: 9, // Fixed to 9 decimals as per the convert_to_sol function
         })
         .instructions()?;
 

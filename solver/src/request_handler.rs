@@ -5,11 +5,9 @@ use crate::snapshot_indexer::{SnapshotIndexer, TokenRequestData};
 use crate::stats::{IndexerProcesses, VampingStatus};
 use crate::use_proto::proto::{SolanaCluster, UserEventProto};
 
-use chrono::Utc;
 use ethers::types::Address;
 use ethers::utils::keccak256;
 use log::info;
-use sha3::{Digest, Keccak256};
 
 pub struct DeployTokenHandler {
     pub indexer: Arc<SnapshotIndexer>,

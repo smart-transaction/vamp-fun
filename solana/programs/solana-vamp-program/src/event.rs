@@ -10,6 +10,12 @@ pub enum ErrorCode {
     InvalidMerkleProof,
     #[msg("Invalid Ethereum signature provided.")]
     InvalidSignature,
+    #[msg("Invalid owner signature provided.")]
+    InvalidOwnerSignature,
+    #[msg("Invalid solver signature provided.")]
+    InvalidSolverSignature,
+    #[msg("Invalid validator signature provided.")]
+    InvalidValidatorSignature,
     #[msg("Invalid Ethereum address provided.")]
     InvalidAddress,
     #[msg("Invalid token mapping provided.")]

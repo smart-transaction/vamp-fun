@@ -63,4 +63,6 @@ message VampSolutionValidatedDetailsProto {
   string root_intent_cid = 1;
   // The mapping of the CID (IPFS unique ID) for individual balance entry by the OriginalTokenHolders (OTH Address)
   map<string, string> cid_by_oth_address = 2;
+  // The validator's Ethereum address that signed the validation
+  string validator_address = 3;
 }

@@ -2,7 +2,7 @@ use crate::validator_vamp::config;
 use std::collections::HashMap;
 use std::fs;
 use ethers::core::k256::sha2::Digest;
-use ethers::signers::LocalWallet;
+use ethers::signers::{LocalWallet, Signer};
 use prost::Message;
 use serde_json::json;
 use sha3::Keccak256;
@@ -105,6 +105,7 @@ impl ValidatorService for ValidatorGrpcService {
                 let validated_details = VampSolutionValidatedDetailsProto {
                     root_intent_cid: root_cid.clone(),
                     cid_by_oth_address,
+                    validator_address: format!("{:#x}", self.validator_wallet.address()),
                 };
 
                 let mut validated_details_bytes = Vec::with_capacity(validated_details.encoded_len());

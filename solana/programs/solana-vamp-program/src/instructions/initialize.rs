@@ -141,8 +141,10 @@ impl<'info> Initialize<'info> {
             reserve_balance: 0,
             token_supply: amount,
             curve_exponent: 2,
-            initial_price: 1_000_000,
             sol_vault: self.sol_vault.key(),
+            curve_slope: 5,             // Controls how quickly price rises
+            base_price: 2_000,          // ~0.000002 SOL per token (2,000 lamports)
+            max_price: Some(50_000),    // Hard cap ~0.00005 SOL per token (UX-friendly)
         });
 
         Ok(())

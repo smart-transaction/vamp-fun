@@ -7,23 +7,35 @@ pub fn calculate_claim_cost(
     vamp_state: &VampState,
     token_amount: u64,
 ) -> Result<u64> {
-    // Calculate the SOL cost using the bonding curve formula
-    // Since tokens are already minted and in the vault, we calculate based on
-    // how many tokens have been claimed (total_claimed) plus the new tokens being claimed
-    
-    let current_claimed = vamp_state.total_claimed;
-    let new_total_claimed = current_claimed.checked_add(token_amount).ok_or(ErrorCode::ArithmeticOverflow)?;
-    
-    // Calculate the area under the curve from current_claimed to new_total_claimed
-    // For quadratic curve: integral = initial_price * (new_total_claimed^2 - current_claimed^2) / 2
-    // Use integer arithmetic to avoid overflow
-    
-    let current_claimed_squared = current_claimed.checked_mul(current_claimed).ok_or(ErrorCode::ArithmeticOverflow)?;
-    let new_total_claimed_squared = new_total_claimed.checked_mul(new_total_claimed).ok_or(ErrorCode::ArithmeticOverflow)?;
-    
-    let area_difference = new_total_claimed_squared.checked_sub(current_claimed_squared).ok_or(ErrorCode::ArithmeticOverflow)?;
-    let area_under_curve = area_difference.checked_mul(vamp_state.initial_price).ok_or(ErrorCode::ArithmeticOverflow)?;
-    let sol_cost = area_under_curve.checked_div(2).ok_or(ErrorCode::ArithmeticOverflow)?;
-    
-    Ok(sol_cost)
-} 
+    let x1 = vamp_state.total_claimed;
+    let x2 = x1.checked_add(token_amount).ok_or(ErrorCode::ArithmeticOverflow)?;
+
+    // Part 1: a * (x2^2 - x1^2) / 2
+    let x1_squared = (x1 as u128).checked_mul(x1 as u128).ok_or(ErrorCode::ArithmeticOverflow)?;
+    let x2_squared = (x2 as u128).checked_mul(x2 as u128).ok_or(ErrorCode::ArithmeticOverflow)?;
+    let delta_squared = x2_squared.checked_sub(x1_squared).ok_or(ErrorCode::ArithmeticOverflow)?;
+    let part1 = delta_squared
+        .checked_mul(vamp_state.curve_slope as u128)
+        .ok_or(ErrorCode::ArithmeticOverflow)?
+        .checked_div(2)
+        .ok_or(ErrorCode::ArithmeticOverflow)?;
+
+    // Part 2: b * (x2 - x1)
+    let delta_tokens = (x2 - x1) as u128;
+    let part2 = delta_tokens
+        .checked_mul(vamp_state.base_price as u128)
+        .ok_or(ErrorCode::ArithmeticOverflow)?;
+
+    let total_cost = part1.checked_add(part2).ok_or(ErrorCode::ArithmeticOverflow)?;
+
+    // Optional: Cap the max cost per token for better UX
+    if let Some(max_price_per_token) = vamp_state.max_price {
+        let avg_price = total_cost.checked_div(delta_tokens).ok_or(ErrorCode::ArithmeticOverflow)?;
+        if avg_price > max_price_per_token as u128 {
+            return Err(ErrorCode::PriceTooHigh.into());
+        }
+    }
+
+    // Final cost in u64
+    Ok(total_cost.try_into().map_err(|_| ErrorCode::ArithmeticOverflow)?)
+}

@@ -17,7 +17,9 @@ pub enum ErrorCode {
     #[msg("Tokens already claimed.")]
     TokensAlredyClaimed,
     #[msg("Arithmetic overflow occurred.")]
-    ArithmeticOverflow
+    ArithmeticOverflow,
+    #[msg("Cost per token exceeds the maximum allowed")]
+    PriceTooHigh,
 }
 
 #[event]

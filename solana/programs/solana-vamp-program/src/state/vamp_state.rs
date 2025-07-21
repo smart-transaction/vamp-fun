@@ -19,6 +19,9 @@ pub struct VampState {
     pub curve_exponent: u64,         // Exponent for the bonding curve (e.g., 2 for quadratic)
     pub initial_price: u64,          // Initial price in lamports per token
     pub sol_vault: Pubkey,           // SOL vault account to hold collected SOL
+    pub curve_slope: u64,            // a — Slope for linear bonding curve (lamports per token^2)
+    pub base_price: u64,             // b — Base price per token in lamports
+    pub max_price: Option<u64>,      // Optional cap on cost per token (UX safety)
 }
 
 #[account]

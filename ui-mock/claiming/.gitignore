@@ -1,0 +1,7 @@
+# Sensitive files
+eth_private_key.txt
+wallet.json
+
+# Rust build artifacts
+target/
+Cargo.lock 

@@ -29,15 +29,15 @@ async function inspectVampState() {
         let accounts = [];
         try {
             accounts = await connection.getProgramAccounts(programId, {
-                filters: [
-                    {
-                        memcmp: {
-                            offset: 0,
-                            bytes: Buffer.from(VAMP_STATE_DISCRIMINATOR).toString('base64')
-                        }
+            filters: [
+                {
+                    memcmp: {
+                        offset: 0,
+                        bytes: Buffer.from(VAMP_STATE_DISCRIMINATOR).toString('base64')
                     }
-                ]
-            });
+                }
+            ]
+        });
         } catch (error) {
             console.log('⚠️  Filtered query failed, trying without discriminator filter...');
             try {
@@ -86,45 +86,45 @@ async function inspectVampState() {
             let solverPublicKey, validatorPublicKey, vampIdentifier, intentId, totalClaimed, reserveBalance, tokenSupply, curveExponent, initialPrice, solVault;
             
             try {
-                // Read solver_public_key length (4 bytes for Vec<u8>)
-                const solverKeyLength = data.readUInt32LE(offset);
-                offset += 4;
-                
-                // Read solver_public_key
-                solverPublicKey = data.slice(offset, offset + solverKeyLength);
-                offset += solverKeyLength;
-                
-                // Read validator_public_key length (4 bytes for Vec<u8>)
-                const validatorKeyLength = data.readUInt32LE(offset);
-                offset += 4;
-                
-                // Read validator_public_key
-                validatorPublicKey = data.slice(offset, offset + validatorKeyLength);
-                offset += validatorKeyLength;
+            // Read solver_public_key length (4 bytes for Vec<u8>)
+            const solverKeyLength = data.readUInt32LE(offset);
+            offset += 4;
             
-                            // Read vamp_identifier (8 bytes)
+            // Read solver_public_key
+                solverPublicKey = data.slice(offset, offset + solverKeyLength);
+            offset += solverKeyLength;
+            
+            // Read validator_public_key length (4 bytes for Vec<u8>)
+            const validatorKeyLength = data.readUInt32LE(offset);
+            offset += 4;
+            
+            // Read validator_public_key
+                validatorPublicKey = data.slice(offset, offset + validatorKeyLength);
+            offset += validatorKeyLength;
+            
+            // Read vamp_identifier (8 bytes)
                 vampIdentifier = data.readBigUInt64LE(offset);
-                offset += 8;
-                
-                // Read intent_id length (4 bytes for Vec<u8>)
-                const intentIdLength = data.readUInt32LE(offset);
-                offset += 4;
-                
-                // Read intent_id
+            offset += 8;
+            
+            // Read intent_id length (4 bytes for Vec<u8>)
+            const intentIdLength = data.readUInt32LE(offset);
+            offset += 4;
+            
+            // Read intent_id
                 intentId = data.slice(offset, offset + intentIdLength);
-                offset += intentIdLength;
-                
-                // Read bonding curve parameters
+            offset += intentIdLength;
+            
+            // Read bonding curve parameters
                 totalClaimed = data.readBigUInt64LE(offset);
-                offset += 8;
+            offset += 8;
                 reserveBalance = data.readBigUInt64LE(offset);
-                offset += 8;
+            offset += 8;
                 tokenSupply = data.readBigUInt64LE(offset);
-                offset += 8;
+            offset += 8;
                 curveExponent = data.readBigUInt64LE(offset);
-                offset += 8;
+            offset += 8;
                 initialPrice = data.readBigUInt64LE(offset);
-                offset += 8;
+            offset += 8;
                 solVault = new PublicKey(data.slice(offset, offset + 32));
             
             console.log(`   Bump: ${bump}`);

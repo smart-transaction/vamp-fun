@@ -10,6 +10,9 @@ use anchor_spl::{
     token::{mint_to, Mint, MintTo, Token, TokenAccount},
 };
 
+// Controls how quickly price rises
+const CURVE_SLOPE: u64 = 5;
+
 #[derive(Accounts)]
 #[instruction(vamp_identifier: u64, token_decimals: u8)]
 pub struct Initialize<'info> {
@@ -142,7 +145,7 @@ impl<'info> Initialize<'info> {
             token_supply: amount,
             curve_exponent: 2,
             sol_vault: self.sol_vault.key(),
-            curve_slope: 5,             // Controls how quickly price rises
+            curve_slope: CURVE_SLOPE,             // Controls how quickly price rises
             base_price: 2_000,          // ~0.000002 SOL per token (2,000 lamports)
             max_price: Some(50_000),    // Hard cap ~0.00005 SOL per token (UX-friendly)
         });

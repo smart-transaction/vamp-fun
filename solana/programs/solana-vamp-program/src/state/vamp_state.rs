@@ -21,6 +21,8 @@ pub struct VampState {
     pub curve_slope: u64,            // a — Slope for linear bonding curve (lamports per token^2)
     pub base_price: u64,             // b — Base price per token in lamports
     pub max_price: Option<u64>,      // Optional cap on cost per token (UX safety)
+    pub use_bonding_curve: bool,     // Whether to use a bonding curve
+    pub flat_price_per_token: u64,   // Flat price per token in lamports
 }
 
 #[account]

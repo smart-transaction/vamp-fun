@@ -148,6 +148,8 @@ impl<'info> Initialize<'info> {
             curve_slope: CURVE_SLOPE,             // Controls how quickly price rises
             base_price: 2_000,          // ~0.000002 SOL per token (2,000 lamports)
             max_price: Some(50_000),    // Hard cap ~0.00005 SOL per token (UX-friendly)
+            use_bonding_curve: true,
+            flat_price_per_token: 5_000, // 0.000005 SOL per token
         });
 
         Ok(())

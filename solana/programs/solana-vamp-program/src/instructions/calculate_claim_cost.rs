@@ -11,6 +11,14 @@ pub fn calculate_claim_cost(
     if token_amount == 0 {
         return Ok(0);
     }
+
+    // When not using bonding curve, use fixed flat price per token
+    if !vamp_state.use_bonding_curve {
+        let cost = (token_amount as u128)
+            .checked_mul(vamp_state.flat_price_per_token as u128)
+            .ok_or(ErrorCode::ArithmeticOverflow)?;
+        return Ok(cost.try_into().map_err(|_| ErrorCode::ArithmeticOverflow)?);
+    }
     
     let x1 = vamp_state.total_claimed;
     let x2 = x1.checked_add(token_amount).ok_or(ErrorCode::ArithmeticOverflow)?;

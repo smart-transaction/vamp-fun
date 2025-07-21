@@ -63,9 +63,25 @@ impl ValidatorService for ValidatorGrpcService {
                 // Sign each entry with validator key
                 for (addr, entry) in solution.individual_balance_entry_by_oth_address.iter_mut() {
                     let mut hasher = Keccak256::new();
-                    hasher.update(addr.as_bytes());
+                    
+                    // Parse the Ethereum address from hex string to raw bytes
+                    let eth_address = hex::decode(addr.strip_prefix("0x").unwrap_or(addr))
+                        .map_err(|e| {
+                            log::warn!("Invalid Ethereum address format for intent_id: {} - {}", req.intent_id, e);
+                            Status::internal(format!("Invalid Ethereum address format: {e}"))
+                        })?;
+                    
+                    // Parse the intent_id from hex string to raw bytes
+                    let intent_id_bytes = hex::decode(req.intent_id.strip_prefix("0x").unwrap_or(&req.intent_id))
+                        .map_err(|e| {
+                            log::warn!("Invalid intent_id format for intent_id: {} - {}", req.intent_id, e);
+                            Status::internal(format!("Invalid intent_id format: {e}"))
+                        })?;
+                    
+                    // Use the same message format as the Solana program
+                    hasher.update(&eth_address);
                     hasher.update(&entry.balance.to_le_bytes());
-                    hasher.update(req.intent_id.as_bytes());
+                    hasher.update(&intent_id_bytes);
                     let hash = hasher.finalize();
                     let sig = self.validator_wallet.sign_hash(ethers::types::H256::from_slice(&hash))
                         .map_err(|e| {

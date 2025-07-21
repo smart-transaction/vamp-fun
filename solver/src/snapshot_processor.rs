@@ -101,7 +101,7 @@ pub async fn process_and_send_snapshot(
         let (balance, _) = convert_to_sol(&token_amount.amount)?;
         // Build the message: sha3::Keccak256(eth_address || balance || intent_id)
         let mut hasher = sha3::Keccak256::new();
-        hasher.update(address.as_bytes());
+        hasher.update(&address.0);  // Use raw 20-byte address instead of string bytes
         hasher.update(&balance.to_le_bytes());
         hasher.update(&request_data.intent_id);
         let message = hasher.finalize();

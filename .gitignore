@@ -22,3 +22,7 @@ target/
 /vamp-fun.iml
 /.idea/
 /validator_vamp/ipfs-root/*
+
+# Node.js dependencies for debugging scripts
+scripts/solana/node_modules/
+scripts/solana/package-lock.json

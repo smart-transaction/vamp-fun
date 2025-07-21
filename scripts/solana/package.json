@@ -1,0 +1,16 @@
+{
+  "name": "vamp-state-inspector",
+  "version": "1.0.0",
+  "description": "Debug tool to inspect vamp state accounts on Solana",
+  "main": "inspect_vamp_state.js",
+  "scripts": {
+    "inspect": "node inspect_vamp_state.js"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.87.6",
+    "@project-serum/anchor": "^0.26.0"
+  },
+  "keywords": ["solana", "vamp", "debug", "anchor"],
+  "author": "",
+  "license": "MIT"
+} 

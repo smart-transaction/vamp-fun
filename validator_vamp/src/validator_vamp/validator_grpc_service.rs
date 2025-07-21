@@ -2,7 +2,7 @@ use crate::validator_vamp::config;
 use std::collections::HashMap;
 use std::fs;
 use ethers::core::k256::sha2::Digest;
-use ethers::signers::LocalWallet;
+use ethers::signers::{LocalWallet, Signer};
 use prost::Message;
 use serde_json::json;
 use sha3::Keccak256;
@@ -63,11 +63,43 @@ impl ValidatorService for ValidatorGrpcService {
                 // Sign each entry with validator key
                 for (addr, entry) in solution.individual_balance_entry_by_oth_address.iter_mut() {
                     let mut hasher = Keccak256::new();
-                    hasher.update(addr.as_bytes());
-                    hasher.update(&entry.balance.to_be_bytes());
-                    hasher.update(req.intent_id.as_bytes());
-                    let hash = hasher.finalize();
-                    let sig = self.validator_wallet.sign_hash(ethers::types::H256::from_slice(&hash))
+                    
+                    // Parse the Ethereum address from hex string to raw bytes
+                    let eth_address = hex::decode(addr.strip_prefix("0x").unwrap_or(addr))
+                        .map_err(|e| {
+                            log::warn!("Invalid Ethereum address format for intent_id: {} - {}", req.intent_id, e);
+                            Status::internal(format!("Invalid Ethereum address format: {e}"))
+                        })?;
+                    
+                    // Parse the intent_id from hex string to raw bytes
+                    let intent_id_bytes = hex::decode(req.intent_id.strip_prefix("0x").unwrap_or(&req.intent_id))
+                        .map_err(|e| {
+                            log::warn!("Invalid intent_id format for intent_id: {} - {}", req.intent_id, e);
+                            Status::internal(format!("Invalid intent_id format: {e}"))
+                        })?;
+                    
+                    // Use the same message format as the Solana program
+                    hasher.update(&eth_address);
+                    hasher.update(&entry.balance.to_le_bytes());
+                    hasher.update(&intent_id_bytes);
+                    let message_hash = hasher.finalize();
+                    
+                    // Add Ethereum message prefix like the Solana program does during verification
+                    const PREFIX: &str = "\x19Ethereum Signed Message:\n";
+                    let len = message_hash.len();
+                    let len_string = len.to_string();
+                    
+                    let mut eth_message = Vec::with_capacity(PREFIX.len() + len_string.len() + message_hash.len());
+                    eth_message.extend_from_slice(PREFIX.as_bytes());
+                    eth_message.extend_from_slice(len_string.as_bytes());
+                    eth_message.extend_from_slice(&message_hash);
+                    
+                    // Hash the message with prefix - this is what the Solana program will hash during verification
+                    let mut final_hasher = sha3::Keccak256::new();
+                    final_hasher.update(&eth_message);
+                    let final_message_hash = final_hasher.finalize();
+                    
+                    let sig = self.validator_wallet.sign_hash(ethers::types::H256::from_slice(&final_message_hash))
                         .map_err(|e| {
                             log::warn!("Signing error for intent_id: {} - {}", req.intent_id, e);
                             Status::internal(format!("Signing error: {e}"))
@@ -105,6 +137,7 @@ impl ValidatorService for ValidatorGrpcService {
                 let validated_details = VampSolutionValidatedDetailsProto {
                     root_intent_cid: root_cid.clone(),
                     cid_by_oth_address,
+                    validator_address: format!("{:#x}", self.validator_wallet.address()),
                 };
 
                 let mut validated_details_bytes = Vec::with_capacity(validated_details.encoded_len());

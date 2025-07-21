@@ -64,6 +64,7 @@ fn verify_ethereum_signature(
     message: &Vec<u8>,
     signature: [u8; 65],
     expected_address: &Vec<u8>,
+    signature_type: ErrorCode,
 ) -> Result<()> {
     const PREFIX: &str = "\x19Ethereum Signed Message:\n";
     let len = message.len();
@@ -98,10 +99,9 @@ fn verify_ethereum_signature(
     let recovered_address = &hash(&public_key_bytes).0[12..];
 
     // Verify the signature
-    require!(
-        recovered_address == expected_address,
-        ErrorCode::InvalidSignature
-    );
+    if recovered_address != expected_address {
+        return Err(signature_type.into());
+    }
 
     Ok(())
 }
@@ -122,13 +122,14 @@ pub fn buy_claim_tokens(
     .expect("eth message hash error");
 
     // Verify the owner signature
-    verify_ethereum_signature(&message, ownership_sig, &eth_address.to_vec())?;
+    verify_ethereum_signature(&message, ownership_sig, &eth_address.to_vec(), ErrorCode::InvalidOwnerSignature)?;
 
     // Verify the solver signature
     verify_ethereum_signature(
         &message,
         solver_individual_balance_sig,
         &ctx.accounts.vamp_state.solver_public_key,
+        ErrorCode::InvalidSolverSignature,
     )?;
 
     // Verify the validator signature
@@ -136,6 +137,7 @@ pub fn buy_claim_tokens(
         &message,
         validator_individual_balance_sig,
         &ctx.accounts.vamp_state.validator_public_key,
+        ErrorCode::InvalidValidatorSignature,
     )?;
 
     require!(

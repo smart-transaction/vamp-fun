@@ -94,28 +94,6 @@ pub async fn process_and_send_snapshot(
 
     let salt = Utc::now().timestamp() as u64;
 
-    let token_vamping_info = TokenVampingInfoProto {
-        merkle_root: root.to_vec(),
-        token_name: request_data.token_full_name,
-        token_symbol: request_data.token_symbol_name,
-        token_erc20_address: request_data.erc20_address.as_bytes().to_vec(),
-        token_uri: Some(request_data.token_uri),
-        amount,
-        decimal: decimals as u32,
-        token_mapping: Some(TokenMappingProto {
-            addresses: Vec::new(),
-            amounts: Vec::new(),
-        }),
-        chain_id: request_data.chain_id,
-        salt,
-        solver_public_key: eth_private_key.address().to_fixed_bytes().to_vec(),
-        validator_public_key: eth_private_key.address().to_fixed_bytes().to_vec(),
-        intent_id: request_data.intent_id.clone(),
-    };
-
-    let mut encoded_vamping_info = Vec::new();
-    token_vamping_info.encode(&mut encoded_vamping_info)?;
-
     // Build the individual_balance_entry_by_oth_address map for the proto
     let mut individual_balance_entry_by_oth_address = std::collections::HashMap::new();
     for (address, token_amount) in &original_snapshot {
@@ -123,7 +101,7 @@ pub async fn process_and_send_snapshot(
         let (balance, _) = convert_to_sol(&token_amount.amount)?;
         // Build the message: sha3::Keccak256(eth_address || balance || intent_id)
         let mut hasher = sha3::Keccak256::new();
-        hasher.update(address.as_bytes());
+        hasher.update(&address.0);  // Use raw 20-byte address instead of string bytes
         hasher.update(&balance.to_le_bytes());
         hasher.update(&request_data.intent_id);
         let message = hasher.finalize();
@@ -185,8 +163,30 @@ pub async fn process_and_send_snapshot(
     } else {
         return Err(format!("Validator response missing result status for intent_id: {}", hex::encode(&request_data.intent_id)).into());
     };
-    // Use vamp_validated_details as needed
-    
+
+    // Now create the TokenVampingInfoProto with the validator address from the response
+    let token_vamping_info = TokenVampingInfoProto {
+        merkle_root: root.to_vec(),
+        token_name: request_data.token_full_name,
+        token_symbol: request_data.token_symbol_name,
+        token_erc20_address: request_data.erc20_address.as_bytes().to_vec(),
+        token_uri: Some(request_data.token_uri),
+        amount,
+        decimal: decimals as u32,
+        token_mapping: Some(TokenMappingProto {
+            addresses: Vec::new(),
+            amounts: Vec::new(),
+        }),
+        chain_id: request_data.chain_id,
+        salt,
+        solver_public_key: eth_private_key.address().to_fixed_bytes().to_vec(),
+        validator_public_key: hex::decode(vamp_validated_details.validator_address.strip_prefix("0x").unwrap_or(&vamp_validated_details.validator_address))?,
+        intent_id: request_data.intent_id.clone(),
+    };
+
+    let mut encoded_vamping_info = Vec::new();
+    token_vamping_info.encode(&mut encoded_vamping_info)?;
+
     let mut orchestrator_client: OrchestratorServiceClient<Channel> =
         OrchestratorServiceClient::connect(orchestrator_url.clone()).await?;
     info!("Connected to orchestrator at {}", orchestrator_url);

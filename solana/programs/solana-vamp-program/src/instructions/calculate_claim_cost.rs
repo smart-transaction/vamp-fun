@@ -10,7 +10,7 @@ pub fn calculate_claim_cost(
     let x1 = vamp_state.total_claimed;
     let x2 = x1.checked_add(token_amount).ok_or(ErrorCode::ArithmeticOverflow)?;
 
-    // Part 1: a * (x2^2 - x1^2) / 2
+    // Part 1: Integral of ax + b over [x1, x2], resulting in a * (x2^2 - x1^2) / 2
     let x1_squared = (x1 as u128).checked_mul(x1 as u128).ok_or(ErrorCode::ArithmeticOverflow)?;
     let x2_squared = (x2 as u128).checked_mul(x2 as u128).ok_or(ErrorCode::ArithmeticOverflow)?;
     let delta_squared = x2_squared.checked_sub(x1_squared).ok_or(ErrorCode::ArithmeticOverflow)?;

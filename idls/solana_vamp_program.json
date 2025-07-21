@@ -427,21 +427,36 @@
     },
     {
       "code": 6004,
+      "name": "InvalidOwnerSignature",
+      "msg": "Invalid owner signature provided."
+    },
+    {
+      "code": 6005,
+      "name": "InvalidSolverSignature",
+      "msg": "Invalid solver signature provided."
+    },
+    {
+      "code": 6006,
+      "name": "InvalidValidatorSignature",
+      "msg": "Invalid validator signature provided."
+    },
+    {
+      "code": 6007,
       "name": "InvalidAddress",
       "msg": "Invalid Ethereum address provided."
     },
     {
-      "code": 6005,
+      "code": 6008,
       "name": "InvalidTokenMapping",
       "msg": "Invalid token mapping provided."
     },
     {
-      "code": 6006,
+      "code": 6009,
       "name": "TokensAlredyClaimed",
       "msg": "Tokens already claimed."
     },
     {
-      "code": 6007,
+      "code": 6010,
       "name": "ArithmeticOverflow",
       "msg": "Arithmetic overflow occurred."
     }

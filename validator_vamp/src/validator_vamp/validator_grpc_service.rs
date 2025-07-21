@@ -82,8 +82,24 @@ impl ValidatorService for ValidatorGrpcService {
                     hasher.update(&eth_address);
                     hasher.update(&entry.balance.to_le_bytes());
                     hasher.update(&intent_id_bytes);
-                    let hash = hasher.finalize();
-                    let sig = self.validator_wallet.sign_hash(ethers::types::H256::from_slice(&hash))
+                    let message_hash = hasher.finalize();
+                    
+                    // Add Ethereum message prefix like the Solana program does during verification
+                    const PREFIX: &str = "\x19Ethereum Signed Message:\n";
+                    let len = message_hash.len();
+                    let len_string = len.to_string();
+                    
+                    let mut eth_message = Vec::with_capacity(PREFIX.len() + len_string.len() + message_hash.len());
+                    eth_message.extend_from_slice(PREFIX.as_bytes());
+                    eth_message.extend_from_slice(len_string.as_bytes());
+                    eth_message.extend_from_slice(&message_hash);
+                    
+                    // Hash the message with prefix - this is what the Solana program will hash during verification
+                    let mut final_hasher = sha3::Keccak256::new();
+                    final_hasher.update(&eth_message);
+                    let final_message_hash = final_hasher.finalize();
+                    
+                    let sig = self.validator_wallet.sign_hash(ethers::types::H256::from_slice(&final_message_hash))
                         .map_err(|e| {
                             log::warn!("Signing error for intent_id: {} - {}", req.intent_id, e);
                             Status::internal(format!("Signing error: {e}"))

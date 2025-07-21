@@ -7,6 +7,11 @@ pub fn calculate_claim_cost(
     vamp_state: &VampState,
     token_amount: u64,
 ) -> Result<u64> {
+    // Early return if token_amount is 0 to prevent division by zero
+    if token_amount == 0 {
+        return Ok(0);
+    }
+    
     let x1 = vamp_state.total_claimed;
     let x2 = x1.checked_add(token_amount).ok_or(ErrorCode::ArithmeticOverflow)?;
 

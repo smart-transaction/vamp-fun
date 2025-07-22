@@ -10,8 +10,10 @@ use anchor_spl::{
     token::{mint_to, Mint, MintTo, Token, TokenAccount},
 };
 
-// Controls how quickly price rises
-const CURVE_SLOPE: u64 = 5;
+// Controls how quickly price rises - using a much smaller value for gentler curve
+const CURVE_SLOPE: u64 = 10;                    // Increased since we divide by 1000 in calculation
+const BASE_PRICE: u64 = 1_000;                  // Base price in lamports
+const MAX_PRICE: u64 = 10_000;                   // Max price per token in lamports
 
 #[derive(Accounts)]
 #[instruction(vamp_identifier: u64, token_decimals: u8)]
@@ -145,11 +147,11 @@ impl<'info> Initialize<'info> {
             token_supply: amount,
             curve_exponent: 2,
             sol_vault: self.sol_vault.key(),
-            curve_slope: CURVE_SLOPE,             // Controls how quickly price rises
-            base_price: 2_000,          // ~0.000002 SOL per token (2,000 lamports)
-            max_price: Some(50_000),    // Hard cap ~0.00005 SOL per token (UX-friendly)
-            use_bonding_curve: false,
-            flat_price_per_token: 5_000, // 0.000005 SOL per token
+            curve_slope: CURVE_SLOPE,             // Much gentler slope (was 5)
+            base_price: BASE_PRICE,              // Lower base price (was 2,000)
+            max_price: Some(MAX_PRICE),          // Higher max price (was 50,000)
+            use_bonding_curve: false,             // Enable bonding curve
+            flat_price_per_token: 5_000,         // 0.000005 SOL per token
         });
 
         Ok(())

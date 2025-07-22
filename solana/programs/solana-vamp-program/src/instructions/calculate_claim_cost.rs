@@ -23,18 +23,17 @@ pub fn calculate_claim_cost(
     let x1 = vamp_state.total_claimed;
     let x2 = x1.checked_add(token_amount).ok_or(ErrorCode::ArithmeticOverflow)?;
 
-    // Part 1: Integral of ax + b over [x1, x2], resulting in a * (x2^2 - x1^2) / 2
-    let x1_squared = (x1 as u128).checked_mul(x1 as u128).ok_or(ErrorCode::ArithmeticOverflow)?;
-    let x2_squared = (x2 as u128).checked_mul(x2 as u128).ok_or(ErrorCode::ArithmeticOverflow)?;
-    let delta_squared = x2_squared.checked_sub(x1_squared).ok_or(ErrorCode::ArithmeticOverflow)?;
-    let part1 = delta_squared
+    // Part 1: Use a more gradual curve - linear with small slope instead of quadratic
+    let delta_tokens = (x2 - x1) as u128;
+    let part1 = delta_tokens
         .checked_mul(vamp_state.curve_slope as u128)
         .ok_or(ErrorCode::ArithmeticOverflow)?
-        .checked_div(2)
+        .checked_mul(delta_tokens)
+        .ok_or(ErrorCode::ArithmeticOverflow)?
+        .checked_div(1000) // Divide by 1000 to make the slope much smaller
         .ok_or(ErrorCode::ArithmeticOverflow)?;
 
     // Part 2: b * (x2 - x1)
-    let delta_tokens = (x2 - x1) as u128;
     let part2 = delta_tokens
         .checked_mul(vamp_state.base_price as u128)
         .ok_or(ErrorCode::ArithmeticOverflow)?;

@@ -15,10 +15,17 @@ pub fn calculate_claim_cost(
     // When not using bonding curve, use fixed flat price per token
     if !vamp_state.use_bonding_curve {
         // Safety check: cap flat price to prevent extremely high costs
-        let safe_flat_price = std::cmp::min(vamp_state.flat_price_per_token, 1000);
-        let cost = (token_amount as u128)
+        let safe_flat_price = std::cmp::min(vamp_state.flat_price_per_token, 1);
+        let mut cost = (token_amount as u128)
             .checked_mul(safe_flat_price as u128)
             .ok_or(ErrorCode::ArithmeticOverflow)?;
+        
+        // Additional safety: cap total cost to prevent extremely high amounts
+        let max_total_cost = 100_000_000; // 0.1 SOL maximum
+        if cost > max_total_cost {
+            cost = max_total_cost;
+        }
+        
         return Ok(cost.try_into().map_err(|_| ErrorCode::ArithmeticOverflow)?);
     }
     

@@ -152,6 +152,7 @@ impl<'info> Initialize<'info> {
             max_price: Some(MAX_PRICE),          // Higher max price (was 50,000)
             use_bonding_curve: false,              // Enable bonding curve
             flat_price_per_token: 1,               // 0.000000001 SOL per token (extremely low)
+            paid_claiming_enabled: false,         // Paid claiming is disabled by default
         });
 
         Ok(())

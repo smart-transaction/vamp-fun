@@ -23,6 +23,7 @@ pub struct VampState {
     pub max_price: Option<u64>,      // Optional cap on cost per token (UX safety)
     pub use_bonding_curve: bool,     // Whether to use a bonding curve
     pub flat_price_per_token: u64,   // Flat price per token in lamports
+    pub paid_claiming_enabled: bool, // Whether paid claiming is enabled
 }
 
 #[account]

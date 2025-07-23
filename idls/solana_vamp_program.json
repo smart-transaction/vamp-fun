@@ -452,13 +452,18 @@
     },
     {
       "code": 6009,
-      "name": "TokensAlredyClaimed",
+      "name": "TokensAlreadyClaimed",
       "msg": "Tokens already claimed."
     },
     {
       "code": 6010,
       "name": "ArithmeticOverflow",
       "msg": "Arithmetic overflow occurred."
+    },
+    {
+      "code": 6011,
+      "name": "PriceTooHigh",
+      "msg": "Cost per token exceeds the maximum allowed"
     }
   ],
   "types": [
@@ -548,12 +553,34 @@
             "type": "u64"
           },
           {
-            "name": "initial_price",
+            "name": "sol_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "curve_slope",
             "type": "u64"
           },
           {
-            "name": "sol_vault",
-            "type": "pubkey"
+            "name": "base_price",
+            "type": "u64"
+          },
+          {
+            "name": "max_price",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "use_bonding_curve",
+            "type": "bool"
+          },
+          {
+            "name": "flat_price_per_token",
+            "type": "u64"
+          },
+          {
+            "name": "paid_claiming_enabled",
+            "type": "bool"
           }
         ]
       }

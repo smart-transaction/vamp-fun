@@ -142,7 +142,7 @@ pub fn buy_claim_tokens(
 
     require!(
         ctx.accounts.claim_state.is_claimed == false,
-        ErrorCode::TokensAlredyClaimed
+        ErrorCode::TokensAlreadyClaimed
     );
 
     // Calculate the SOL cost using the bonding curve

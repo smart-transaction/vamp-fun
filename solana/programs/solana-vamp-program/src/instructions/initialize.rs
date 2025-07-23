@@ -10,6 +10,11 @@ use anchor_spl::{
     token::{mint_to, Mint, MintTo, Token, TokenAccount},
 };
 
+// Controls how quickly price rises - using a much smaller value for gentler curve
+const CURVE_SLOPE: u64 = 1;                     // Much smaller slope for gentler curve
+const BASE_PRICE: u64 = 100;                    // Much lower base price in lamports
+const MAX_PRICE: u64 = 1_000;                   // Much lower max price per token in lamports
+
 #[derive(Accounts)]
 #[instruction(vamp_identifier: u64, token_decimals: u8)]
 pub struct Initialize<'info> {
@@ -141,8 +146,13 @@ impl<'info> Initialize<'info> {
             reserve_balance: 0,
             token_supply: amount,
             curve_exponent: 2,
-            initial_price: 1_000_000,
             sol_vault: self.sol_vault.key(),
+            curve_slope: CURVE_SLOPE,             // Much gentler slope (was 5)
+            base_price: BASE_PRICE,              // Lower base price (was 2,000)
+            max_price: Some(MAX_PRICE),          // Higher max price (was 50,000)
+            use_bonding_curve: false,              // Enable bonding curve
+            flat_price_per_token: 1,               // 0.000000001 SOL per token (extremely low)
+            paid_claiming_enabled: false,         // Paid claiming is disabled by default
         });
 
         Ok(())

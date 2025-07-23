@@ -17,8 +17,13 @@ pub struct VampState {
     pub reserve_balance: u64,        // Current reserve balance in lamports
     pub token_supply: u64,           // Current token supply
     pub curve_exponent: u64,         // Exponent for the bonding curve (e.g., 2 for quadratic)
-    pub initial_price: u64,          // Initial price in lamports per token
     pub sol_vault: Pubkey,           // SOL vault account to hold collected SOL
+    pub curve_slope: u64,            // a — Slope for linear bonding curve (lamports per token^2)
+    pub base_price: u64,             // b — Base price per token in lamports
+    pub max_price: Option<u64>,      // Optional cap on cost per token (UX safety)
+    pub use_bonding_curve: bool,     // Whether to use a bonding curve
+    pub flat_price_per_token: u64,   // Flat price per token in lamports
+    pub paid_claiming_enabled: bool, // Whether paid claiming is enabled
 }
 
 #[account]

@@ -10,6 +10,22 @@ message TokenMappingProto {
   repeated uint64 amounts = 2;
 }
 
+// Vamping parameters for paid claiming configuration
+message VampingParamsProto {
+  // Whether paid claiming is enabled
+  bool paid_claiming_enabled = 1;
+  // Whether to use bonding curve pricing
+  bool use_bonding_curve = 2;
+  // Curve slope for bonding curve (lamports per token^2)
+  uint64 curve_slope = 3;
+  // Base price per token in lamports
+  uint64 base_price = 4;
+  // Maximum price per token in lamports (optional)
+  optional uint64 max_price = 5;
+  // Flat price per token in lamports (when not using bonding curve)
+  uint64 flat_price_per_token = 6;
+}
+
 // The token vamping info. Contains the merkle root, name, symbol, uri, amount, decimal and token mapping.
 message TokenVampingInfoProto {
   // [DEPRECATED] Merkle root of the token mapping computed from .
@@ -38,6 +54,8 @@ message TokenVampingInfoProto {
   bytes validator_public_key = 12;
   // The intent ID.
   bytes intent_id = 13;
+  // Vamping parameters for paid claiming configuration
+  optional VampingParamsProto vamping_params = 14;
 }
 
 // Solver-Validator interaction for vamp.fun

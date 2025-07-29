@@ -15,6 +15,17 @@ const CURVE_SLOPE: u64 = 1;                     // Much smaller slope for gentle
 const BASE_PRICE: u64 = 100;                    // Much lower base price in lamports
 const MAX_PRICE: u64 = 1_000;                   // Much lower max price per token in lamports
 
+// Structure for vamping parameters
+#[derive(Clone)]
+pub struct VampingParams {
+    pub paid_claiming_enabled: bool,
+    pub use_bonding_curve: bool,
+    pub curve_slope: u64,
+    pub base_price: u64,
+    pub max_price: Option<u64>,
+    pub flat_price_per_token: u64,
+}
+
 #[derive(Accounts)]
 #[instruction(vamp_identifier: u64, token_decimals: u8)]
 pub struct Initialize<'info> {
@@ -89,6 +100,7 @@ impl<'info> Initialize<'info> {
         validator_public_key: Vec<u8>,
         intent_id: Vec<u8>,
         bumps: &InitializeBumps,
+        vamping_params: Option<VampingParams>,
     ) -> Result<()> {
         let signer_seeds: &[&[&[u8]]] = &[&[b"mint", self.authority.key.as_ref(), &vamp_identifier.to_le_bytes(), &[bumps.mint_account]]];
 
@@ -135,6 +147,16 @@ impl<'info> Initialize<'info> {
             amount,
         )?;
 
+        // Use provided vamping parameters or fall back to defaults
+        let params = vamping_params.unwrap_or(VampingParams {
+            paid_claiming_enabled: false,
+            use_bonding_curve: false,
+            curve_slope: CURVE_SLOPE,
+            base_price: BASE_PRICE,
+            max_price: Some(MAX_PRICE),
+            flat_price_per_token: 1,
+        });
+
         self.vamp_state.set_inner(VampState {
             bump: bumps.vamp_state,
             mint: self.mint_account.key(),
@@ -147,12 +169,12 @@ impl<'info> Initialize<'info> {
             token_supply: amount,
             curve_exponent: 2,
             sol_vault: self.sol_vault.key(),
-            curve_slope: CURVE_SLOPE,             // Much gentler slope (was 5)
-            base_price: BASE_PRICE,              // Lower base price (was 2,000)
-            max_price: Some(MAX_PRICE),          // Higher max price (was 50,000)
-            use_bonding_curve: false,              // Enable bonding curve
-            flat_price_per_token: 1,               // 0.000000001 SOL per token (extremely low)
-            paid_claiming_enabled: false,         // Paid claiming is disabled by default
+            curve_slope: params.curve_slope,
+            base_price: params.base_price,
+            max_price: params.max_price,
+            use_bonding_curve: params.use_bonding_curve,
+            flat_price_per_token: params.flat_price_per_token,
+            paid_claiming_enabled: params.paid_claiming_enabled,
         });
 
         Ok(())

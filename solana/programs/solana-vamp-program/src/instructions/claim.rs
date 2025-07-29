@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount, Transfer};
 use balance_util::get_balance_hash;
 use libsecp256k1::Signature;
-use solana_program::{
+use anchor_lang::solana_program::{
     account_info::AccountInfo, keccak::hash, program_error::ProgramError, pubkey::Pubkey,
     secp256k1_recover::secp256k1_recover,
 };

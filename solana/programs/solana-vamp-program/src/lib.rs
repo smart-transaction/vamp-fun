@@ -14,6 +14,7 @@ mod use_proto;
 use event::ErrorCode;
 use event::TokenMintCreated;
 use instructions::*;
+use instructions::initialize::VampingParams;
 
 use use_proto::vamp_fun::TokenVampingInfoProto;
 
@@ -36,6 +37,16 @@ pub mod solana_vamp_program {
             ErrorCode::InvalidTokenMapping,
         );
 
+        // Extract vamping parameters from protobuf
+        let vamping_params = vamping_info.vamping_params.map(|params| VampingParams {
+            paid_claiming_enabled: params.paid_claiming_enabled,
+            use_bonding_curve: params.use_bonding_curve,
+            curve_slope: params.curve_slope,
+            base_price: params.base_price,
+            max_price: params.max_price,
+            flat_price_per_token: params.flat_price_per_token,
+        });
+
         ctx.accounts.create_token_mint(
             vamp_identifier,
             vamping_info.token_name.clone(),
@@ -47,6 +58,7 @@ pub mod solana_vamp_program {
             vamping_info.validator_public_key,
             vamping_info.intent_id,
             &ctx.bumps,
+            vamping_params,
         )?;
 
         let token_name = vamping_info.token_name.clone();

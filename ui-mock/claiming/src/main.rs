@@ -272,105 +272,11 @@ fn fetch_vamp_state(client: &RpcClient, mint_pubkey: &Pubkey) -> Result<VampStat
             continue;
         }
         let intent_id = account.data[offset..offset + intent_id_len as usize].to_vec();
-        offset += intent_id_len as usize;
-        
-        // Parse new bonding curve fields
-        if account.data.len() < offset + 8 {
-            println!("❌ Account data too short for total_claimed");
-            continue;
-        }
-        let total_claimed = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid total_claimed"))?);
-        offset += 8;
-        
-        if account.data.len() < offset + 8 {
-            println!("❌ Account data too short for reserve_balance");
-            continue;
-        }
-        let reserve_balance = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid reserve_balance"))?);
-        offset += 8;
-        
-        if account.data.len() < offset + 8 {
-            println!("❌ Account data too short for token_supply");
-            continue;
-        }
-        let token_supply = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid token_supply"))?);
-        offset += 8;
-        
-        if account.data.len() < offset + 8 {
-            println!("❌ Account data too short for curve_exponent");
-            continue;
-        }
-        let curve_exponent = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid curve_exponent"))?);
-        offset += 8;
-        
-        if account.data.len() < offset + 32 {
-            println!("❌ Account data too short for sol_vault");
-            continue;
-        }
-        let sol_vault = Pubkey::try_from(&account.data[offset..offset + 32]).map_err(|_| anyhow!("Invalid sol_vault pubkey"))?;
-        offset += 32;
-        
-        if account.data.len() < offset + 8 {
-            println!("❌ Account data too short for curve_slope");
-            continue;
-        }
-        let curve_slope = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid curve_slope"))?);
-        offset += 8;
-        
-        if account.data.len() < offset + 8 {
-            println!("❌ Account data too short for base_price");
-            continue;
-        }
-        let base_price = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid base_price"))?);
-        offset += 8;
-        
-        // Parse max_price (Option<u64>)
-        if account.data.len() < offset + 1 {
-            println!("❌ Account data too short for max_price option");
-            continue;
-        }
-        let max_price_some = account.data[offset] != 0;
-        offset += 1;
-        let max_price = if max_price_some {
-            if account.data.len() < offset + 8 {
-                println!("❌ Account data too short for max_price value");
-                continue;
-            }
-            let value = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid max_price value"))?);
-            offset += 8;
-            Some(value)
-        } else {
-            None
-        };
-        
-        if account.data.len() < offset + 1 {
-            println!("❌ Account data too short for use_bonding_curve");
-            continue;
-        }
-        let use_bonding_curve = account.data[offset] != 0;
-        offset += 1;
-        
-        if account.data.len() < offset + 8 {
-            println!("❌ Account data too short for flat_price_per_token");
-            continue;
-        }
-        let flat_price_per_token = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid flat_price_per_token"))?);
-        offset += 8;
         
         println!("✅ Successfully parsed VampState data");
         println!("   Solver PK length: {}", solver_public_key.len());
         println!("   Validator PK length: {}", validator_public_key.len());
         println!("   Intent ID length: {}", intent_id.len());
-        println!("   Total claimed: {}", total_claimed);
-        println!("   Reserve balance: {}", reserve_balance);
-        println!("   Token supply: {}", token_supply);
-        println!("   Curve exponent: {}", curve_exponent);
-        println!("   SOL vault: {}", sol_vault);
-        println!("   Curve slope: {}", curve_slope);
-        println!("   Base price: {}", base_price);
-        println!("   Max price: {:?}", max_price);
-        println!("   Use bonding curve: {}", use_bonding_curve);
-        println!("   Flat price per token: {}", flat_price_per_token);
         
         return Ok(VampState {
             solver_public_key,

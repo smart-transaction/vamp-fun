@@ -78,6 +78,25 @@ pub struct Args {
 
     #[arg(long)]
     pub default_solana_cluster: String,
+
+    // Vamping configuration parameters
+    #[arg(long, default_value_t = false)]
+    pub paid_claiming_enabled: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub use_bonding_curve: bool,
+
+    #[arg(long, default_value_t = 1)]
+    pub curve_slope: u64,
+
+    #[arg(long, default_value_t = 100)]
+    pub base_price: u64,
+
+    #[arg(long, default_value_t = 1000)]
+    pub max_price: u64,
+
+    #[arg(long, default_value_t = 1)]
+    pub flat_price_per_token: u64,
 }
 
 #[tokio::main]
@@ -124,6 +143,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         args.private_key.clone(),
         solana_payer_keypair.clone(),
         solana_program.clone(),
+        args.paid_claiming_enabled,
+        args.use_bonding_curve,
+        args.curve_slope,
+        args.base_price,
+        args.max_price,
+        args.flat_price_per_token,
     );
     if let Some(quicknode_api_key) = args.quicknode_api_key {
         if quicknode_api_key.len() == 0 {

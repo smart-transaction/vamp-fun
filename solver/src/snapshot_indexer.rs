@@ -55,13 +55,32 @@ pub struct SnapshotIndexer {
     private_key: LocalWallet,
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,
+    // Vamping configuration parameters
+    paid_claiming_enabled: bool,
+    use_bonding_curve: bool,
+    curve_slope: u64,
+    base_price: u64,
+    max_price: u64,
+    flat_price_per_token: u64,
 }
 
 const BLOCK_STEP: usize = 9990;
 
 impl SnapshotIndexer {
-    pub fn new(db_conn: DbConn, validator_url: String, orchestrator_url: String, private_key: 
-    LocalWallet, solana_payer_keypair: Arc<Keypair>, solana_program: Arc<Program<Arc<Keypair>>>) -> Self {
+    pub fn new(
+        db_conn: DbConn, 
+        validator_url: String, 
+        orchestrator_url: String, 
+        private_key: LocalWallet, 
+        solana_payer_keypair: Arc<Keypair>, 
+        solana_program: Arc<Program<Arc<Keypair>>>,
+        paid_claiming_enabled: bool,
+        use_bonding_curve: bool,
+        curve_slope: u64,
+        base_price: u64,
+        max_price: u64,
+        flat_price_per_token: u64,
+    ) -> Self {
         Self {
             chain_info: HashMap::new(),
             quicknode_chains: HashMap::new(),
@@ -71,6 +90,12 @@ impl SnapshotIndexer {
             private_key,
             solana_payer_keypair,
             solana_program,
+            paid_claiming_enabled,
+            use_bonding_curve,
+            curve_slope,
+            base_price,
+            max_price,
+            flat_price_per_token,
         }
     }
 
@@ -125,6 +150,14 @@ impl SnapshotIndexer {
         let solana_program = self.solana_program.clone();
         let validator_url = self.validator_url.clone();
         let orchestrator_url = self.orchestrator_url.clone();
+        
+        // Clone vamping parameters to avoid lifetime issues
+        let paid_claiming_enabled = self.paid_claiming_enabled;
+        let use_bonding_curve = self.use_bonding_curve;
+        let curve_slope = self.curve_slope;
+        let base_price = self.base_price;
+        let max_price = self.max_price;
+        let flat_price_per_token = self.flat_price_per_token;
 
         spawn(async move {
             let first_block = prev_block_number.unwrap_or(0) + 1;
@@ -219,6 +252,7 @@ impl SnapshotIndexer {
             // Sending the token supply to processor
             let chain_id = request_data.chain_id.clone();
             let erc20_address = request_data.erc20_address.clone();
+            
             if let Err(err) = process_and_send_snapshot(
                 request_data,
                 total_amount,
@@ -230,6 +264,12 @@ impl SnapshotIndexer {
                 private_key,
                 solana_payer_keypair,
                 solana_program,
+                paid_claiming_enabled,
+                use_bonding_curve,
+                curve_slope,
+                base_price,
+                max_price,
+                flat_price_per_token,
             )
             .await
             {

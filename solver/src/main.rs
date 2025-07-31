@@ -80,16 +80,16 @@ pub struct Args {
     pub default_solana_cluster: String,
 
     // Vamping configuration parameters
-    #[arg(long, default_value_t = false)]
+    #[arg(long, default_value_t = false, num_args(0..=1), value_parser = clap::value_parser!(bool))]
     pub paid_claiming_enabled: bool,
 
-    #[arg(long, default_value_t = false)]
+    #[arg(long, default_value_t = false, num_args(0..=1), value_parser = clap::value_parser!(bool))]
     pub use_bonding_curve: bool,
 
     #[arg(long, default_value_t = 1)]
     pub curve_slope: u64,
 
-    #[arg(long, default_value_t = 100)]
+    #[arg(long, default_value_t = 1)]
     pub base_price: u64,
 
     #[arg(long, default_value_t = 1000)]

@@ -14,6 +14,8 @@ use solana_sdk::{
 use spl_associated_token_account::get_associated_token_address;
 use spl_token;
 use std::str::FromStr;
+use reqwest;
+use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -30,11 +32,35 @@ struct Args {
     #[arg(long, help = "Path to Ethereum private key file")]
     ethereum_wallet: Option<String>,
     
-    #[arg(long, help = "Path to file containing IPFS balance data")]
-    ipfs_balance_file: String,
+    #[arg(long, help = "Path to file containing IPFS balance data (optional if using solver API)")]
+    ipfs_balance_file: Option<String>,
     
-    #[arg(long, help = "Mint account address")]
+    #[arg(long, help = "Mint account address (optional if using solver API)")]
+    mint_account_address: Option<String>,
+    
+    #[arg(long, default_value = "https://34-36-3-154.nip.io", help = "Solver REST API URL")]
+    solver_api_url: String,
+    
+    #[arg(long, help = "Token address (ERC20 contract address)")]
+    token_address: Option<String>,
+    
+    #[arg(long, default_value = "21363", help = "Chain ID")]
+    chain_id: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SolverResponse {
+    token_address: String,
+    user_address: String,
+    amount: String,
+    decimals: u8,
+    target_txid: String,
+    solver_signature: String,
+    validator_signature: String,
     mint_account_address: String,
+    token_spl_address: String,
+    root_intent_cid: String,
+    intent_id: String,
 }
 
 #[derive(Debug)]
@@ -43,7 +69,6 @@ struct ClaimData {
     balance: u64,
     solver_signature: [u8; 65],
     validator_signature: [u8; 65],
-
 }
 
 #[derive(Debug)]
@@ -51,6 +76,17 @@ struct VampState {
     solver_public_key: Vec<u8>,
     validator_public_key: Vec<u8>,
     intent_id: Vec<u8>,
+    total_claimed: u64,
+    reserve_balance: u64,
+    token_supply: u64,
+    curve_exponent: u64,
+    sol_vault: Pubkey,
+    curve_slope: u64,
+    base_price: u64,
+    max_price: Option<u64>,
+    use_bonding_curve: bool,
+    flat_price_per_token: u64,
+    paid_claiming_enabled: bool,
 }
 
 fn main() -> Result<()> {
@@ -100,33 +136,82 @@ fn main() -> Result<()> {
     
     println!("🔍 Using Ethereum address: 0x{}", hex::encode(&eth_address_array));
     
-    let mint_pubkey = Pubkey::from_str(&args.mint_account_address)?;
+    // Determine mint account address and fetch vamping data
+    let (mint_pubkey, vamping_data) = if let Some(mint_addr) = args.mint_account_address {
+        // Use provided mint account address
+        let mint_pubkey = Pubkey::from_str(&mint_addr)?;
+        println!("🔗 Using provided mint account address: {}", mint_pubkey);
+        
+        // Fetch vamping data from solver API
+        let vamping_data = fetch_vamping_data_from_solver(&args.solver_api_url, args.chain_id, &args.token_address, &eth_address_array)?;
+        
+        (mint_pubkey, vamping_data)
+    } else {
+        // Fetch mint account address and vamping data from solver API
+        println!("🔗 Fetching mint account address and vamping data from solver API...");
+        let vamping_data = fetch_vamping_data_from_solver(&args.solver_api_url, args.chain_id, &args.token_address, &eth_address_array)?;
+        let mint_pubkey = Pubkey::from_str(&vamping_data.mint_account_address)?;
+        println!("🔗 Fetched mint account address: {}", mint_pubkey);
+        
+        (mint_pubkey, vamping_data)
+    };
     
-    // Read IPFS data from file
-    let ipfs_data = std::fs::read_to_string(&args.ipfs_balance_file)
-        .map_err(|e| anyhow!("Failed to read IPFS balance file from {}: {}", args.ipfs_balance_file, e))?
-        .trim()
-        .to_string();
+    // Fetch IPFS balance data
+    let ipfs_data = if let Some(path) = args.ipfs_balance_file {
+        // Use provided IPFS balance file
+        println!("📁 Reading IPFS balance data from file: {}", path);
+        std::fs::read_to_string(&path)
+            .map_err(|e| anyhow!("Failed to read IPFS balance file from {}: {}", path, e))?
+            .trim()
+            .to_string()
+    } else {
+        // Fetch IPFS balance data dynamically
+        println!("🌐 Fetching IPFS balance data from: {}", vamping_data.root_intent_cid);
+        let ipfs_url = format!("https://ipfs.io/ipfs/{}/0x{}.json", 
+            vamping_data.root_intent_cid, 
+            hex::encode(&eth_address_array));
+        println!("🔗 IPFS URL: {}", ipfs_url);
+        
+        let response = reqwest::blocking::get(&ipfs_url)
+            .map_err(|e| anyhow!("Failed to fetch IPFS data: {}", e))?;
+        
+        if !response.status().is_success() {
+            return Err(anyhow!("Failed to fetch IPFS data: HTTP {}", response.status()));
+        }
+        
+        response.text()
+            .map_err(|e| anyhow!("Failed to read IPFS response: {}", e))?
+    };
     
     println!("📡 Fetching VampState for mint: {}", mint_pubkey);
-    
-    // Fetch VampState to get intent_id and public keys
     let vamp_state = fetch_vamp_state(&client, &mint_pubkey)?;
-    println!("✅ Found VampState:");
-    println!("   Solver PK: 0x{}", hex::encode(&vamp_state.solver_public_key));
-    println!("   Validator PK: 0x{}", hex::encode(&vamp_state.validator_public_key));
-    println!("   Intent ID: 0x{}", hex::encode(&vamp_state.intent_id));
     
-    // Parse IPFS data
+    println!("📋 Parsing IPFS data...");
     let claim_data = parse_ipfs_data(&ipfs_data, &eth_address_array, &vamp_state.intent_id)?;
-    println!("✅ Parsed IPFS data:");
-    println!("   Balance: {}", claim_data.balance);
-    println!("   Solver sig: 0x{}", hex::encode(&claim_data.solver_signature));
-    println!("   Validator sig: 0x{}", hex::encode(&claim_data.validator_signature));
     
-    // Generate ownership signature
+    // Calculate expected claim cost
+    println!("💰 Calculating expected claim cost...");
+    let expected_cost = calculate_expected_claim_cost(
+        claim_data.balance,
+        vamp_state.total_claimed,
+        vamp_state.curve_slope,
+        vamp_state.base_price,
+        vamp_state.max_price,
+        vamp_state.use_bonding_curve,
+        vamp_state.flat_price_per_token,
+    )?;
+    
+    println!("💡 Expected claim cost: {} lamports ({:.9} SOL)", 
+        expected_cost, 
+        expected_cost as f64 / 1_000_000_000.0
+    );
+    
+    if expected_cost > 1_000_000_000 {
+        println!("⚠️  WARNING: Claim cost is very high! Consider claiming a smaller amount.");
+    }
+    
+    println!("✍️  Generating ownership signature...");
     let ownership_signature = generate_ownership_signature(&eth_secret_key, &claim_data, &vamp_state.intent_id)?;
-    println!("✅ Generated ownership signature: 0x{}", hex::encode(&ownership_signature));
     
     // Check SOL balance
     let balance = client.get_balance(&solana_keypair.pubkey())?;
@@ -140,20 +225,51 @@ fn main() -> Result<()> {
         println!("✅ Sufficient SOL balance for transaction");
     }
     
-    // Execute claim transaction
     println!("🚀 Executing claim transaction...");
-    let signature = execute_claim_transaction(
-        &client,
-        &solana_keypair,
-        &mint_pubkey,
-        &claim_data,
-        &ownership_signature,
-    )?;
+    let signature = execute_claim_transaction(&client, &solana_keypair, &mint_pubkey, &claim_data, &ownership_signature)?;
     
     println!("✅ Claim transaction successful!");
-    println!("   Signature: {}", signature);
+    println!("📝 Transaction signature: {}", signature);
     
     Ok(())
+}
+
+fn fetch_vamping_data_from_solver(
+    solver_api_url: &str,
+    chain_id: u64,
+    token_address: &Option<String>,
+    user_address: &[u8; 20],
+) -> Result<SolverResponse> {
+    let token_addr = token_address.as_ref()
+        .ok_or_else(|| anyhow!("Token address is required when fetching from solver API"))?;
+    
+    let user_addr_hex = hex::encode(user_address);
+    
+    let url = format!(
+        "{}/get_claim_amount?chain_id={}&token_address={}&user_address=0x{}",
+        solver_api_url, chain_id, token_addr, user_addr_hex
+    );
+    
+    println!("🔗 Fetching vamping data from: {}", url);
+    
+    let response = reqwest::blocking::get(&url)
+        .map_err(|e| anyhow!("Failed to fetch vamping data: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(anyhow!("Failed to fetch vamping data: HTTP {}", response.status()));
+    }
+    
+    let vamping_data: SolverResponse = response.json()
+        .map_err(|e| anyhow!("Failed to parse vamping data: {}", e))?;
+    
+    println!("✅ Fetched vamping data:");
+    println!("   Token address: {}", vamping_data.token_address);
+    println!("   User address: {}", vamping_data.user_address);
+    println!("   Amount: {}", vamping_data.amount);
+    println!("   Mint account: {}", vamping_data.mint_account_address);
+    println!("   Root intent CID: {}", vamping_data.root_intent_cid);
+    
+    Ok(vamping_data)
 }
 
 fn fetch_vamp_state(client: &RpcClient, mint_pubkey: &Pubkey) -> Result<VampState> {
@@ -273,15 +389,147 @@ fn fetch_vamp_state(client: &RpcClient, mint_pubkey: &Pubkey) -> Result<VampStat
         }
         let intent_id = account.data[offset..offset + intent_id_len as usize].to_vec();
         
+        // Parse total_claimed
+        if account.data.len() < offset + 8 {
+            println!("❌ Account data too short for total_claimed");
+            continue;
+        }
+        let total_claimed = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid total_claimed"))?);
+        offset += 8;
+        println!("   Total claimed: {}", total_claimed);
+
+        // Parse reserve_balance
+        if account.data.len() < offset + 8 {
+            println!("❌ Account data too short for reserve_balance");
+            continue;
+        }
+        let reserve_balance = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid reserve_balance"))?);
+        offset += 8;
+        println!("   Reserve balance: {}", reserve_balance);
+
+        // Parse token_supply
+        if account.data.len() < offset + 8 {
+            println!("❌ Account data too short for token_supply");
+            continue;
+        }
+        let token_supply = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid token_supply"))?);
+        offset += 8;
+        println!("   Token supply: {}", token_supply);
+
+        // Parse curve_exponent
+        if account.data.len() < offset + 8 {
+            println!("❌ Account data too short for curve_exponent");
+            continue;
+        }
+        let curve_exponent = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid curve_exponent"))?);
+        offset += 8;
+        println!("   Curve exponent: {}", curve_exponent);
+
+        // Parse sol_vault
+        if account.data.len() < offset + 32 {
+            println!("❌ Account data too short for sol_vault");
+            continue;
+        }
+        let sol_vault = Pubkey::try_from(&account.data[offset..offset + 32]).map_err(|_| anyhow!("Invalid sol_vault"))?;
+        offset += 32;
+        println!("   SOL Vault: {}", sol_vault);
+
+        // Parse curve_slope
+        if account.data.len() < offset + 8 {
+            println!("❌ Account data too short for curve_slope");
+            continue;
+        }
+        let curve_slope = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid curve_slope"))?);
+        offset += 8;
+        println!("   Curve slope: {}", curve_slope);
+
+        // Parse base_price
+        if account.data.len() < offset + 8 {
+            println!("❌ Account data too short for base_price");
+            continue;
+        }
+        let base_price = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid base_price"))?);
+        offset += 8;
+        println!("   Base price: {}", base_price);
+
+        // Parse max_price (Option<u64> - first byte indicates if Some, then 8 bytes for the value)
+        if account.data.len() < offset + 1 {
+            println!("❌ Account data too short for max_price option");
+            continue;
+        }
+        let max_price = if account.data[offset] != 0 {
+            offset += 1;
+            if account.data.len() < offset + 8 {
+                println!("❌ Account data too short for max_price value");
+                continue;
+            }
+            let value = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid max_price value"))?);
+            offset += 8;
+            Some(value)
+        } else {
+            offset += 1;
+            None
+        };
+        println!("   Max price: {}", max_price.unwrap_or(0));
+
+        // Parse use_bonding_curve
+        if account.data.len() < offset + 1 {
+            println!("❌ Account data too short for use_bonding_curve");
+            continue;
+        }
+        let use_bonding_curve = account.data[offset] != 0;
+        offset += 1;
+        println!("   Use bonding curve: {}", use_bonding_curve);
+
+        // Parse flat_price_per_token
+        if account.data.len() < offset + 8 {
+            println!("❌ Account data too short for flat_price_per_token");
+            continue;
+        }
+        let flat_price_per_token = u64::from_le_bytes(account.data[offset..offset + 8].try_into().map_err(|_| anyhow!("Invalid flat_price_per_token"))?);
+        offset += 8;
+        println!("   Flat price per token: {}", flat_price_per_token);
+
+        // Parse paid_claiming_enabled
+        if account.data.len() < offset + 1 {
+            println!("❌ Account data too short for paid_claiming_enabled");
+            continue;
+        }
+        let paid_claiming_enabled = account.data[offset] != 0;
+        offset += 1;
+        println!("   Paid claiming enabled: {}", paid_claiming_enabled);
+        
         println!("✅ Successfully parsed VampState data");
         println!("   Solver PK length: {}", solver_public_key.len());
         println!("   Validator PK length: {}", validator_public_key.len());
         println!("   Intent ID length: {}", intent_id.len());
+        println!("   Total claimed: {}", total_claimed);
+        println!("   Reserve balance: {}", reserve_balance);
+        println!("   Token supply: {}", token_supply);
+        println!("   Curve exponent: {}", curve_exponent);
+        println!("   SOL Vault: {}", sol_vault);
+        println!("   Curve slope: {}", curve_slope);
+        println!("   Base price: {}", base_price);
+        println!("   Max price: {}", max_price.unwrap_or(0));
+        println!("   Use bonding curve: {}", use_bonding_curve);
+        println!("   Flat price per token: {}", flat_price_per_token);
+        println!("   Paid claiming enabled: {}", paid_claiming_enabled);
         
         return Ok(VampState {
             solver_public_key,
             validator_public_key,
             intent_id,
+            total_claimed,
+            reserve_balance,
+            token_supply,
+            curve_exponent,
+            sol_vault,
+            curve_slope,
+            base_price,
+            max_price,
+            use_bonding_curve,
+            flat_price_per_token,
+            paid_claiming_enabled,
         });
     }
     
@@ -507,4 +755,65 @@ fn create_claim_instruction_data(claim_data: &ClaimData, ownership_signature: &[
     data.extend_from_slice(ownership_signature);
     
     Ok(data)
+} 
+
+fn calculate_expected_claim_cost(
+    token_amount: u64,
+    total_claimed: u64,
+    curve_slope: u64,
+    base_price: u64,
+    max_price: Option<u64>,
+    use_bonding_curve: bool,
+    flat_price_per_token: u64,
+) -> Result<u64> {
+    if !use_bonding_curve {
+        // Flat price calculation
+        let cost = token_amount
+            .checked_mul(flat_price_per_token)
+            .ok_or_else(|| anyhow!("Arithmetic overflow in flat price calculation"))?;
+        
+        // Cap at 0.1 SOL (100,000,000 lamports)
+        Ok(cost.min(100_000_000))
+    } else {
+        // Bonding curve calculation
+        let x1 = total_claimed;
+        let x2 = x1
+            .checked_add(token_amount)
+            .ok_or_else(|| anyhow!("Arithmetic overflow in token amount addition"))?;
+
+        // Calculate delta tokens
+        let delta_tokens = x2 - x1;
+
+        // Part 1: (curve_slope * delta_tokens^2) / 1000000
+        let delta_squared = delta_tokens
+            .checked_mul(delta_tokens)
+            .ok_or_else(|| anyhow!("Arithmetic overflow in delta squared calculation"))?;
+        
+        let part1 = delta_squared
+            .checked_mul(curve_slope)
+            .ok_or_else(|| anyhow!("Arithmetic overflow in part1 calculation"))?
+            .checked_div(1000000)
+            .ok_or_else(|| anyhow!("Division by zero in part1 calculation"))?;
+
+        // Part 2: base_price * delta_tokens
+        let part2 = delta_tokens
+            .checked_mul(base_price)
+            .ok_or_else(|| anyhow!("Arithmetic overflow in part2 calculation"))?;
+
+        // Total cost
+        let total_cost = part1
+            .checked_add(part2)
+            .ok_or_else(|| anyhow!("Arithmetic overflow in total cost calculation"))?;
+
+        // Price capping logic
+        if let Some(max_price_per_token) = max_price {
+            let max_total_cost = delta_tokens
+                .checked_mul(max_price_per_token)
+                .ok_or_else(|| anyhow!("Arithmetic overflow in max total cost calculation"))?;
+            
+            Ok(total_cost.min(max_total_cost))
+        } else {
+            Ok(total_cost)
+        }
+    }
 } 

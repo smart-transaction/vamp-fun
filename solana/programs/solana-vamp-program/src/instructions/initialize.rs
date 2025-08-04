@@ -12,8 +12,8 @@ use anchor_spl::{
 
 // Controls how quickly price rises - using a much smaller value for gentler curve
 const CURVE_SLOPE: u64 = 1;                     // Much smaller slope for gentler curve
-const BASE_PRICE: u64 = 100;                    // Much lower base price in lamports
-const MAX_PRICE: u64 = 1_000;                   // Much lower max price per token in lamports
+const BASE_PRICE: u64 = 10_000_000;             // 0.01 SOL base price in lamports
+const MAX_PRICE: u64 = 100_000_000;             // 0.1 SOL max price per token in lamports
 
 // Structure for vamping parameters
 #[derive(Clone)]

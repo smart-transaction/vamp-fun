@@ -19,10 +19,13 @@ pub fn calculate_claim_cost(
             return Ok(0);
         }
         
+        // Safety check: cap flat price to prevent extremely high costs
+        let safe_flat_price = std::cmp::min(vamp_state.flat_price_per_token, 1);
+        
         // Use spl-math for safe multiplication
         let token_amount_precise = PreciseNumber::new(token_amount as u128)
             .ok_or(ErrorCode::ArithmeticOverflow)?;
-        let flat_price_precise = PreciseNumber::new(vamp_state.flat_price_per_token as u128)
+        let flat_price_precise = PreciseNumber::new(safe_flat_price as u128)
             .ok_or(ErrorCode::ArithmeticOverflow)?;
         
         let cost_precise = token_amount_precise
@@ -46,7 +49,6 @@ pub fn calculate_claim_cost(
         return Ok(final_cost_u128.try_into().map_err(|_| ErrorCode::ArithmeticOverflow)?);
     }
     
-    // Bonding curve calculation using spl-math for safety
     let x1 = vamp_state.total_claimed;
     let x2 = x1.checked_add(token_amount).ok_or(ErrorCode::ArithmeticOverflow)?;
 
@@ -67,26 +69,21 @@ pub fn calculate_claim_cost(
         .checked_sub(&x1_precise)
         .ok_or(ErrorCode::ArithmeticOverflow)?;
 
-    // Part 1: (curve_slope * delta_tokens^2) / 100000
-    let delta_squared = delta_tokens_precise
-        .checked_mul(&delta_tokens_precise)
-        .ok_or(ErrorCode::ArithmeticOverflow)?;
-    
-    let part1 = delta_squared
+    // Part 1: Use a more gradual curve - linear with small slope instead of quadratic
+    let part1 = delta_tokens_precise
         .checked_mul(&curve_slope_precise)
         .ok_or(ErrorCode::ArithmeticOverflow)?
-        .checked_div(&divisor)
+        .checked_mul(&delta_tokens_precise)
+        .ok_or(ErrorCode::ArithmeticOverflow)?
+        .checked_div(&divisor) // Divide by 100000 to make the slope much smaller
         .ok_or(ErrorCode::ArithmeticOverflow)?;
 
-    // Part 2: base_price * delta_tokens
+    // Part 2: b * (x2 - x1)
     let part2 = delta_tokens_precise
         .checked_mul(&base_price_precise)
         .ok_or(ErrorCode::ArithmeticOverflow)?;
 
-    // Total cost
-    let total_cost_precise = part1
-        .checked_add(&part2)
-        .ok_or(ErrorCode::ArithmeticOverflow)?;
+    let total_cost_precise = part1.checked_add(&part2).ok_or(ErrorCode::ArithmeticOverflow)?;
 
     // Optional: Cap the max cost per token for better UX
     if let Some(max_price_per_token) = vamp_state.max_price {

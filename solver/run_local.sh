@@ -11,14 +11,6 @@ PRIVATE_KEY=0xa16244600268d2379a6e22b0dc1d6064d714b43b346a434f3fd50831103f56bf
 SOLANA_PRIVATE_KEY=5uw3Qy49XG31tVAScho8Ww32A9bjXc3iDVtzdvtPRK6iz3hmp9XYFKBcGNJ1j53gUXoiQDQcFQDuhcmb4ieMb4bR
 DEFAULT_SOLANA_CLUSTER=DEVNET
 
-# Vamping configuration parameters
-PAID_CLAIMING_ENABLED=false
-USE_BONDING_CURVE=false
-CURVE_SLOPE=1
-BASE_PRICE=100
-MAX_PRICE=1000
-FLAT_PRICE_PER_TOKEN=1
-
 cargo run \
   -- \
   --request-registrator-url=${REQUEST_REGISTRATOR_URL} \
@@ -32,11 +24,5 @@ cargo run \
   --poll-frequency-secs=${POLL_FREQUENCY_SECS} \
   --private-key=${PRIVATE_KEY} \
   --solana-private-key=${SOLANA_PRIVATE_KEY} \
-  --default-solana-cluster=${DEFAULT_SOLANA_CLUSTER} \
-  --paid-claiming-enabled=${PAID_CLAIMING_ENABLED} \
-  --use-bonding-curve=${USE_BONDING_CURVE} \
-  --curve-slope=${CURVE_SLOPE} \
-  --base-price=${BASE_PRICE} \
-  --max-price=${MAX_PRICE} \
-  --flat-price-per-token=${FLAT_PRICE_PER_TOKEN}
+  --default-solana-cluster=${DEFAULT_SOLANA_CLUSTER}
   

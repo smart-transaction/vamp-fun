@@ -17,6 +17,13 @@ pub struct DeployTokenHandler {
     pub token_uri_name: [u8; 32],
     pub token_decimal_name: [u8; 32],
     pub solana_cluster_name: [u8; 32],
+    // Vamping parameters from additional_data
+    pub paid_claiming_enabled_name: [u8; 32],
+    pub use_bonding_curve_name: [u8; 32],
+    pub curve_slope_name: [u8; 32],
+    pub base_price_name: [u8; 32],
+    pub max_price_name: [u8; 32],
+    pub flat_price_per_token_name: [u8; 32],
     pub stats: Arc<Mutex<IndexerProcesses>>,
     pub default_solana_cluster: String,
 }
@@ -27,6 +34,13 @@ const TOKEN_SYMBOL_NAME: &str = "TokenSymbolName";
 const TOKEN_URI_NAME: &str = "TokenURI";
 const TOKEN_DECIMAL_NAME: &str = "TokenDecimal";
 const SOLANA_CLUSTER: &str = "SolanaCluster";
+// Vamping parameters from additional_data
+const PAID_CLAIMING_ENABLED: &str = "PaidClaimingEnabled";
+const USE_BONDING_CURVE: &str = "UseBondingCurve";
+const CURVE_SLOPE: &str = "CurveSlope";
+const BASE_PRICE: &str = "BasePrice";
+const MAX_PRICE: &str = "MaxPrice";
+const FLAT_PRICE_PER_TOKEN: &str = "FlatPricePerToken";
 
 impl DeployTokenHandler {
     pub fn new(indexer: Arc<SnapshotIndexer>, indexing_stats: Arc<Mutex<IndexerProcesses>>, default_solana_cluster: String) -> Self {
@@ -38,6 +52,12 @@ impl DeployTokenHandler {
             token_uri_name: keccak256(TOKEN_URI_NAME.as_bytes()),
             token_decimal_name: keccak256(TOKEN_DECIMAL_NAME.as_bytes()),
             solana_cluster_name: keccak256(SOLANA_CLUSTER.as_bytes()),
+            paid_claiming_enabled_name: keccak256(PAID_CLAIMING_ENABLED.as_bytes()),
+            use_bonding_curve_name: keccak256(USE_BONDING_CURVE.as_bytes()),
+            curve_slope_name: keccak256(CURVE_SLOPE.as_bytes()),
+            base_price_name: keccak256(BASE_PRICE.as_bytes()),
+            max_price_name: keccak256(MAX_PRICE.as_bytes()),
+            flat_price_per_token_name: keccak256(FLAT_PRICE_PER_TOKEN.as_bytes()),
             stats: indexing_stats,
             default_solana_cluster,
         };
@@ -47,6 +67,12 @@ impl DeployTokenHandler {
         info!("token_uri_name: {:?}", handler.token_uri_name);
         info!("token_decimal_name: {:?}", handler.token_decimal_name);
         info!("solana_cluster_name: {:?}", handler.solana_cluster_name);
+        info!("paid_claiming_enabled_name: {:?}", handler.paid_claiming_enabled_name);
+        info!("use_bonding_curve_name: {:?}", handler.use_bonding_curve_name);
+        info!("curve_slope_name: {:?}", handler.curve_slope_name);
+        info!("base_price_name: {:?}", handler.base_price_name);
+        info!("max_price_name: {:?}", handler.max_price_name);
+        info!("flat_price_per_token_name: {:?}", handler.flat_price_per_token_name);
         handler
     }
 
@@ -76,6 +102,40 @@ impl DeployTokenHandler {
                 request_data.token_decimal = add_data.value[0];
             } else if add_data.key == self.solana_cluster_name {
                 request_data.solana_cluster = SolanaCluster::from_str_name(String::from_utf8(add_data.value).unwrap().as_str());
+            } else if add_data.key == self.paid_claiming_enabled_name {
+                if add_data.value.len() != 1 {
+                    return Err("Invalid paid_claiming_enabled length".into());
+                }
+                request_data.paid_claiming_enabled = Some(add_data.value[0] != 0);
+            } else if add_data.key == self.use_bonding_curve_name {
+                if add_data.value.len() != 1 {
+                    return Err("Invalid use_bonding_curve length".into());
+                }
+                request_data.use_bonding_curve = Some(add_data.value[0] != 0);
+            } else if add_data.key == self.curve_slope_name {
+                if add_data.value.len() != 8 {
+                    return Err("Invalid curve_slope length".into());
+                }
+                let curve_slope = u64::from_le_bytes(add_data.value.try_into().unwrap());
+                request_data.curve_slope = Some(curve_slope);
+            } else if add_data.key == self.base_price_name {
+                if add_data.value.len() != 8 {
+                    return Err("Invalid base_price length".into());
+                }
+                let base_price = u64::from_le_bytes(add_data.value.try_into().unwrap());
+                request_data.base_price = Some(base_price);
+            } else if add_data.key == self.max_price_name {
+                if add_data.value.len() != 8 {
+                    return Err("Invalid max_price length".into());
+                }
+                let max_price = u64::from_le_bytes(add_data.value.try_into().unwrap());
+                request_data.max_price = Some(max_price);
+            } else if add_data.key == self.flat_price_per_token_name {
+                if add_data.value.len() != 8 {
+                    return Err("Invalid flat_price_per_token length".into());
+                }
+                let flat_price_per_token = u64::from_le_bytes(add_data.value.try_into().unwrap());
+                request_data.flat_price_per_token = Some(flat_price_per_token);
             }
         }
         // Check if the solana cluster is present in the request. If not, setting up the default one.

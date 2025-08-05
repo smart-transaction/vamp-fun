@@ -52,12 +52,6 @@ pub async fn process_and_send_snapshot(
     eth_private_key: LocalWallet,
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,
-    paid_claiming_enabled: bool,
-    use_bonding_curve: bool,
-    curve_slope: u64,
-    base_price: u64,
-    max_price: u64,
-    flat_price_per_token: u64,
 ) -> Result<(), Box<dyn Error>> {
     info!("Received indexed snapshot for intent_id: {}", hex::encode(&request_data.intent_id));
     {
@@ -189,12 +183,12 @@ pub async fn process_and_send_snapshot(
         validator_public_key: hex::decode(vamp_validated_details.validator_address.strip_prefix("0x").unwrap_or(&vamp_validated_details.validator_address))?,
         intent_id: request_data.intent_id.clone(),
         vamping_params: Some(crate::use_proto::proto::VampingParamsProto {
-            paid_claiming_enabled,
-            use_bonding_curve,
-            curve_slope,
-            base_price,
-            max_price: Some(max_price),
-            flat_price_per_token,
+            paid_claiming_enabled: request_data.paid_claiming_enabled.unwrap_or(false),
+            use_bonding_curve: request_data.use_bonding_curve.unwrap_or(false),
+            curve_slope: request_data.curve_slope.unwrap_or(1),
+            base_price: request_data.base_price.unwrap_or(1),
+            max_price: request_data.max_price,
+            flat_price_per_token: request_data.flat_price_per_token.unwrap_or(1),
         }),
     };
 

@@ -56,4 +56,28 @@ Token decimal
                 key: keccak256("TokenDecimal"),
                 value: 9.to_little_endian_bytes(),  // uint8
           }
+          {
+                key: keccak256("PaidClaimingEnabled"),
+                value: 1.to_little_endian_bytes(),  // bool as uint8 (1 = true, 0 = false)
+          }
+          {
+                key: keccak256("UseBondingCurve"),
+                value: 1.to_little_endian_bytes(),  // bool as uint8 (1 = true, 0 = false)
+          }
+          {
+                key: keccak256("CurveSlope"),
+                value: 1u64.to_little_endian_bytes(),  // uint64
+          }
+          {
+                key: keccak256("BasePrice"),
+                value: 100u64.to_little_endian_bytes(),  // uint64
+          }
+          {
+                key: keccak256("MaxPrice"),
+                value: 1000u64.to_little_endian_bytes(),  // uint64
+          }
+          {
+                key: keccak256("FlatPricePerToken"),
+                value: 1u64.to_little_endian_bytes(),  // uint64
+          }
         ],

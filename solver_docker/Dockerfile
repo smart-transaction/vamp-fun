@@ -42,14 +42,6 @@ COPY --from=builder /usr/local/cargo/bin/vamp-fun-solver /usr/local/bin/vamp-fun
 # Add environment variable for runtime access
 ENV GIT_COMMIT=${GIT_COMMIT}
 
-# Vamping configuration parameters
-ENV PAID_CLAIMING_ENABLED=false
-ENV USE_BONDING_CURVE=false
-ENV CURVE_SLOPE=1
-ENV BASE_PRICE=100
-ENV MAX_PRICE=1000
-ENV FLAT_PRICE_PER_TOKEN=1
-
 EXPOSE 8000/tcp
 CMD \
    "vamp-fun-solver" \
@@ -66,10 +58,4 @@ CMD \
    "--quicknode-api-key=${QUICKNODE_API_KEY}" \
    "--private-key=${SOLVER_PRIVATE_KEY}" \
    "--solana-private-key=${SOLANA_PRIVATE_KEY}" \
-   "--default-solana-cluster=${DEFAULT_SOLANA_CLUSTER}" \
-   "--paid-claiming-enabled=${PAID_CLAIMING_ENABLED}" \
-   "--use-bonding-curve=${USE_BONDING_CURVE}" \
-   "--curve-slope=${CURVE_SLOPE}" \
-   "--base-price=${BASE_PRICE}" \
-   "--max-price=${MAX_PRICE}" \
-   "--flat-price-per-token=${FLAT_PRICE_PER_TOKEN}"
+   "--default-solana-cluster=${DEFAULT_SOLANA_CLUSTER}"

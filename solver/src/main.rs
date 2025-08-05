@@ -143,12 +143,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         args.private_key.clone(),
         solana_payer_keypair.clone(),
         solana_program.clone(),
-        args.paid_claiming_enabled,
-        args.use_bonding_curve,
-        args.curve_slope,
-        args.base_price,
-        args.max_price,
-        args.flat_price_per_token,
     );
     if let Some(quicknode_api_key) = args.quicknode_api_key {
         if quicknode_api_key.len() == 0 {

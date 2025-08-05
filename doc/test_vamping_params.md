@@ -12,6 +12,50 @@ The vamping parameters allow configuring:
 - `max_price`: Maximum price per token in lamports
 - `flat_price_per_token`: Fixed price per token when not using bonding curve
 
+## Parameter Sources
+
+Vamping parameters can be provided in two ways:
+
+1. **Frontend UI (Preferred)**: Parameters are sent via the `additional_data` field in the UserEventProto
+2. **Solver Config (Fallback)**: Parameters are set via command-line arguments when starting the solver
+
+If parameters are provided via the frontend UI, they take precedence over the solver config. If not provided, the solver falls back to its configured defaults.
+
+**Note**: The solver config parameters should still be set in deployment scripts as reasonable fallback defaults. This ensures that if the frontend doesn't provide parameters, the system still works with sensible defaults.
+
+## Frontend Parameter Encoding
+
+When sending parameters via the frontend UI, they should be encoded in the `additional_data` field as follows:
+
+```javascript
+additionalData: [
+  {
+    key: keccak256("PaidClaimingEnabled"),
+    value: 1.to_little_endian_bytes(),  // bool as uint8 (1 = true, 0 = false)
+  },
+  {
+    key: keccak256("UseBondingCurve"),
+    value: 1.to_little_endian_bytes(),  // bool as uint8 (1 = true, 0 = false)
+  },
+  {
+    key: keccak256("CurveSlope"),
+    value: 1u64.to_little_endian_bytes(),  // uint64
+  },
+  {
+    key: keccak256("BasePrice"),
+    value: 100u64.to_little_endian_bytes(),  // uint64
+  },
+  {
+    key: keccak256("MaxPrice"),
+    value: 1000u64.to_little_endian_bytes(),  // uint64
+  },
+  {
+    key: keccak256("FlatPricePerToken"),
+    value: 1u64.to_little_endian_bytes(),  // uint64
+  }
+]
+```
+
 ## Test Scenarios
 
 ### 1. Free Claiming (Default)

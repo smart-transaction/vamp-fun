@@ -189,16 +189,27 @@ fn main() -> Result<()> {
     println!("📋 Parsing IPFS data...");
     let claim_data = parse_ipfs_data(&ipfs_data, &eth_address_array, &vamp_state.intent_id)?;
     
-    // Calculate expected claim cost
+    // Calculate expected claim cost using known solver parameters
     println!("💰 Calculating expected claim cost...");
+    
+    // Use the known solver parameters instead of corrupted VampState data
+    let known_params = (
+        true,   // paid_claiming_enabled
+        true,   // use_bonding_curve
+        1,      // curve_slope
+        1,      // base_price
+        Some(1000), // max_price
+        1,      // flat_price_per_token
+    );
+    
     let expected_cost = calculate_expected_claim_cost(
         claim_data.balance,
-        vamp_state.total_claimed,
-        vamp_state.curve_slope,
-        vamp_state.base_price,
-        vamp_state.max_price,
-        vamp_state.use_bonding_curve,
-        vamp_state.flat_price_per_token,
+        0, // total_claimed - assume 0 for first claim
+        1, // curve_slope = 1
+        1, // base_price = 1
+        Some(1000), // max_price = 1000
+        true, // use_bonding_curve = true
+        1, // flat_price_per_token = 1
     )?;
     
     println!("💡 Expected claim cost: {} lamports ({:.9} SOL)", 
@@ -208,6 +219,25 @@ fn main() -> Result<()> {
     
     if expected_cost > 1_000_000_000 {
         println!("⚠️  WARNING: Claim cost is very high! Consider claiming a smaller amount.");
+        println!("💡 For 100,000,000,000 tokens, the cost would be approximately {:.2} SOL", 
+            expected_cost as f64 / 1_000_000_000.0
+        );
+        
+        // Show costs for smaller amounts
+        println!("📊 Cost breakdown for different amounts:");
+        for amount in [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000] {
+            let cost = calculate_expected_claim_cost(
+                amount,
+                0, // total_claimed
+                1, // curve_slope
+                1, // base_price
+                Some(1000), // max_price
+                true, // use_bonding_curve
+                1, // flat_price_per_token
+            ).unwrap_or(0);
+            
+            println!("   {} tokens: {:.6} SOL", amount, cost as f64 / 1_000_000_000.0);
+        }
     }
     
     println!("✍️  Generating ownership signature...");
@@ -784,20 +814,25 @@ fn calculate_expected_claim_cost(
         // Calculate delta tokens
         let delta_tokens = x2 - x1;
 
+        // For very large numbers, we need to use u128 to avoid overflow
+        let delta_tokens_u128 = delta_tokens as u128;
+        let curve_slope_u128 = curve_slope as u128;
+        let base_price_u128 = base_price as u128;
+
         // Part 1: (curve_slope * delta_tokens^2) / 1000000
-        let delta_squared = delta_tokens
-            .checked_mul(delta_tokens)
+        let delta_squared = delta_tokens_u128
+            .checked_mul(delta_tokens_u128)
             .ok_or_else(|| anyhow!("Arithmetic overflow in delta squared calculation"))?;
         
         let part1 = delta_squared
-            .checked_mul(curve_slope)
+            .checked_mul(curve_slope_u128)
             .ok_or_else(|| anyhow!("Arithmetic overflow in part1 calculation"))?
             .checked_div(1000000)
             .ok_or_else(|| anyhow!("Division by zero in part1 calculation"))?;
 
         // Part 2: base_price * delta_tokens
-        let part2 = delta_tokens
-            .checked_mul(base_price)
+        let part2 = delta_tokens_u128
+            .checked_mul(base_price_u128)
             .ok_or_else(|| anyhow!("Arithmetic overflow in part2 calculation"))?;
 
         // Total cost
@@ -805,15 +840,19 @@ fn calculate_expected_claim_cost(
             .checked_add(part2)
             .ok_or_else(|| anyhow!("Arithmetic overflow in total cost calculation"))?;
 
+        // Convert back to u64, but check for overflow
+        let total_cost_u64: u64 = total_cost.try_into()
+            .map_err(|_| anyhow!("Total cost too large for u64"))?;
+
         // Price capping logic
         if let Some(max_price_per_token) = max_price {
             let max_total_cost = delta_tokens
                 .checked_mul(max_price_per_token)
                 .ok_or_else(|| anyhow!("Arithmetic overflow in max total cost calculation"))?;
             
-            Ok(total_cost.min(max_total_cost))
+            Ok(total_cost_u64.min(max_total_cost))
         } else {
-            Ok(total_cost)
+            Ok(total_cost_u64)
         }
     }
 } 

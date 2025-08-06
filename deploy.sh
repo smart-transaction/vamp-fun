@@ -126,6 +126,7 @@ DB_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-db-image:live"
 ORCHESTRATOR_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-orchestrator-image:${OPT}"
 REQUEST_REGISTRATOR_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-request-registrator-image:${OPT}"
 VALIDATOR_VAMP_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-validator-vamp-image:${OPT}"
+FE_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-fe-image:${OPT}"
 REDIS_DOCKER_IMAGE=redis/redis-stack-server:latest
 
 # Create docker-compose.yml file.
@@ -286,6 +287,18 @@ services:
     volumes:
       - redis-data:/data
 
+  vamp_fun_fe:
+    container_name: vamp_fun_fe
+    image: ${FE_DOCKER_IMAGE}
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+        max-file: "15"
+
 volumes:
   mysql:
     name: vamp_fun_mysql
@@ -306,6 +319,7 @@ docker pull ${DB_DOCKER_IMAGE}
 docker pull ${ORCHESTRATOR_DOCKER_IMAGE}
 docker pull ${REQUEST_REGISTRATOR_DOCKER_IMAGE}
 docker pull ${VALIDATOR_VAMP_DOCKER_IMAGE}
+docker pull ${FE_DOCKER_IMAGE}
 docker pull ${REDIS_DOCKER_IMAGE}
 
 # Push configs into docker images.

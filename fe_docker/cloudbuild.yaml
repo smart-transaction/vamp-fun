@@ -1,0 +1,18 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '--build-arg', 'GIT_COMMIT=${_GIT_COMMIT}', '--build-arg', 'NEXT_PUBLIC_PROJECT_ID=${_NEXT_PUBLIC_PROJECT_ID}', '--build-arg', 'ALCHEMY_API_KEY=${_ALCHEMY_API_KEY}', '--build-arg', 'SOLVER_TESTNET_URL=${_SOLVER_TESTNET_URL}', '--build-arg', 'SOLVER_MAINNET_URL=${_SOLVER_MAINNET_URL}', '--build-arg', 'NEXT_PUBLIC_FORCE_SOLANA_NETWORK=${_NEXT_PUBLIC_FORCE_SOLANA_NETWORK}', '-t', '${_TAG}', '.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_TAG}']
+
+options:
+  machineType: 'E2_HIGHCPU_32'
+
+substitutions:
+  _TAG: 'override-this'
+  _GIT_COMMIT: 'unknown'
+  _NEXT_PUBLIC_PROJECT_ID: 'c3b36688e5b8c0314a3dc023ae6993c6'
+  _ALCHEMY_API_KEY: '8--9cFBklER0CvBMnrdMYwMzQZzvWSds'
+  _SOLVER_TESTNET_URL: 'https://34-36-3-154.nip.io'
+  _SOLVER_MAINNET_URL: 'https://api.solver.vamp.stxn.io'
+  _NEXT_PUBLIC_FORCE_SOLANA_NETWORK: 'devnet' 

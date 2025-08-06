@@ -7,7 +7,7 @@ pub struct Storage {
     client: Arc<redis::Client>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub enum RequestState {
     New,
     Validated,
@@ -67,13 +67,20 @@ impl Storage {
         solver_pubkey: &str,
         root_cid: &str,
     ) -> anyhow::Result<()> {
+        log::info!("Starting storage update for intent_id: {}", intent_id);
         let mut conn = self.client.get_multiplexed_async_connection().await?;
+        log::info!("Got Redis connection for intent_id: {}", intent_id);
+        
         let serialized: Option<String> = conn.hget(Self::REQUESTS_BY_INTENT_ID, intent_id).await?;
+        log::info!("Retrieved data from Redis for intent_id: {}, data exists: {}", intent_id, serialized.is_some());
+        
         let Some(data) = serialized else {
             anyhow::bail!("Intent not found for ID: {}", intent_id);
         };
 
         let mut request: StoredRequest = serde_json::from_str(&data)?;
+        log::info!("Deserialized request for intent_id: {}, current state: {:?}", intent_id, request.state);
+        
         request.state = RequestState::Validated;
         request.vamp_solution_validated_details = Some(VampSolutionValidatedDetails {
             solver_pubkey: solver_pubkey.to_string(),
@@ -81,7 +88,10 @@ impl Storage {
         });
 
         let updated = serde_json::to_string(&request)?;
+        log::info!("Serialized updated request for intent_id: {}", intent_id);
+        
         let _: () = conn.hset(Self::REQUESTS_BY_INTENT_ID, intent_id, updated).await?;
+        log::info!("Successfully updated Redis for intent_id: {}", intent_id);
         Ok(())
     }
 }

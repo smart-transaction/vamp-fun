@@ -140,6 +140,8 @@ impl ValidatorService for ValidatorGrpcService {
                     validator_address: format!("{:#x}", self.validator_wallet.address()),
                 };
 
+                log::info!("Created validated details for intent_id: {}, preparing to encode", req.intent_id);
+
                 let mut validated_details_bytes = Vec::with_capacity(validated_details.encoded_len());
                 validated_details.encode(&mut validated_details_bytes)
                     .map_err(|e| {
@@ -147,8 +149,11 @@ impl ValidatorService for ValidatorGrpcService {
                         Status::internal(format!("Validated details encode error: {e}"))
                     })?;
 
+                log::info!("Successfully encoded validated details for intent_id: {}, size: {} bytes", req.intent_id, validated_details_bytes.len());
+
                 
                 // Update lifecycle stage to Validated
+                log::info!("Updating storage state to Validated for intent_id: {}", req.intent_id);
                 self.storage.update_request_state_to_validated(&req.intent_id, &solution
                     .solver_pubkey, &root_cid).await
                     .map_err(|e| {
@@ -156,16 +161,21 @@ impl ValidatorService for ValidatorGrpcService {
                         Status::internal(format!("Storage update error: {e}"))
                     })?;
                 
+                log::info!("Storage update successful for intent_id: {}", req.intent_id);
                 log::info!("Validation successful for intent_id: {}, Root CID: {}", req.intent_id, root_cid);
                 
-                Ok(Response::new(SubmitSolutionForValidationResponseProto {
+                log::info!("Preparing to send response for intent_id: {}", req.intent_id);
+                let response = Response::new(SubmitSolutionForValidationResponseProto {
                     result: AppChainResultProto {
                         status: AppChainResultStatus::Ok.into(),
                         message: None,
                     }
                         .into(),
                     solution_validated_details: validated_details_bytes,
-                }))
+                });
+                
+                log::info!("Response prepared successfully for intent_id: {}, sending response", req.intent_id);
+                Ok(response)
             }
             
             None => {

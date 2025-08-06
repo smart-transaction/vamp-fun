@@ -1,6 +1,6 @@
 [package]
 name = "vamp-fun-solver"
-version = "1.0.99"
+version = "1.0.101"
 edition = "2024"
 
 [profile.release]

@@ -103,38 +103,44 @@ impl DeployTokenHandler {
             } else if add_data.key == self.solana_cluster_name {
                 request_data.solana_cluster = SolanaCluster::from_str_name(String::from_utf8(add_data.value).unwrap().as_str());
             } else if add_data.key == self.paid_claiming_enabled_name {
-                if add_data.value.len() != 1 {
-                    return Err("Invalid paid_claiming_enabled length".into());
-                }
-                request_data.paid_claiming_enabled = Some(add_data.value[0] != 0);
+                // Handle hex-encoded boolean value from frontend
+                let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
+                let hex_str = hex_str.trim_start_matches("0x");
+                let value = u64::from_str_radix(hex_str, 16).unwrap_or(0);
+                request_data.paid_claiming_enabled = Some(value != 0);
             } else if add_data.key == self.use_bonding_curve_name {
-                if add_data.value.len() != 1 {
-                    return Err("Invalid use_bonding_curve length".into());
-                }
-                request_data.use_bonding_curve = Some(add_data.value[0] != 0);
+                // Handle hex-encoded boolean value from frontend
+                let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
+                let hex_str = hex_str.trim_start_matches("0x");
+                let value = u64::from_str_radix(hex_str, 16).unwrap_or(0);
+                request_data.use_bonding_curve = Some(value != 0);
             } else if add_data.key == self.curve_slope_name {
-                if add_data.value.len() != 8 {
-                    return Err("Invalid curve_slope length".into());
-                }
-                let curve_slope = u64::from_le_bytes(add_data.value.try_into().unwrap());
+                // Handle hex-encoded u64 value from frontend
+                let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
+                let hex_str = hex_str.trim_start_matches("0x");
+                let curve_slope = u64::from_str_radix(hex_str, 16).unwrap_or(1);
                 request_data.curve_slope = Some(curve_slope);
             } else if add_data.key == self.base_price_name {
-                if add_data.value.len() != 8 {
-                    return Err("Invalid base_price length".into());
-                }
-                let base_price = u64::from_le_bytes(add_data.value.try_into().unwrap());
+                // Handle hex-encoded u64 value from frontend
+                let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
+                let hex_str = hex_str.trim_start_matches("0x");
+                let base_price = u64::from_str_radix(hex_str, 16).unwrap_or(1);
                 request_data.base_price = Some(base_price);
             } else if add_data.key == self.max_price_name {
-                if add_data.value.len() != 8 {
-                    return Err("Invalid max_price length".into());
+                // Handle hex-encoded u64 value from frontend (0x00 means None)
+                let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
+                let hex_str = hex_str.trim_start_matches("0x");
+                if hex_str == "00" || hex_str == "0" {
+                    request_data.max_price = None;
+                } else {
+                    let max_price = u64::from_str_radix(hex_str, 16).unwrap_or(1000);
+                    request_data.max_price = Some(max_price);
                 }
-                let max_price = u64::from_le_bytes(add_data.value.try_into().unwrap());
-                request_data.max_price = Some(max_price);
             } else if add_data.key == self.flat_price_per_token_name {
-                if add_data.value.len() != 8 {
-                    return Err("Invalid flat_price_per_token length".into());
-                }
-                let flat_price_per_token = u64::from_le_bytes(add_data.value.try_into().unwrap());
+                // Handle hex-encoded u64 value from frontend
+                let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
+                let hex_str = hex_str.trim_start_matches("0x");
+                let flat_price_per_token = u64::from_str_radix(hex_str, 16).unwrap_or(1);
                 request_data.flat_price_per_token = Some(flat_price_per_token);
             }
         }

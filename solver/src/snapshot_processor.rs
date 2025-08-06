@@ -135,18 +135,26 @@ pub async fn process_and_send_snapshot(
     let mut validator_client: ValidatorServiceClient<Channel> =
         ValidatorServiceClient::connect(validator_url.clone()).await?;
     info!("Connected to validator at {}", validator_url);
+    
+    info!("Sending validation request to validator for intent_id: {}", hex::encode(&request_data.intent_id));
     let response = validator_client
         .submit_solution(validation_request_proto)
         .await?;
+    info!("Received response from validator for intent_id: {}", hex::encode(&request_data.intent_id));
+    
     let response_proto = response.into_inner();
+    info!("Extracted response proto for intent_id: {}", hex::encode(&request_data.intent_id));
     
     // Check validator response status first
     let vamp_validated_details = if let Some(result) = response_proto.result {
+        info!("Validator response has result for intent_id: {}", hex::encode(&request_data.intent_id));
         let status: AppChainResultStatus = AppChainResultStatus::try_from(result.status)?;
+        info!("Validator response status: {:?} for intent_id: {}", status, hex::encode(&request_data.intent_id));
         match status {
             AppChainResultStatus::Ok => {
                 // Handle the response: check for success and extract data
                 let payload: Vec<u8> = response_proto.solution_validated_details;
+                info!("Validator response payload size: {} bytes for intent_id: {}", payload.len(), hex::encode(&request_data.intent_id));
                 let vamp_validated_details = VampSolutionValidatedDetailsProto::decode(&*payload)?;
                 info!("Validation successful for intent_id: {}. Root CID: {}", hex::encode(&request_data.intent_id), vamp_validated_details.root_intent_cid);
                 vamp_validated_details

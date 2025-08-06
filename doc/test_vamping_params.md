@@ -31,30 +31,32 @@ When sending parameters via the frontend UI, they should be encoded in the `addi
 additionalData: [
   {
     key: keccak256("PaidClaimingEnabled"),
-    value: 1.to_little_endian_bytes(),  // bool as uint8 (1 = true, 0 = false)
+    value: toHex(1),  // 1 = true, 0 = false
   },
   {
     key: keccak256("UseBondingCurve"),
-    value: 1.to_little_endian_bytes(),  // bool as uint8 (1 = true, 0 = false)
+    value: toHex(1),  // 1 = true, 0 = false
   },
   {
     key: keccak256("CurveSlope"),
-    value: 1u64.to_little_endian_bytes(),  // uint64
+    value: toHex(1),  // u64 value as hex string
   },
   {
     key: keccak256("BasePrice"),
-    value: 100u64.to_little_endian_bytes(),  // uint64
+    value: toHex(100),  // u64 value as hex string
   },
   {
     key: keccak256("MaxPrice"),
-    value: 1000u64.to_little_endian_bytes(),  // uint64
+    value: toHex(1000),  // u64 value as hex string, or toHex(0) for None
   },
   {
     key: keccak256("FlatPricePerToken"),
-    value: 1u64.to_little_endian_bytes(),  // uint64
+    value: toHex(1),  // u64 value as hex string
   }
 ]
 ```
+
+**Note**: The solver now expects hex-encoded string values (e.g., "0x1", "0x64") rather than raw bytes. The `toHex()` function should convert numbers to hex strings with "0x" prefix.
 
 ## Test Scenarios
 

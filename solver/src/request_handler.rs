@@ -103,52 +103,110 @@ impl DeployTokenHandler {
             } else if add_data.key == self.solana_cluster_name {
                 request_data.solana_cluster = SolanaCluster::from_str_name(String::from_utf8(add_data.value).unwrap().as_str());
             } else if add_data.key == self.paid_claiming_enabled_name {
-                // Handle hex-encoded boolean value from frontend
-                let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
-                let hex_str = hex_str.trim_start_matches("0x");
-                let value = u64::from_str_radix(hex_str, 16).unwrap_or(0);
-                request_data.paid_claiming_enabled = Some(value != 0);
-                info!("🔧 Parsed paid_claiming_enabled: {} (hex: {}, value: {})", value != 0, hex_str, value);
-            } else if add_data.key == self.use_bonding_curve_name {
-                // Handle hex-encoded boolean value from frontend
-                let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
-                let hex_str = hex_str.trim_start_matches("0x");
-                let value = u64::from_str_radix(hex_str, 16).unwrap_or(0);
-                request_data.use_bonding_curve = Some(value != 0);
-                info!("🔧 Parsed use_bonding_curve: {} (hex: {}, value: {})", value != 0, hex_str, value);
-            } else if add_data.key == self.curve_slope_name {
-                // Handle hex-encoded u64 value from frontend
-                let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
-                let hex_str = hex_str.trim_start_matches("0x");
-                let curve_slope = u64::from_str_radix(hex_str, 16).unwrap_or(1);
-                request_data.curve_slope = Some(curve_slope);
-                info!("🔧 Parsed curve_slope: {} (hex: {})", curve_slope, hex_str);
-            } else if add_data.key == self.base_price_name {
-                // Handle hex-encoded u64 value from frontend
-                let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
-                let hex_str = hex_str.trim_start_matches("0x");
-                let base_price = u64::from_str_radix(hex_str, 16).unwrap_or(1);
-                request_data.base_price = Some(base_price);
-                info!("🔧 Parsed base_price: {} (hex: {})", base_price, hex_str);
-            } else if add_data.key == self.max_price_name {
-                // Handle hex-encoded u64 value from frontend (0x00 means None)
-                let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
-                let hex_str = hex_str.trim_start_matches("0x");
-                if hex_str == "00" || hex_str == "0" {
-                    request_data.max_price = None;
-                    info!("🔧 Parsed max_price: None (hex: {})", hex_str);
+                // Handle raw bytes from frontend (toHex() sends raw bytes, not hex strings)
+                info!("🔧 Raw paid_claiming_enabled bytes: {:?}", add_data.value);
+                // If empty, don't set the value (let solver defaults be used)
+                if !add_data.value.is_empty() {
+                    // Convert raw bytes to u64 (little endian)
+                    let mut bytes = add_data.value.clone();
+                    // Pad to 8 bytes for u64
+                    while bytes.len() < 8 {
+                        bytes.push(0);
+                    }
+                    let value = u64::from_le_bytes(bytes.try_into().unwrap_or([0; 8]));
+                    request_data.paid_claiming_enabled = Some(value != 0);
+                    info!("🔧 Parsed paid_claiming_enabled: {} (raw bytes: {:?}, value: {})", value != 0, add_data.value, value);
                 } else {
-                    let max_price = u64::from_str_radix(hex_str, 16).unwrap_or(1000);
-                    request_data.max_price = Some(max_price);
-                    info!("🔧 Parsed max_price: Some({}) (hex: {})", max_price, hex_str);
+                    info!("🔧 paid_claiming_enabled not provided, will use solver default");
+                }
+            } else if add_data.key == self.use_bonding_curve_name {
+                // Handle raw bytes from frontend (toHex() sends raw bytes, not hex strings)
+                info!("🔧 Raw use_bonding_curve bytes: {:?}", add_data.value);
+                // If empty, don't set the value (let solver defaults be used)
+                if !add_data.value.is_empty() {
+                    // Convert raw bytes to u64 (little endian)
+                    let mut bytes = add_data.value.clone();
+                    // Pad to 8 bytes for u64
+                    while bytes.len() < 8 {
+                        bytes.push(0);
+                    }
+                    let value = u64::from_le_bytes(bytes.try_into().unwrap_or([0; 8]));
+                    request_data.use_bonding_curve = Some(value != 0);
+                    info!("🔧 Parsed use_bonding_curve: {} (raw bytes: {:?}, value: {})", value != 0, add_data.value, value);
+                } else {
+                    info!("🔧 use_bonding_curve not provided, will use solver default");
+                }
+            } else if add_data.key == self.curve_slope_name {
+                // Handle raw bytes from frontend (toHex() sends raw bytes, not hex strings)
+                info!("🔧 Raw curve_slope bytes: {:?}", add_data.value);
+                // If empty, don't set the value (let solver defaults be used)
+                if !add_data.value.is_empty() {
+                    // Convert raw bytes to u64 (little endian)
+                    let mut bytes = add_data.value.clone();
+                    // Pad to 8 bytes for u64
+                    while bytes.len() < 8 {
+                        bytes.push(0);
+                    }
+                    let curve_slope = u64::from_le_bytes(bytes.try_into().unwrap_or([1, 0, 0, 0, 0, 0, 0, 0]));
+                    request_data.curve_slope = Some(curve_slope);
+                    info!("🔧 Parsed curve_slope: {} (raw bytes: {:?})", curve_slope, add_data.value);
+                } else {
+                    info!("🔧 curve_slope not provided, will use solver default");
+                }
+            } else if add_data.key == self.base_price_name {
+                // Handle raw bytes from frontend (toHex() sends raw bytes, not hex strings)
+                info!("🔧 Raw base_price bytes: {:?}", add_data.value);
+                // If empty, don't set the value (let solver defaults be used)
+                if !add_data.value.is_empty() {
+                    // Convert raw bytes to u64 (little endian)
+                    let mut bytes = add_data.value.clone();
+                    // Pad to 8 bytes for u64
+                    while bytes.len() < 8 {
+                        bytes.push(0);
+                    }
+                    let base_price = u64::from_le_bytes(bytes.try_into().unwrap_or([1, 0, 0, 0, 0, 0, 0, 0]));
+                    request_data.base_price = Some(base_price);
+                    info!("🔧 Parsed base_price: {} (raw bytes: {:?})", base_price, add_data.value);
+                } else {
+                    info!("🔧 base_price not provided, will use solver default");
+                }
+                            } else if add_data.key == self.max_price_name {
+                // Handle raw bytes from frontend (toHex() sends raw bytes, not hex strings)
+                info!("🔧 Raw max_price bytes: {:?}", add_data.value);
+                // If empty, don't set the value (let solver defaults be used)
+                if !add_data.value.is_empty() {
+                    // Convert variable-length bytes to u64 (big endian)
+                    let mut result = 0u64;
+                    for (i, &byte) in add_data.value.iter().enumerate() {
+                        result += (byte as u64) << ((add_data.value.len() - 1 - i) * 8);
+                    }
+                    let max_price = if result == 0 {
+                        None
+                    } else {
+                        Some(result)
+                    };
+                    request_data.max_price = max_price;
+                    info!("🔧 Parsed max_price: {:?} (raw bytes: {:?}, hex: 0x{:x})", max_price, add_data.value, result);
+                } else {
+                    info!("🔧 max_price not provided, will use solver default");
                 }
             } else if add_data.key == self.flat_price_per_token_name {
-                // Handle hex-encoded u64 value from frontend
-                let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
-                let hex_str = hex_str.trim_start_matches("0x");
-                let flat_price_per_token = u64::from_str_radix(hex_str, 16).unwrap_or(1);
-                request_data.flat_price_per_token = Some(flat_price_per_token);
-                info!("🔧 Parsed flat_price_per_token: {} (hex: {})", flat_price_per_token, hex_str);
+                // Handle raw bytes from frontend (toHex() sends raw bytes, not hex strings)
+                info!("🔧 Raw flat_price_per_token bytes: {:?}", add_data.value);
+                // If empty, don't set the value (let solver defaults be used)
+                if !add_data.value.is_empty() {
+                    // Convert raw bytes to u64 (little endian)
+                    let mut bytes = add_data.value.clone();
+                    // Pad to 8 bytes for u64
+                    while bytes.len() < 8 {
+                        bytes.push(0);
+                    }
+                    let flat_price_per_token = u64::from_le_bytes(bytes.try_into().unwrap_or([1, 0, 0, 0, 0, 0, 0, 0]));
+                    request_data.flat_price_per_token = Some(flat_price_per_token);
+                    info!("🔧 Parsed flat_price_per_token: {} (raw bytes: {:?})", flat_price_per_token, add_data.value);
+                } else {
+                    info!("🔧 flat_price_per_token not provided, will use solver default");
+                }
             }
         }
         // Check if the solana cluster is present in the request. If not, setting up the default one.

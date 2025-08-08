@@ -351,12 +351,12 @@
           "type": "u64"
         },
         {
-          "name": "vamping_data",
-          "type": "bytes"
-        },
-        {
           "name": "token_decimals",
           "type": "u8"
+        },
+        {
+          "name": "vamping_data",
+          "type": "bytes"
         }
       ]
     }

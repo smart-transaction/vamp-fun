@@ -1,0 +1,16 @@
+{
+  "mintAccountAddress": "D8mL7nRwZUwGEqSAdwfA6jx5uYWBR2Stitq217Es5yaX",
+  "vampStateAddress": "DZLD7Ayu8Zaxw5CBJmmPBdUGnXa768qxMotGTfJsXGwm",
+  "validatorPublicKey": "0xde236f0dc86b8fedd4cbdaee642f5d95358a35d2",
+  "solverPublicKey": "0x4f81fbaa07c6eba9b2c9e7dedefe7984b565909c",
+  "intentId": "0xa85bcdf6b13d9c47a3483d094cc5061fba5dfa3c66c0b2b03ee843037edcc131",
+  "totalClaimed": "1000000000000",
+  "reserveBalance": "0",
+  "tokenSupply": "1001000001000000",
+  "curveSlope": "1",
+  "basePrice": "13",
+  "maxPrice": "1000",
+  "useBondingCurve": false,
+  "flatPricePerToken": "1",
+  "paidClaimingEnabled": false
+}

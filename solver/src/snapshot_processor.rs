@@ -52,6 +52,13 @@ pub async fn process_and_send_snapshot(
     eth_private_key: LocalWallet,
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,
+    // Add solver vamping parameters as fallback values
+    solver_paid_claiming_enabled: bool,
+    solver_use_bonding_curve: bool,
+    solver_curve_slope: u64,
+    solver_base_price: u64,
+    solver_max_price: u64,
+    solver_flat_price_per_token: u64,
 ) -> Result<(), Box<dyn Error>> {
     info!("Received indexed snapshot for intent_id: {}", hex::encode(&request_data.intent_id));
     {
@@ -65,6 +72,7 @@ pub async fn process_and_send_snapshot(
     }
     // Convert the amount into a Solana format
     let (amount, decimals) = convert_to_sol(&amount)?;
+    info!("🎯 Token conversion: amount={}, decimals={}", amount, decimals);
     let solana_snapshot = original_snapshot
         .iter()
         .map(|(k, v)| {
@@ -191,14 +199,24 @@ pub async fn process_and_send_snapshot(
         validator_public_key: hex::decode(vamp_validated_details.validator_address.strip_prefix("0x").unwrap_or(&vamp_validated_details.validator_address))?,
         intent_id: request_data.intent_id.clone(),
         vamping_params: Some(crate::use_proto::proto::VampingParamsProto {
-            paid_claiming_enabled: request_data.paid_claiming_enabled.unwrap_or(false),
-            use_bonding_curve: request_data.use_bonding_curve.unwrap_or(false),
-            curve_slope: request_data.curve_slope.unwrap_or(1),
-            base_price: request_data.base_price.unwrap_or(1),
-            max_price: request_data.max_price,
-            flat_price_per_token: request_data.flat_price_per_token.unwrap_or(1),
+            paid_claiming_enabled: request_data.paid_claiming_enabled.unwrap_or(solver_paid_claiming_enabled),
+            use_bonding_curve: request_data.use_bonding_curve.unwrap_or(solver_use_bonding_curve),
+            curve_slope: request_data.curve_slope.unwrap_or(solver_curve_slope),
+            base_price: request_data.base_price.unwrap_or(solver_base_price),
+            max_price: request_data.max_price.or(Some(solver_max_price)),
+            flat_price_per_token: request_data.flat_price_per_token.unwrap_or(solver_flat_price_per_token),
         }),
     };
+
+    // Log vamping parameters for debugging
+    info!("📋 Creating vamping with parameters:");
+    info!("   Paid Claiming Enabled: {}", request_data.paid_claiming_enabled.unwrap_or(solver_paid_claiming_enabled));
+    info!("   Use Bonding Curve: {}", request_data.use_bonding_curve.unwrap_or(solver_use_bonding_curve));
+    info!("   Curve Slope: {}", request_data.curve_slope.unwrap_or(solver_curve_slope));
+    info!("   Base Price: {} lamports", request_data.base_price.unwrap_or(solver_base_price));
+    info!("   Max Price: {:?} lamports", request_data.max_price.or(Some(solver_max_price)));
+    info!("   Flat Price Per Token: {} lamports", request_data.flat_price_per_token.unwrap_or(solver_flat_price_per_token));
+    info!("   Intent ID: 0x{}", hex::encode(&request_data.intent_id));
 
     let mut encoded_vamping_info = Vec::new();
     token_vamping_info.encode(&mut encoded_vamping_info)?;
@@ -243,6 +261,7 @@ pub async fn process_and_send_snapshot(
         recent_blockhash,
         &request_data.intent_id,
         encoded_vamping_info,
+        decimals,
     )?;
 
     let transaction = postcard::to_allocvec(&transaction);
@@ -443,6 +462,7 @@ fn prepare_transaction(
     recent_blockhash: [u8; 32],
     intent_id: &[u8],
     vamping_data_bytes: Vec<u8>,
+    decimals: u8,
 ) -> Result<(Transaction, Pubkey, Pubkey), Box<dyn Error>> {
     let vamp_identifier = fold_intent_id(&intent_id)?;
 
@@ -490,10 +510,12 @@ fn prepare_transaction(
         })
         .args(args::CreateTokenMint {
             vamp_identifier: fold_intent_id(&intent_id)?,
+            token_decimals: decimals, // Use the provided decimals
             vamping_data: vamping_data_bytes,
-            token_decimals: 9, // Fixed to 9 decimals as per the convert_to_sol function
         })
         .instructions()?;
+
+    info!("🔧 Creating token mint with decimals: {}", decimals);
 
     // Add compute limit
     let compute_ix = ComputeBudgetInstruction::set_compute_unit_limit(2_000_000);

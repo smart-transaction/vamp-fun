@@ -108,33 +108,39 @@ impl DeployTokenHandler {
                 let hex_str = hex_str.trim_start_matches("0x");
                 let value = u64::from_str_radix(hex_str, 16).unwrap_or(0);
                 request_data.paid_claiming_enabled = Some(value != 0);
+                info!("🔧 Parsed paid_claiming_enabled: {} (hex: {}, value: {})", value != 0, hex_str, value);
             } else if add_data.key == self.use_bonding_curve_name {
                 // Handle hex-encoded boolean value from frontend
                 let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
                 let hex_str = hex_str.trim_start_matches("0x");
                 let value = u64::from_str_radix(hex_str, 16).unwrap_or(0);
                 request_data.use_bonding_curve = Some(value != 0);
+                info!("🔧 Parsed use_bonding_curve: {} (hex: {}, value: {})", value != 0, hex_str, value);
             } else if add_data.key == self.curve_slope_name {
                 // Handle hex-encoded u64 value from frontend
                 let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
                 let hex_str = hex_str.trim_start_matches("0x");
                 let curve_slope = u64::from_str_radix(hex_str, 16).unwrap_or(1);
                 request_data.curve_slope = Some(curve_slope);
+                info!("🔧 Parsed curve_slope: {} (hex: {})", curve_slope, hex_str);
             } else if add_data.key == self.base_price_name {
                 // Handle hex-encoded u64 value from frontend
                 let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
                 let hex_str = hex_str.trim_start_matches("0x");
                 let base_price = u64::from_str_radix(hex_str, 16).unwrap_or(1);
                 request_data.base_price = Some(base_price);
+                info!("🔧 Parsed base_price: {} (hex: {})", base_price, hex_str);
             } else if add_data.key == self.max_price_name {
                 // Handle hex-encoded u64 value from frontend (0x00 means None)
                 let hex_str = String::from_utf8(add_data.value).unwrap_or_default();
                 let hex_str = hex_str.trim_start_matches("0x");
                 if hex_str == "00" || hex_str == "0" {
                     request_data.max_price = None;
+                    info!("🔧 Parsed max_price: None (hex: {})", hex_str);
                 } else {
                     let max_price = u64::from_str_radix(hex_str, 16).unwrap_or(1000);
                     request_data.max_price = Some(max_price);
+                    info!("🔧 Parsed max_price: Some({}) (hex: {})", max_price, hex_str);
                 }
             } else if add_data.key == self.flat_price_per_token_name {
                 // Handle hex-encoded u64 value from frontend
@@ -142,12 +148,22 @@ impl DeployTokenHandler {
                 let hex_str = hex_str.trim_start_matches("0x");
                 let flat_price_per_token = u64::from_str_radix(hex_str, 16).unwrap_or(1);
                 request_data.flat_price_per_token = Some(flat_price_per_token);
+                info!("🔧 Parsed flat_price_per_token: {} (hex: {})", flat_price_per_token, hex_str);
             }
         }
         // Check if the solana cluster is present in the request. If not, setting up the default one.
         if request_data.solana_cluster.is_none() {
             request_data.solana_cluster = SolanaCluster::from_str_name(self.default_solana_cluster.as_str());
         }
+        
+        // Log the final vamping parameters that will be used
+        info!("🎯 Final vamping parameters for intent_id: 0x{}", hex::encode(&request_data.intent_id));
+        info!("   paid_claiming_enabled: {:?}", request_data.paid_claiming_enabled);
+        info!("   use_bonding_curve: {:?}", request_data.use_bonding_curve);
+        info!("   curve_slope: {:?}", request_data.curve_slope);
+        info!("   base_price: {:?}", request_data.base_price);
+        info!("   max_price: {:?}", request_data.max_price);
+        info!("   flat_price_per_token: {:?}", request_data.flat_price_per_token);
         let stats = self.stats.clone();
         let chain_id = request_data.chain_id;
         let erc20_address = request_data.erc20_address;

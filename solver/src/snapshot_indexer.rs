@@ -62,6 +62,13 @@ pub struct SnapshotIndexer {
     private_key: LocalWallet,
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,
+    // Solver vamping parameters for fallback
+    solver_paid_claiming_enabled: bool,
+    solver_use_bonding_curve: bool,
+    solver_curve_slope: u64,
+    solver_base_price: u64,
+    solver_max_price: u64,
+    solver_flat_price_per_token: u64,
 }
 
 const BLOCK_STEP: usize = 9990;
@@ -74,6 +81,13 @@ impl SnapshotIndexer {
         private_key: LocalWallet, 
         solana_payer_keypair: Arc<Keypair>, 
         solana_program: Arc<Program<Arc<Keypair>>>,
+        // Solver vamping parameters for fallback
+        solver_paid_claiming_enabled: bool,
+        solver_use_bonding_curve: bool,
+        solver_curve_slope: u64,
+        solver_base_price: u64,
+        solver_max_price: u64,
+        solver_flat_price_per_token: u64,
     ) -> Self {
         Self {
             chain_info: HashMap::new(),
@@ -84,6 +98,12 @@ impl SnapshotIndexer {
             private_key,
             solana_payer_keypair,
             solana_program,
+            solver_paid_claiming_enabled,
+            solver_use_bonding_curve,
+            solver_curve_slope,
+            solver_base_price,
+            solver_max_price,
+            solver_flat_price_per_token,
         }
     }
 
@@ -138,6 +158,13 @@ impl SnapshotIndexer {
         let solana_program = self.solana_program.clone();
         let validator_url = self.validator_url.clone();
         let orchestrator_url = self.orchestrator_url.clone();
+        // Clone solver vamping parameters for the async block
+        let solver_paid_claiming_enabled = self.solver_paid_claiming_enabled;
+        let solver_use_bonding_curve = self.solver_use_bonding_curve;
+        let solver_curve_slope = self.solver_curve_slope;
+        let solver_base_price = self.solver_base_price;
+        let solver_max_price = self.solver_max_price;
+        let solver_flat_price_per_token = self.solver_flat_price_per_token;
         
         spawn(async move {
             let first_block = prev_block_number.unwrap_or(0) + 1;
@@ -244,6 +271,12 @@ impl SnapshotIndexer {
                 private_key,
                 solana_payer_keypair,
                 solana_program,
+                solver_paid_claiming_enabled,
+                solver_use_bonding_curve,
+                solver_curve_slope,
+                solver_base_price,
+                solver_max_price,
+                solver_flat_price_per_token,
             )
             .await
             {

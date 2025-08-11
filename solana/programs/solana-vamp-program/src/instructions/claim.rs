@@ -145,8 +145,11 @@ pub fn buy_claim_tokens(
         ErrorCode::TokensAlreadyClaimed
     );
 
-    // Calculate the SOL cost using the bonding curve
-    let sol_cost = calculate_claim_cost(&ctx.accounts.vamp_state, balance)?;
+    // Calculate the SOL cost using the bonding curve on whole-token units
+    let decimals = ctx.accounts.mint_account.decimals as u32;
+    let unit = 10u64.pow(decimals);
+    let human_amount = balance.checked_div(unit).ok_or(ErrorCode::ArithmeticOverflow)?;
+    let sol_cost = calculate_claim_cost(&ctx.accounts.vamp_state, human_amount)?;
 
     // Transfer SOL from claimer to SOL vault using system program
     let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
@@ -189,7 +192,7 @@ pub fn buy_claim_tokens(
         balance,
     )?;
 
-    // Update the total claimed counter
+    // Update the total claimed counter (in base units)
     vamp_state.total_claimed = vamp_state.total_claimed.checked_add(balance).ok_or(ErrorCode::ArithmeticOverflow)?;
 
     ctx.accounts.claim_state.is_claimed = true;

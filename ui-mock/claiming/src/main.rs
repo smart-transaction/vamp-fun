@@ -195,8 +195,9 @@ fn main() -> Result<()> {
     
     // Calculate expected claim cost using on-chain formula
     println!("💰 Calculating expected claim cost...");
+    let human_amount = claim_data.balance / 10u64.pow(vamping_data.decimals as u32);
     let expected_cost = calculate_expected_claim_cost(
-        claim_data.balance,
+        human_amount,
         vamp_state.total_claimed,
         vamp_state.curve_slope,
         vamp_state.base_price,
@@ -663,13 +664,9 @@ fn calculate_expected_claim_cost(
 
     let total = part1.checked_add(part2).ok_or_else(|| anyhow!("Overflow total"))?;
 
-    if let Some(max_price_per_token) = max_price {
-        // Compare average price to max
-        let avg = total.checked_div(delta).ok_or_else(|| anyhow!("Div by zero avg"))?;
-        if avg > max_price_per_token as u128 {
-            // Reflect on-chain behavior: this would fail on-chain
-            return Err(anyhow!("PriceTooHigh: average price per token {} > max {}", avg, max_price_per_token));
-        }
+    if let Some(_max_price_per_token) = max_price {
+        // Client does not pre-assert; on-chain will enforce PriceTooHigh.
+        let _avg = total.checked_div(delta).ok_or_else(|| anyhow!("Div by zero avg"))?;
     }
 
     Ok(u64::try_from(total).map_err(|_| anyhow!("Total cost too large for u64"))?)

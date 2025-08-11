@@ -97,6 +97,25 @@ pub struct Args {
 
     #[arg(long, default_value_t = 1)]
     pub flat_price_per_token: u64,
+
+    // Optional overrides to suppress frontend/EVM-provided values
+    #[arg(long)]
+    pub override_paid_claiming_enabled: Option<bool>,
+
+    #[arg(long)]
+    pub override_use_bonding_curve: Option<bool>,
+
+    #[arg(long)]
+    pub override_curve_slope: Option<u64>,
+
+    #[arg(long)]
+    pub override_base_price: Option<u64>,
+
+    #[arg(long)]
+    pub override_max_price: Option<u64>,
+
+    #[arg(long)]
+    pub override_flat_price_per_token: Option<u64>,
 }
 
 #[tokio::main]
@@ -149,6 +168,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         args.base_price,
         args.max_price,
         args.flat_price_per_token,
+        // pass overrides
+        args.override_paid_claiming_enabled,
+        args.override_use_bonding_curve,
+        args.override_curve_slope,
+        args.override_base_price,
+        args.override_max_price,
+        args.override_flat_price_per_token,
     );
     if let Some(quicknode_api_key) = args.quicknode_api_key {
         if quicknode_api_key.len() == 0 {

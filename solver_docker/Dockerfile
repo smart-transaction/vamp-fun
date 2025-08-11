@@ -41,6 +41,7 @@ COPY --from=builder /usr/local/cargo/bin/vamp-fun-solver /usr/local/bin/vamp-fun
 
 # Add environment variable for runtime access
 ENV GIT_COMMIT=${GIT_COMMIT}
+ENV SOLVER_EXTRA_ARGS=""
 
 EXPOSE 8000/tcp
 CMD \
@@ -58,4 +59,4 @@ CMD \
    "--quicknode-api-key=${QUICKNODE_API_KEY}" \
    "--private-key=${SOLVER_PRIVATE_KEY}" \
    "--solana-private-key=${SOLANA_PRIVATE_KEY}" \
-   "--default-solana-cluster=${DEFAULT_SOLANA_CLUSTER}"
+   "--default-solana-cluster=${DEFAULT_SOLANA_CLUSTER}" ${SOLVER_EXTRA_ARGS}

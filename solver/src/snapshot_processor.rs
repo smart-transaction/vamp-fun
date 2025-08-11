@@ -44,7 +44,7 @@ use crate::use_proto::proto::VampSolutionValidatedDetailsProto;
 pub async fn process_and_send_snapshot(
     request_data: TokenRequestData,
     amount: U256,
-    original_snapshot: HashMap<Address, TokenAmount>,
+    original_snapshot: std::collections::HashMap<Address, TokenAmount>,
     validator_url: String,
     orchestrator_url: String,
     indexing_stats: Arc<Mutex<IndexerProcesses>>,
@@ -59,6 +59,13 @@ pub async fn process_and_send_snapshot(
     solver_base_price: u64,
     solver_max_price: u64,
     solver_flat_price_per_token: u64,
+    // Optional overrides to suppress frontend/EVM-provided values
+    override_paid_claiming_enabled: Option<bool>,
+    override_use_bonding_curve: Option<bool>,
+    override_curve_slope: Option<u64>,
+    override_base_price: Option<u64>,
+    override_max_price: Option<u64>,
+    override_flat_price_per_token: Option<u64>,
 ) -> Result<(), Box<dyn Error>> {
     info!("Received indexed snapshot for intent_id: {}", hex::encode(&request_data.intent_id));
     {
@@ -180,6 +187,22 @@ pub async fn process_and_send_snapshot(
         return Err(format!("Validator response missing result status for intent_id: {}", hex::encode(&request_data.intent_id)).into());
     };
 
+    // Determine final vamping params with precedence: overrides > frontend/EVM (request_data) > solver defaults
+    let final_paid_claiming_enabled = override_paid_claiming_enabled
+        .unwrap_or_else(|| request_data.paid_claiming_enabled.unwrap_or(solver_paid_claiming_enabled));
+    let final_use_bonding_curve = override_use_bonding_curve
+        .unwrap_or_else(|| request_data.use_bonding_curve.unwrap_or(solver_use_bonding_curve));
+    let final_curve_slope = override_curve_slope
+        .unwrap_or_else(|| request_data.curve_slope.unwrap_or(solver_curve_slope));
+    let final_base_price = override_base_price
+        .unwrap_or_else(|| request_data.base_price.unwrap_or(solver_base_price));
+    let final_max_price_opt = match override_max_price {
+        Some(v) => Some(v),
+        None => request_data.max_price.or(Some(solver_max_price)),
+    };
+    let final_flat_price_per_token = override_flat_price_per_token
+        .unwrap_or_else(|| request_data.flat_price_per_token.unwrap_or(solver_flat_price_per_token));
+
     // Now create the TokenVampingInfoProto with the validator address from the response
     let token_vamping_info = TokenVampingInfoProto {
         merkle_root: root.to_vec(),
@@ -199,23 +222,23 @@ pub async fn process_and_send_snapshot(
         validator_public_key: hex::decode(vamp_validated_details.validator_address.strip_prefix("0x").unwrap_or(&vamp_validated_details.validator_address))?,
         intent_id: request_data.intent_id.clone(),
         vamping_params: Some(crate::use_proto::proto::VampingParamsProto {
-            paid_claiming_enabled: request_data.paid_claiming_enabled.unwrap_or(solver_paid_claiming_enabled),
-            use_bonding_curve: request_data.use_bonding_curve.unwrap_or(solver_use_bonding_curve),
-            curve_slope: request_data.curve_slope.unwrap_or(solver_curve_slope),
-            base_price: request_data.base_price.unwrap_or(solver_base_price),
-            max_price: request_data.max_price.or(Some(solver_max_price)),
-            flat_price_per_token: request_data.flat_price_per_token.unwrap_or(solver_flat_price_per_token),
+            paid_claiming_enabled: final_paid_claiming_enabled,
+            use_bonding_curve: final_use_bonding_curve,
+            curve_slope: final_curve_slope,
+            base_price: final_base_price,
+            max_price: final_max_price_opt,
+            flat_price_per_token: final_flat_price_per_token,
         }),
     };
 
     // Log vamping parameters for debugging
     info!("📋 Creating vamping with parameters:");
-    info!("   Paid Claiming Enabled: {}", request_data.paid_claiming_enabled.unwrap_or(solver_paid_claiming_enabled));
-    info!("   Use Bonding Curve: {}", request_data.use_bonding_curve.unwrap_or(solver_use_bonding_curve));
-    info!("   Curve Slope: {}", request_data.curve_slope.unwrap_or(solver_curve_slope));
-    info!("   Base Price: {} lamports", request_data.base_price.unwrap_or(solver_base_price));
-    info!("   Max Price: {:?} lamports", request_data.max_price.or(Some(solver_max_price)));
-    info!("   Flat Price Per Token: {} lamports", request_data.flat_price_per_token.unwrap_or(solver_flat_price_per_token));
+    info!("   Paid Claiming Enabled: {}", final_paid_claiming_enabled);
+    info!("   Use Bonding Curve: {}", final_use_bonding_curve);
+    info!("   Curve Slope: {}", final_curve_slope);
+    info!("   Base Price: {} lamports", final_base_price);
+    info!("   Max Price: {:?} lamports", final_max_price_opt);
+    info!("   Flat Price Per Token: {} lamports", final_flat_price_per_token);
     info!("   Intent ID: 0x{}", hex::encode(&request_data.intent_id));
 
     let mut encoded_vamping_info = Vec::new();

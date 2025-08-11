@@ -45,6 +45,8 @@ do
         VALIDATOR_IPFS_API_URL="http://172.19.0.1:5001"
         VALIDATOR_IPFS_GATEWAY_URL="https://ipfs.io/"
         DEFAULT_SOLANA_CLUSTER="DEVNET"
+        # Add solver override args for dev
+        SOLVER_EXTRA_ARGS="--override-paid-claiming-enabled=true --override-use-bonding-curve=true --override-curve-slope=1 --override-base-price=100 --override-max-price=100000 --override-flat-price-per-token=1"
         break
         ;;
     "prod")
@@ -126,7 +128,7 @@ DB_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-db-image:live"
 ORCHESTRATOR_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-orchestrator-image:${OPT}"
 REQUEST_REGISTRATOR_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-request-registrator-image:${OPT}"
 VALIDATOR_VAMP_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-validator-vamp-image:${OPT}"
-FE_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-fe-image:${OPT}"
+#FE_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-fe-image:${OPT}"
 REDIS_DOCKER_IMAGE=redis/redis-stack-server:latest
 
 # Create docker-compose.yml file.
@@ -167,6 +169,7 @@ services:
       - SOLVER_PRIVATE_KEY=\${SOLVER_PRIVATE_KEY}
       - SOLANA_PRIVATE_KEY=\${SOLANA_PRIVATE_KEY}
       - DEFAULT_SOLANA_CLUSTER=${DEFAULT_SOLANA_CLUSTER}
+      - SOLVER_EXTRA_ARGS=${SOLVER_EXTRA_ARGS}
     ports:
       - 8000:8000
     logging:
@@ -287,17 +290,17 @@ services:
     volumes:
       - redis-data:/data
 
-  vamp_fun_fe:
-    container_name: vamp_fun_fe
-    image: ${FE_DOCKER_IMAGE}
-    restart: unless-stopped
-    ports:
-      - 3000:3000
-    logging:
-      driver: "json-file"
-      options:
-        max-size: 100m
-        max-file: "15"
+#  vamp_fun_fe:
+#    container_name: vamp_fun_fe
+#    image: ${FE_DOCKER_IMAGE}
+#    restart: unless-stopped
+#    ports:
+#      - 3000:3000
+#    logging:
+#      driver: "json-file"
+#      options:
+#        max-size: 100m
+#        max-file: "15"
 
 volumes:
   mysql:
@@ -319,7 +322,7 @@ docker pull ${DB_DOCKER_IMAGE}
 docker pull ${ORCHESTRATOR_DOCKER_IMAGE}
 docker pull ${REQUEST_REGISTRATOR_DOCKER_IMAGE}
 docker pull ${VALIDATOR_VAMP_DOCKER_IMAGE}
-docker pull ${FE_DOCKER_IMAGE}
+#docker pull ${FE_DOCKER_IMAGE}
 docker pull ${REDIS_DOCKER_IMAGE}
 
 # Push configs into docker images.

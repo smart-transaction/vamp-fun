@@ -69,6 +69,13 @@ pub struct SnapshotIndexer {
     solver_base_price: u64,
     solver_max_price: u64,
     solver_flat_price_per_token: u64,
+    // Optional overrides to suppress frontend/EVM-provided values
+    override_paid_claiming_enabled: Option<bool>,
+    override_use_bonding_curve: Option<bool>,
+    override_curve_slope: Option<u64>,
+    override_base_price: Option<u64>,
+    override_max_price: Option<u64>,
+    override_flat_price_per_token: Option<u64>,
 }
 
 const BLOCK_STEP: usize = 9990;
@@ -88,6 +95,13 @@ impl SnapshotIndexer {
         solver_base_price: u64,
         solver_max_price: u64,
         solver_flat_price_per_token: u64,
+        // Optional overrides to suppress frontend/EVM-provided values
+        override_paid_claiming_enabled: Option<bool>,
+        override_use_bonding_curve: Option<bool>,
+        override_curve_slope: Option<u64>,
+        override_base_price: Option<u64>,
+        override_max_price: Option<u64>,
+        override_flat_price_per_token: Option<u64>,
     ) -> Self {
         Self {
             chain_info: HashMap::new(),
@@ -104,6 +118,12 @@ impl SnapshotIndexer {
             solver_base_price,
             solver_max_price,
             solver_flat_price_per_token,
+            override_paid_claiming_enabled,
+            override_use_bonding_curve,
+            override_curve_slope,
+            override_base_price,
+            override_max_price,
+            override_flat_price_per_token,
         }
     }
 
@@ -165,6 +185,12 @@ impl SnapshotIndexer {
         let solver_base_price = self.solver_base_price;
         let solver_max_price = self.solver_max_price;
         let solver_flat_price_per_token = self.solver_flat_price_per_token;
+        let override_paid_claiming_enabled = self.override_paid_claiming_enabled;
+        let override_use_bonding_curve = self.override_use_bonding_curve;
+        let override_curve_slope = self.override_curve_slope;
+        let override_base_price = self.override_base_price;
+        let override_max_price = self.override_max_price;
+        let override_flat_price_per_token = self.override_flat_price_per_token;
         
         spawn(async move {
             let first_block = prev_block_number.unwrap_or(0) + 1;
@@ -271,12 +297,20 @@ impl SnapshotIndexer {
                 private_key,
                 solana_payer_keypair,
                 solana_program,
+                // Fallback values
                 solver_paid_claiming_enabled,
                 solver_use_bonding_curve,
                 solver_curve_slope,
                 solver_base_price,
                 solver_max_price,
                 solver_flat_price_per_token,
+                // Overrides
+                override_paid_claiming_enabled,
+                override_use_bonding_curve,
+                override_curve_slope,
+                override_base_price,
+                override_max_price,
+                override_flat_price_per_token,
             )
             .await
             {

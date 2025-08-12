@@ -9,6 +9,7 @@ WORKDIR /usr/src/vamp-fun-registrator-stub
 COPY target/registrator_stub registrator_stub
 COPY target/proto proto
 COPY target/abis abis
+COPY target/appchain appchain
 RUN cargo install --path ./registrator_stub
 
 FROM --platform=linux/amd64 ubuntu:22.04

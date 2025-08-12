@@ -69,6 +69,7 @@ if [ "${OPT}" == "dev" ]; then
   cp -rf ../registrator_stub target
   cp -rf ../proto target
   cp -rf ../abis target
+  cp -rf ../appchain target
   rm -rf target/registrator_stub/target
   gcloud builds submit \
     --region=${CLOUD_REGION} \

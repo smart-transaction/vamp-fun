@@ -59,6 +59,7 @@ if [ "${OPT}" == "dev" ]; then
   cp -rf ../orchestrator_stub target
   cp -rf ../proto target
   cp -rf ../idls target
+  cp -rf ../appchain target
   rm -rf target/orchestrator_stub/target
   gcloud builds submit \
     --region=${CLOUD_REGION} \

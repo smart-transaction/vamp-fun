@@ -1,6 +1,6 @@
 [package]
 name = "vamp_fun_registrator_stub"
-version = "1.0.30"
+version = "1.0.32"
 edition = "2024"
 build = "build.rs"
 
@@ -22,6 +22,8 @@ config = "0.15.11"
 futures-util = "0.3.31"
 prost = "0.13.5"
 prost-reflect = "0.14.7"
+appchain-core = { path = "../appchain/core" }
+appchain-storage-redis = { path = "../appchain/storage-redis" }
 
 [build-dependencies]
 tonic-build = "0.13.0"

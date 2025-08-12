@@ -1,6 +1,6 @@
 [package]
 name = "validator_vamp"
-version = "1.0.12"
+version = "1.0.14"
 edition = "2024"
 build = "build.rs"
 
@@ -33,6 +33,8 @@ clap = { version = "4.5.38", features = ["derive"] }
 tempfile = "3.19.1"
 toml = "0.8.20"
 tonic-reflection = "0.13"
+appchain-core = { path = "../appchain/core" }
+appchain-storage-redis = { path = "../appchain/storage-redis" }
 
 [build-dependencies]
 tonic-build = "0.13.0"

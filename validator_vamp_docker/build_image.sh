@@ -59,6 +59,7 @@ if [ "${OPT}" == "dev" ]; then
   cp -rf ../validator_vamp target
   cp -rf ../proto target
   cp -rf ../idls target
+  cp -rf ../appchain target
   rm -rf target/validator_vamp/target
   gcloud builds submit \
     --region=${CLOUD_REGION} \

@@ -104,6 +104,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
 
 [[package]]
+name = "appchain-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "appchain-storage-redis"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "appchain-core",
+ "async-trait",
+ "log",
+ "redis",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "arc-swap"
 version = "1.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4227,9 +4248,11 @@ dependencies = [
 
 [[package]]
 name = "vamp_fun_registrator_stub"
-version = "1.0.30"
+version = "1.0.32"
 dependencies = [
  "anyhow",
+ "appchain-core",
+ "appchain-storage-redis",
  "config",
  "env_logger",
  "ethers",

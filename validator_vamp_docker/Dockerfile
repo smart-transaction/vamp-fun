@@ -9,6 +9,7 @@ WORKDIR /usr/src/vamp-fun-validator-vamp
 COPY target/validator_vamp validator_vamp
 COPY target/proto proto
 COPY target/idls idls
+COPY target/appchain appchain
 RUN cargo install --path ./validator_vamp
 
 FROM --platform=linux/amd64 ubuntu:22.04

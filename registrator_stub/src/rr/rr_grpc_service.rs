@@ -34,7 +34,9 @@ impl RequestRegistratorService for RRService {
                 // Calculate hash of the event
                 let intent_id = stored_request.intent_id;
 
-                let proto_bytes = hex::decode(&stored_request.proto_data)
+                let proto_hex = stored_request.proto_data.as_deref()
+                    .ok_or_else(|| Status::internal("Missing proto_data for event"))?;
+                let proto_bytes = hex::decode(proto_hex)
                     .map_err(|e| Status::internal(format!("Failed to decode hex data from Redis: {}", e)))?;
                 let user_event = UserEventProto::decode(&proto_bytes[..])
                     .map_err(|e| Status::internal(format!("Failed to decode UserEventProto from Redis: {}", e)))?;

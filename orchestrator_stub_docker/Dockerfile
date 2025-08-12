@@ -9,6 +9,7 @@ WORKDIR /usr/src/vamp-fun-orchestrator-stub
 COPY target/orchestrator_stub orchestrator_stub
 COPY target/proto proto
 COPY target/idls idls
+COPY target/appchain appchain
 RUN cargo install --path ./orchestrator_stub
 
 FROM --platform=linux/amd64 ubuntu:22.04

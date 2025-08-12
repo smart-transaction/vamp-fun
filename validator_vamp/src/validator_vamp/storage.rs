@@ -1,30 +1,6 @@
-use redis::AsyncCommands;
-use std::sync::Arc;
+use appchain_core::types::{StoredRequest, RequestState};
+use appchain_storage_redis::{RequestStore, RedisRequestStore};
 use crate::validator_vamp::config::StorageConfig;
-
-#[derive(Clone)]
-pub struct Storage {
-    client: Arc<redis::Client>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
-pub enum RequestState {
-    New,
-    Validated,
-    UnderExecution,
-    Executed,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct StoredRequest {
-    pub intent_id: String,
-    pub sequence_id: u64,
-    pub data: String,
-    pub proto_data: Option<String>,  // Optional field from registrator
-    pub state: RequestState,
-    #[serde(default)]  // Default to None if field is missing
-    pub vamp_solution_validated_details: Option<VampSolutionValidatedDetails>,
-}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct VampSolutionValidatedDetails {
@@ -32,32 +8,22 @@ pub struct VampSolutionValidatedDetails {
     pub root_cid: String,
 }
 
-impl Storage {
-    const REQUESTS_BY_INTENT_ID: &'static str = "vamp:intents:by_intent_id";
-    // const INTENT_ID_BY_SEQUENCE_ID: &'static str = "vamp:intents:by_sequence_id_to_intent_id";
+#[derive(Clone)]
+pub struct Storage {
+    pub store: RedisRequestStore,
+}
 
+impl Storage {
     pub async fn new(cfg: &StorageConfig) -> anyhow::Result<Self> {
         let redis_url: String = cfg.redis_url.clone();
-        let client = redis::Client::open(redis_url)?;
-        Ok(Self { client: Arc::new(client) })
+        let store = appchain_storage_redis::new_redis_store(&redis_url)?;
+        Ok(Self { store })
     }
 
-    pub async fn get_intent_in_state_new(&self, intent_id: &str) ->
-    anyhow::Result<Option<StoredRequest>> {
-        let mut conn = self.client.get_multiplexed_async_connection().await?;
-        let serialized: Option<String> = conn.hget(Self::REQUESTS_BY_INTENT_ID, &intent_id).await.ok();
-
-        if let Some(data) = serialized {
-            log::debug!(
-                    "Found intent by intent_id: {}. Checking the propper State...",
-                    intent_id,
-                );
-            let request: StoredRequest = serde_json::from_str(&data)?;
-            if let RequestState::New = request.state {
-                return Ok(Some(request));
-            }
+    pub async fn get_intent_in_state_new(&self, intent_id: &str) -> anyhow::Result<Option<StoredRequest>> {
+        if let Some(req) = self.store.get_request_by_intent_id(intent_id).await? {
+            if let RequestState::New = req.state { return Ok(Some(req)); }
         }
-
         Ok(None)
     }
 
@@ -67,31 +33,19 @@ impl Storage {
         solver_pubkey: &str,
         root_cid: &str,
     ) -> anyhow::Result<()> {
-        log::info!("Starting storage update for intent_id: {}", intent_id);
-        let mut conn = self.client.get_multiplexed_async_connection().await?;
-        log::info!("Got Redis connection for intent_id: {}", intent_id);
-        
-        let serialized: Option<String> = conn.hget(Self::REQUESTS_BY_INTENT_ID, intent_id).await?;
-        log::info!("Retrieved data from Redis for intent_id: {}, data exists: {}", intent_id, serialized.is_some());
-        
-        let Some(data) = serialized else {
-            anyhow::bail!("Intent not found for ID: {}", intent_id);
-        };
-
-        let mut request: StoredRequest = serde_json::from_str(&data)?;
-        log::info!("Deserialized request for intent_id: {}, current state: {:?}", intent_id, request.state);
-        
-        request.state = RequestState::Validated;
-        request.vamp_solution_validated_details = Some(VampSolutionValidatedDetails {
-            solver_pubkey: solver_pubkey.to_string(),
-            root_cid: root_cid.to_string(),
-        });
-
-        let updated = serde_json::to_string(&request)?;
-        log::info!("Serialized updated request for intent_id: {}", intent_id);
-        
-        let _: () = conn.hset(Self::REQUESTS_BY_INTENT_ID, intent_id, updated).await?;
-        log::info!("Successfully updated Redis for intent_id: {}", intent_id);
-        Ok(())
+        self.store.update_raw_json(intent_id, |mut json| {
+            // Update state and attach vamp details while preserving unknown fields
+            if let Some(obj) = json.as_object_mut() {
+                obj.insert("state".to_string(), serde_json::json!("Validated"));
+                obj.insert(
+                    "vamp_solution_validated_details".to_string(),
+                    serde_json::json!({
+                        "solver_pubkey": solver_pubkey,
+                        "root_cid": root_cid,
+                    }),
+                );
+            }
+            Ok(json)
+        }).await
     }
 }

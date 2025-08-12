@@ -1,6 +1,6 @@
 [package]
 name = "vamp_fun_orchestrator_stub"
-version = "1.0.30"
+version = "1.0.32"
 edition = "2024"
 build = "build.rs"
 
@@ -26,6 +26,8 @@ clap = { version = "4.5.37", features = ["derive"] }
 solana-client = "2.2.7"
 solana-commitment-config = "2.2.1"
 postcard = "1.1.1"
+appchain-core = { path = "../appchain/core" }
+appchain-storage-redis = { path = "../appchain/storage-redis" }
 
 [build-dependencies]
 tonic-build = "0.13.0"

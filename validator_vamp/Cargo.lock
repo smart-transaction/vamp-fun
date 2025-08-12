@@ -104,6 +104,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
 
 [[package]]
+name = "appchain-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "appchain-storage-redis"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "appchain-core",
+ "async-trait",
+ "log",
+ "redis 0.29.5",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "arc-swap"
+version = "1.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69f7f8c3906b62b754cd5326047894316021dcfe5a194c8ea52bdd94934a3457"
+
+[[package]]
 name = "arrayvec"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2981,6 +3008,28 @@ dependencies = [
 
 [[package]]
 name = "redis"
+version = "0.29.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1bc42f3a12fd4408ce64d8efef67048a924e543bd35c6591c0447fda9054695f"
+dependencies = [
+ "arc-swap",
+ "bytes",
+ "combine",
+ "futures-util",
+ "itoa",
+ "num-bigint",
+ "percent-encoding",
+ "pin-project-lite",
+ "ryu",
+ "sha1_smol",
+ "socket2",
+ "tokio",
+ "tokio-util",
+ "url",
+]
+
+[[package]]
+name = "redis"
 version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bc1ea653e0b2e097db3ebb5b7f678be339620b8041f66b30a308c1d45d36a7f"
@@ -4343,9 +4392,11 @@ dependencies = [
 
 [[package]]
 name = "validator_vamp"
-version = "1.0.12"
+version = "1.0.14"
 dependencies = [
  "anyhow",
+ "appchain-core",
+ "appchain-storage-redis",
  "clap",
  "env_logger",
  "ethers",
@@ -4356,7 +4407,7 @@ dependencies = [
  "prost 0.13.5",
  "prost-build",
  "rand",
- "redis",
+ "redis 0.31.0",
  "reqwest 0.12.15",
  "serde",
  "serde_json",

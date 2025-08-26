@@ -2,6 +2,7 @@ use std::fs;
 use crate::proto::{
     request_registrator_service_server::{RequestRegistratorService, RequestRegistratorServiceServer},
     PollRequestProto, PollResponseProto, AppChainResultProto, AppChainResultStatus, UserEventProto,
+    PushRequestProto, PushResponseProto,
 };
 use crate::rr::storage::Storage;
 use tonic::{transport::Server, Request, Response, Status};
@@ -61,6 +62,46 @@ impl RequestRegistratorService for RRService {
                 intent_id: None,
             })),
         }
+    }
+
+    async fn push(
+        &self,
+        request: Request<PushRequestProto>,
+    ) -> Result<Response<PushResponseProto>, Status> {
+        let metadata = request.metadata();
+        log::info!("Incoming gRPC Push request: metadata = {:?}, remote_addr = {:?}", metadata, request.remote_addr());
+        let req = request.into_inner();
+        let Some(event) = req.event else {
+            return Err(Status::invalid_argument("Missing event"));
+        };
+
+        // Encode event to bytes and JSON for storage
+        let mut proto_bytes = Vec::new();
+        event
+            .encode(&mut proto_bytes)
+            .map_err(|e| Status::internal(format!("Failed to encode event: {}", e)))?;
+        let json_string = serde_json::to_string(&event)
+            .map_err(|e| Status::internal(format!("Failed to serialize event to JSON: {}", e)))?;
+
+        // Compute sequence id and persist
+        let sequence_id = self.storage
+            .next_sequence_id()
+            .await
+            .map_err(|e| Status::internal(format!("Failed to allocate sequence id: {}", e)))?;
+
+        // Use hex-encoded proto bytes
+        let intent_id_hex = hex::encode(&event.intent_id);
+        self.storage
+            .save_new_intent(&intent_id_hex, sequence_id, &json_string, &hex::encode(&proto_bytes))
+            .await
+            .map_err(|e| Status::internal(format!("Failed to store event: {}", e)))?;
+
+        log::info!("Stored pushed event seq_id={} intent_id={} bytes={}", sequence_id, intent_id_hex, proto_bytes.len());
+
+        Ok(Response::new(PushResponseProto {
+            result: AppChainResultProto { status: AppChainResultStatus::Ok.into(), message: None }.into(),
+            sequence_id,
+        }))
     }
 }
 

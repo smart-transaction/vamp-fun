@@ -73,6 +73,17 @@ message PollResponseProto {
   UserEventProto event = 4;
 }
 
+// New push API for external submitters (e.g., CleanApp ReportsPusher)
+message PushRequestProto {
+  // A fully-formed UserEventProto to register
+  UserEventProto event = 1;
+}
+
+message PushResponseProto {
+  AppChainResultProto result = 1;
+  uint64 sequence_id = 2;
+}
+
 message ChainSelectionProto {
   // The chain to send the transaction to.
   oneof chain {
@@ -112,6 +123,8 @@ service RequestRegistratorService {
   // To be called periodically from the solver to the request registrator
   // to check if there are new requests to be solved.
   rpc Poll(PollRequestProto) returns (PollResponseProto);
+  // To be called by external submitters to push new events directly into the appchain store.
+  rpc Push(PushRequestProto) returns (PushResponseProto);
 }
 
 message LatestBlockHashRequestProto {

@@ -28,6 +28,7 @@ solana-commitment-config = "2.2.1"
 postcard = "1.1.1"
 appchain-core = { path = "../appchain/core" }
 appchain-storage-redis = { path = "../appchain/storage-redis" }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 [build-dependencies]
 tonic-build = "0.13.0"

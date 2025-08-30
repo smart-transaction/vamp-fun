@@ -5,6 +5,7 @@ use crate::proto::{
     AppChainPayloadProto, AppChainResultProto, AppChainResultStatus, ChainSelectionProto,
     LatestBlockHashRequestProto, LatestBlockHashResponseProto, SolanaCluster,
     SubmitSolutionRequestProto, SubmitSolutionResponseProto,
+    SubmitSolutionRequest2Proto, SubmitSolutionResponse2Proto, MultiChainTransactionProto,
 };
 
 use std::fs;
@@ -22,6 +23,8 @@ pub struct OrchestratorGrpcService {
     solana_devnet_url: String,
     solana_mainnet_url: String,
     solana_default_url: String,
+    // EVM JSON-RPC endpoints by chainId string (e.g., "84532")
+    evm_rpc_endpoints: std::collections::HashMap<String, String>,
 }
 
 const DEVNET: i32 = SolanaCluster::Devnet as i32;
@@ -55,6 +58,27 @@ impl OrchestratorGrpcService {
             }
         }
         Ok(self.solana_default_url.clone())
+    }
+
+    async fn send_raw_evm_tx(&self, chain_ref: &str, raw_tx: &[u8]) -> Result<String, Status> {
+        let rpc = self.evm_rpc_endpoints.get(chain_ref)
+            .ok_or_else(|| Status::invalid_argument(format!("Unsupported EVM chain reference: {}", chain_ref)))?;
+        // hex-encode raw tx
+        let hex_tx = format!("0x{}", hex::encode(raw_tx));
+        // minimal JSON-RPC call
+        let client = reqwest::Client::new();
+        #[derive(serde::Serialize)]
+        struct RpcReq<'a> { jsonrpc: &'a str, method: &'a str, params: Vec<String>, id: u64 }
+        #[derive(serde::Deserialize)]
+        struct RpcRes { result: Option<String>, error: Option<serde_json::Value> }
+        let body = RpcReq { jsonrpc: "2.0", method: "eth_sendRawTransaction", params: vec![hex_tx], id: 1 };
+        let resp = client.post(rpc).json(&body).send().await
+            .map_err(|e| Status::internal(format!("EVM RPC send error: {}", e)))?;
+        let rpc_res: RpcRes = resp.json().await
+            .map_err(|e| Status::internal(format!("EVM RPC decode error: {}", e)))?;
+        if let Some(err) = rpc_res.error { return Err(Status::internal(format!("EVM RPC error: {}", err))); }
+        let txid = rpc_res.result.ok_or_else(|| Status::internal("Missing result from EVM RPC"))?;
+        Ok(txid)
     }
 }
 
@@ -162,6 +186,58 @@ impl OrchestratorService for OrchestratorGrpcService {
             block_hash: blockhash.to_bytes().to_vec(),
         }))
     }
+
+    async fn submit_solution2(
+        &self,
+        request: Request<SubmitSolutionRequest2Proto>,
+    ) -> Result<Response<SubmitSolutionResponse2Proto>, Status> {
+        let req = request.into_inner();
+        log::info!("SubmitSolution2 for sequence_id {} with {} txs", req.request_sequence_id, req.txs.len());
+
+        // Verify request exists in New/Validated state
+        let Some(_stored_request) = self
+            .storage
+            .get_intent_in_state_new_or_validated(req.request_sequence_id)
+            .await
+            .map_err(|e| Status::internal(format!("failed to fetch request from redis: {}", e)))?
+        else {
+            return Ok(Response::new(SubmitSolutionResponse2Proto{
+                result: AppChainResultProto { status: AppChainResultStatus::EventNotFound.into(), message: Some(format!("sequence {} not found or invalid state", req.request_sequence_id)) }.into(),
+                txids: vec![],
+            }));
+        };
+
+        // Sort by step and dispatch
+        let mut txs = req.txs;
+        txs.sort_by_key(|t| t.step);
+        let mut txids: Vec<String> = Vec::with_capacity(txs.len());
+        for tx in txs.into_iter() {
+            let Some(dest) = tx.destination else { continue; };
+            match dest.namespace.as_str() {
+                "eip155" => {
+                    // reference must be decimal string chainId
+                    let txid = self.send_raw_evm_tx(&dest.reference, &tx.transaction).await?;
+                    txids.push(txid);
+                }
+                "solana" => {
+                    // Not implemented in this method yet
+                    return Err(Status::unimplemented("solana in SubmitSolution2 not yet implemented"));
+                }
+                _ => return Err(Status::invalid_argument(format!("Unsupported namespace: {}", dest.namespace))),
+            }
+        }
+
+        // Update state to UnderExecution
+        self.storage
+            .update_request_state_to_under_execution(req.request_sequence_id)
+            .await
+            .map_err(|e| Status::internal(format!("failed to update request state: {}", e)))?;
+
+        Ok(Response::new(SubmitSolutionResponse2Proto{
+            result: AppChainResultProto { status: AppChainResultStatus::Ok.into(), message: None }.into(),
+            txids,
+        }))
+    }
 }
 
 pub async fn start_grpc_server(storage: Storage, cfg: &config::Config) -> anyhow::Result<()> {
@@ -170,12 +246,15 @@ pub async fn start_grpc_server(storage: Storage, cfg: &config::Config) -> anyhow
     let solana_devnet_url = cfg.get("solana.devnet_url")?;
     let solana_mainnet_url = cfg.get("solana.mainnet_url")?;
     let solana_default_url = cfg.get("solana.default_url")?;
+    // Load EVM endpoints map: [evm.endpoints]
+    let evm_endpoints: std::collections::HashMap<String, String> = cfg.get::<std::collections::HashMap<String, String>>("evm.endpoints").unwrap_or_default();
 
     let service = OrchestratorGrpcService {
         storage,
         solana_devnet_url,
         solana_mainnet_url,
         solana_default_url,
+        evm_rpc_endpoints: evm_endpoints,
     };
 
     log::info!("Reading the proto descriptor");

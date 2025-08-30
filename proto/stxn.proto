@@ -106,6 +106,28 @@ message SubmitSolutionResponseProto {
   AppChainPayloadProto payload = 2;
 }
 
+// Multi-destination solution support
+message DestinationChainIdProto {
+  string namespace = 1; // e.g. "eip155", "solana", "cosmos"
+  string reference = 2; // e.g. "84532" for eip155 chains, or cluster name for solana
+}
+
+message MultiChainTransactionProto {
+  uint64 step = 1; // execution order
+  DestinationChainIdProto destination = 2;
+  bytes transaction = 3; // signed transaction in chain-native encoding
+}
+
+message SubmitSolutionRequest2Proto {
+  uint64 request_sequence_id = 1;
+  repeated MultiChainTransactionProto txs = 2;
+}
+
+message SubmitSolutionResponse2Proto {
+  AppChainResultProto result = 1;
+  repeated string txids = 2; // chain-specific transaction identifiers in order
+}
+
 message SubmitSolutionForValidationRequestProto {
   string intent_id = 1;
   // The generic field for solution to be validated in the encoding specified in the exact app proto description `*SolutionForValidationProto`
@@ -140,6 +162,8 @@ message LatestBlockHashResponseProto{
 service OrchestratorService{
   // To be called from the solver to the orchestrator to deliver the solver decision.
   rpc SubmitSolution(SubmitSolutionRequestProto) returns (SubmitSolutionResponseProto);
+  // Alternate method for multiple transactions across multiple chains.
+  rpc SubmitSolution2(SubmitSolutionRequest2Proto) returns (SubmitSolutionResponse2Proto);
   // Getting the recent block hash.
   rpc GetLatestBlockHash(LatestBlockHashRequestProto) returns (LatestBlockHashResponseProto);
 }

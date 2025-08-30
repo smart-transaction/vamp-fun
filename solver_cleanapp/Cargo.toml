@@ -1,0 +1,25 @@
+[package]
+name = "solver-cleanapp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hex = "0.4"
+sha3 = "0.10"
+log = "0.4"
+stderrlog = "0.5"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+parse_duration = "2"
+tonic = { version = "0.13" }
+prost = "0.13"
+ethers-core = "2"
+ethers-signers = "2"
+ethers-providers = { version = "2", features = ["rustls"] }
+ethers-contract = "2"
+
+[build-dependencies]
+tonic-build = "0.13" 

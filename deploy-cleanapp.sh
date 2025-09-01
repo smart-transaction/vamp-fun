@@ -15,6 +15,9 @@ do
         # For now no on-chain listener; RR will only accept gRPC Push
         ETHEREUM_RPC_URL_WSS=""
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS=""
+        # Orchestrator EVM endpoints map (chainId -> RPC URL)
+        # Dev: eip155:21363 at lestnet service
+        EVM_ENDPOINT_21363="wss://service.lestnet.org:8888"
         break
         ;;
     "prod")
@@ -23,6 +26,7 @@ do
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://cleanapp_stxn_redis:6379"
         ETHEREUM_RPC_URL_WSS=""
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS=""
+        EVM_ENDPOINT_21363="wss://service.lestnet.org:8888"
         break
         ;;
     "quit")
@@ -51,9 +55,11 @@ DOCKER_LOCATION="us-central1-docker.pkg.dev"
 DOCKER_PREFIX="${DOCKER_LOCATION}/solver-438012/solver-docker-repo"
 REQUEST_REGISTRATOR_DOCKER_IMAGE="
 ${DOCKER_PREFIX}/vampfun-request-registrator-image:${OPT}"
+ORCHESTRATOR_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-orchestrator-image:${OPT}"
+SOLVER_CLEANAPP_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-solver-cleanapp-image:${OPT}"
 REDIS_DOCKER_IMAGE=redis/redis-stack-server:latest
 
-# Compose file (only redis + one registrator)
+# Compose file (redis + registrator + orchestrator placeholder + solver)
 cat >docker-compose.yml << COMPOSE
 services:
   cleanapp_stxn_request_registrator:
@@ -70,6 +76,34 @@ services:
       options:
         max-size: 100m
         max-file: "15"
+
+  cleanapp_stxn_orchestrator:
+    container_name: cleanapp_stxn_orchestrator
+    image: orchestrator-cleanapp-updated-image
+    restart: unless-stopped
+    depends_on:
+      cleanapp_stxn_redis:
+        condition: service_started
+    ports:
+      - 50052:50052
+
+  cleanapp_solver_cleanapp:
+    container_name: cleanapp_solver_cleanapp
+    image: ${SOLVER_CLEANAPP_DOCKER_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      cleanapp_stxn_request_registrator:
+        condition: service_started
+      cleanapp_stxn_orchestrator:
+        condition: service_started
+    environment:
+      - REQUEST_REGISTRATOR_URL=http://cleanapp_stxn_request_registrator:50051
+      - ORCHESTRATOR_URL=http://cleanapp_stxn_orchestrator:50052
+      - POLL_FREQUENCY=5s
+      - EVM_PRIVATE_KEY_HEX=
+      - ERC20_TOKEN_ADDRESS=0x0000000000000000000000000000000000000000
+      - AMOUNT_WEI=0
+      - EIP155_CHAIN_REF=21363
 
   cleanapp_stxn_redis:
     container_name: cleanapp_stxn_redis
@@ -89,6 +123,8 @@ COMPOSE
 # Pull images
 set -e
 docker pull ${REQUEST_REGISTRATOR_DOCKER_IMAGE}
+docker pull ${ORCHESTRATOR_DOCKER_IMAGE}
+docker pull ${SOLVER_CLEANAPP_DOCKER_IMAGE}
 docker pull ${REDIS_DOCKER_IMAGE}
 
 # Prepare RR config (gRPC binding + storage only; ethereum section left blank)
@@ -104,12 +140,35 @@ address = "${REQUEST_REGISTRATOR_GRPC_ADDRESS}"
 redis_url = "${REQUEST_REGISTRATOR_STORAGE_REDIS_URL}"
 REQUEST_REGISTRATOR_CONFIG
 
-# Bake config into image to produce request-registrator-cleanapp-updated-image
+# Bake configs into images: request-registrator + orchestrator
 TMP_CONTAINER=$(docker create --name request-registrator-temp-container ${REQUEST_REGISTRATOR_DOCKER_IMAGE})
 docker cp request_registrator_config.toml request-registrator-temp-container:/config/config.toml
 docker commit request-registrator-temp-container request-registrator-cleanapp-updated-image
 docker rm ${TMP_CONTAINER}
 rm request_registrator_config.toml
+
+# Orchestrator config with EVM endpoints
+cat >orchestrator_config.toml << ORCHESTRATOR_CONFIG
+[solana]
+devnet_url = ""
+mainnet_url = ""
+default_url = ""
+
+[grpc]
+address = "[::]:50052"
+
+[evm.endpoints]
+"21363" = "${EVM_ENDPOINT_21363}"
+
+[storage]
+redis_url = "redis://cleanapp_stxn_redis:6379"
+ORCHESTRATOR_CONFIG
+
+TMP_CONTAINER=$(docker create --name orchestrator-cleanapp-temp-container ${ORCHESTRATOR_DOCKER_IMAGE})
+docker cp orchestrator_config.toml orchestrator-cleanapp-temp-container:/config/orchestrator.toml
+docker commit orchestrator-cleanapp-temp-container orchestrator-cleanapp-updated-image
+docker rm ${TMP_CONTAINER}
+rm orchestrator_config.toml
 
 # Start services
 ./up.sh 

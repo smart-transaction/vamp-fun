@@ -98,7 +98,7 @@ async fn main() -> Result<()> {
                             .gas(U256::from(100000u64))
                             .gas_price(U256::from(2_000_000_000u64))
                             .nonce(U256::from(0u64));
-                        let mut typed: TypedTransaction = tx_req.into();
+                        let typed: TypedTransaction = tx_req.into();
                         let sig = signer.sign_transaction(&typed).await?;
                         let raw = typed.rlp_signed(&sig);
                         let raw_vec = raw.to_vec();

@@ -4248,7 +4248,7 @@ dependencies = [
 
 [[package]]
 name = "vamp_fun_registrator_stub"
-version = "1.0.32"
+version = "1.0.34"
 dependencies = [
  "anyhow",
  "appchain-core",

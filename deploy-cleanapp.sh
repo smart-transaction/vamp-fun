@@ -102,8 +102,9 @@ ${DOCKER_PREFIX}/vampfun-request-registrator-image:${OPT}"
 ORCHESTRATOR_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-orchestrator-image:${OPT}"
 SOLVER_CLEANAPP_DOCKER_IMAGE="${DOCKER_PREFIX}/vampfun-solver-cleanapp-image:${OPT}"
 REDIS_DOCKER_IMAGE=redis/redis-stack-server:latest
+NGINX_IMAGE=nginx:1.25-alpine
 
-# Compose file (redis + registrator + orchestrator placeholder + solver)
+# Compose file (redis + registrator + orchestrator + tls proxy + solver)
 cat >docker-compose.yml << COMPOSE
 services:
   cleanapp_stxn_request_registrator:
@@ -130,6 +131,26 @@ services:
         condition: service_started
     ports:
       - 50052:50052
+
+  cleanapp_stxn_grpc_gateway:
+    container_name: cleanapp_stxn_grpc_gateway
+    image: ${NGINX_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      cleanapp_stxn_request_registrator:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./nginx/www:/var/www/certbot:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+        max-file: "15"
 
   cleanapp_solver_cleanapp:
     container_name: cleanapp_solver_cleanapp
@@ -171,6 +192,7 @@ docker pull ${REQUEST_REGISTRATOR_DOCKER_IMAGE}
 docker pull ${ORCHESTRATOR_DOCKER_IMAGE}
 docker pull ${SOLVER_CLEANAPP_DOCKER_IMAGE}
 docker pull ${REDIS_DOCKER_IMAGE}
+docker pull ${NGINX_IMAGE}
 
 # Prepare RR config (gRPC binding + storage only; ethereum section left blank)
 cat >request_registrator_config.toml << REQUEST_REGISTRATOR_CONFIG
@@ -214,6 +236,36 @@ docker cp orchestrator_config.toml orchestrator-cleanapp-temp-container:/config/
 docker commit orchestrator-cleanapp-temp-container orchestrator-cleanapp-updated-image
 docker rm ${TMP_CONTAINER}
 rm orchestrator_config.toml
+
+# Generate nginx config (expects certs in ./nginx/certs)
+mkdir -p nginx/conf.d nginx/certs
+cat > nginx/conf.d/grpc_gateway.conf << NGINX
+upstream rr_upstream {
+   server cleanapp_stxn_request_registrator:50051;
+ }
+
+# ACME for redirect
+server {
+  listen 80;
+  server_name stxn-cleanapp-dev.stxn.io;
+  location /.well-known/acme-challenge/ { root /var/www/certbot; }
+  return 301 https://$host$request_uri;
+}
+
+server {
+  listen 443 ssl http2;
+  server_name stxn-cleanapp-dev.stxn.io;
+
+  ssl_certificate     /etc/nginx/certs/live/stxn-cleanapp-dev.stxn.io/fullchain.pem;
+  ssl_certificate_key /etc/nginx/certs/live/stxn-cleanapp-dev.stxn.io/privkey.pem;
+
+  # Pass any path to RR gRPC; adjust if you want path-based routing
+  location / {
+    grpc_pass grpc://rr_upstream;
+  }
+}
+
+NGINX
 
 # Start services
 ./up.sh 

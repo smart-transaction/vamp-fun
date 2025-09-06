@@ -13,8 +13,8 @@ do
         REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://cleanapp_stxn_redis:6379"
         # For now no on-chain listener; RR will only accept gRPC Push
-        ETHEREUM_RPC_URL_WSS=""
-        REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS=""
+        ETHEREUM_RPC_URL_WSS="wss://service.lestnet.org:8888"
+        REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x4e01a97f540D830b27F0b31Bd7eB1B477b7B6710"
         # Orchestrator EVM endpoints map (chainId -> RPC URL)
         # Dev: eip155:21363 at lestnet service
         EVM_ENDPOINT_21363="wss://service.lestnet.org:8888"

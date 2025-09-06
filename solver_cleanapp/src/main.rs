@@ -54,8 +54,24 @@ async fn main() -> Result<()> {
     stderrlog::new().verbosity(Level::Info).init().unwrap();
     let poll = parse_duration::parse(&args.poll_frequency)?;
 
+ 
+  
+   
+    
+     log::info!(
+        "solver-cleanapp starting: RR={}, ORCH={}, poll={}, chain=eip155:{}, token={}, amountWei={}",
+        args.request_registrator_url,
+        args.orchestrator_url,
+        args.poll_frequency,
+        args.eip155_chain_ref,
+        args.erc20_token_address,
+        args.amount_wei
+    );
+
     let mut rr = RequestRegistratorServiceClient::connect(args.request_registrator_url.clone()).await?;
     let mut orch = OrchestratorServiceClient::connect(args.orchestrator_url.clone()).await?;
+
+    log::info!("connected: RR ok, ORCH ok; entering polling loop");
 
     use ethers_signers::Signer;
     let signer = ethers_signers::LocalWallet::from_bytes(&<[u8; 32]>::from_hex(args.evm_private_key_hex.trim_start_matches("0x"))?)?;
@@ -109,6 +125,7 @@ async fn main() -> Result<()> {
                         let req = SubmitSolutionRequest2Proto { request_sequence_id: seq, txs: vec![mtx] };
                         let submit = orch.submit_solution2(Request::new(req)).await?.into_inner();
                         if let Some(res2) = submit.result { if res2.status() != AppChainResultStatus::Ok { log::warn!("SubmitSolution2 failed: {:?}", res2.message); }}
+                        log::info!("handled sequence_id={}, submitted solution", seq);
                         last_sequence_id = seq;
                         continue;
                     }

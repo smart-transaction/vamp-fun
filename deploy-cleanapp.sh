@@ -3,22 +3,63 @@
 
 set -e
 
-PS3="Please choose the environment: "
-options=("dev" "prod" "quit")
-select OPT in "${options[@]}"
-do
+# Optional CLI arg: -e|--env <dev|prod>
+OPT=""
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    "-e"|"--env")
+      OPT="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1"
+      exit 1
+      ;;
+  esac
+done
+
+if [ -z "${OPT}" ]; then
+  PS3="Please choose the environment: "
+  options=("dev" "prod" "quit")
+  select OPT in "${options[@]}"
+  do
+    case ${OPT} in
+      "dev")
+          echo "Using dev environment"
+          REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
+          REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://cleanapp_stxn_redis:6379"
+          # For now no on-chain listener; RR will only accept gRPC Push
+          ETHEREUM_RPC_URL_WSS="wss://service.lestnet.org:8888"
+          REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x4e01a97f540D830b27F0b31Bd7eB1B477b7B6710"
+          # Orchestrator EVM endpoints map (chainId -> RPC URL)
+          # Dev: eip155:21363 at lestnet service
+          EVM_ENDPOINT_21363="wss://service.lestnet.org:8888"
+          break
+          ;;
+      "prod")
+          echo "Using prod environment"
+          REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
+          REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://cleanapp_stxn_redis:6379"
+          ETHEREUM_RPC_URL_WSS=""
+          REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS=""
+          EVM_ENDPOINT_21363="wss://service.lestnet.org:8888"
+          break
+          ;;
+      "quit")
+          exit
+          ;;
+      *) echo "invalid option $REPLY";;
+    esac
+  done
+else
   case ${OPT} in
     "dev")
         echo "Using dev environment"
         REQUEST_REGISTRATOR_GRPC_ADDRESS="[::]:50051"
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://cleanapp_stxn_redis:6379"
-        # For now no on-chain listener; RR will only accept gRPC Push
         ETHEREUM_RPC_URL_WSS="wss://service.lestnet.org:8888"
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x4e01a97f540D830b27F0b31Bd7eB1B477b7B6710"
-        # Orchestrator EVM endpoints map (chainId -> RPC URL)
-        # Dev: eip155:21363 at lestnet service
         EVM_ENDPOINT_21363="wss://service.lestnet.org:8888"
-        break
         ;;
     "prod")
         echo "Using prod environment"
@@ -27,14 +68,17 @@ do
         ETHEREUM_RPC_URL_WSS=""
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS=""
         EVM_ENDPOINT_21363="wss://service.lestnet.org:8888"
-        break
         ;;
-    "quit")
-        exit
+    *)
+        echo "Unknown environment: ${OPT}. Use dev|prod"
+        exit 1
         ;;
-    *) echo "invalid option $REPLY";;
   esac
-done
+fi
+
+# Obtain secrets
+SECRET_SUFFIX=$(echo ${OPT} | tr '[a-z]' '[A-Z]')
+SOLVER_PRIVATE_KEY=$(gcloud secrets versions access 1 --secret="VAMP_FUN_SOLVER_PRIVATE_KEY_${SECRET_SUFFIX}")
 
 # Create up/down helpers
 cat >up.sh << UP
@@ -89,7 +133,8 @@ services:
 
   cleanapp_solver_cleanapp:
     container_name: cleanapp_solver_cleanapp
-    image: ${SOLVER_CLEANAPP_DOCKER_IMAGE}
+    image: \
+${SOLVER_CLEANAPP_DOCKER_IMAGE}
     restart: unless-stopped
     depends_on:
       cleanapp_stxn_request_registrator:
@@ -100,7 +145,7 @@ services:
       - REQUEST_REGISTRATOR_URL=http://cleanapp_stxn_request_registrator:50051
       - ORCHESTRATOR_URL=http://cleanapp_stxn_orchestrator:50052
       - POLL_FREQUENCY=5s
-      - EVM_PRIVATE_KEY_HEX=
+      - EVM_PRIVATE_KEY_HEX=${SOLVER_PRIVATE_KEY}
       - ERC20_TOKEN_ADDRESS=0x0000000000000000000000000000000000000000
       - AMOUNT_WEI=0
       - EIP155_CHAIN_REF=21363

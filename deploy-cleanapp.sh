@@ -259,9 +259,15 @@ server {
   ssl_certificate     /etc/nginx/certs/live/stxn-cleanapp-dev.stxn.io/fullchain.pem;
   ssl_certificate_key /etc/nginx/certs/live/stxn-cleanapp-dev.stxn.io/privkey.pem;
 
+  # Hint clients to use HTTP/2 on this port
+  add_header Alt-Svc 'h2=":443"';
+
   # Pass any path to RR gRPC; adjust if you want path-based routing
   location / {
     grpc_pass grpc://rr_upstream;
+    grpc_set_header TE trailers;
+    grpc_read_timeout 3600s;
+    grpc_send_timeout 3600s;
   }
 }
 

@@ -6,6 +6,7 @@ use sha3::{Digest, Keccak256};
 use std::time::Duration;
 use tokio::time::sleep;
 use tonic::Request;
+use serde::{Deserialize, Serialize};
 
 pub mod proto { tonic::include_proto!("stxn.io"); }
 
@@ -37,6 +38,45 @@ struct Args {
     // Destination chain reference (decimal chainId) for eip155
     #[arg(long)]
     eip155_chain_ref: String,
+    // EVM JSON-RPC URL for nonce and (optionally) gas price
+    #[arg(long)]
+    evm_rpc_url: String,
+}
+#[derive(Serialize)]
+struct JsonRpcRequest<'a> {
+    jsonrpc: &'a str,
+    method: &'a str,
+    params: serde_json::Value,
+    id: u64,
+}
+
+#[derive(Deserialize)]
+struct JsonRpcResponse<T> {
+    jsonrpc: String,
+    #[allow(dead_code)]
+    id: u64,
+    result: Option<T>,
+    error: Option<serde_json::Value>,
+}
+
+async fn fetch_pending_nonce(rpc_url: &str, address: ethers_core::types::Address) -> Result<ethers_core::types::U256> {
+    let addr_hex = format!("0x{:x}", address);
+    let body = JsonRpcRequest {
+        jsonrpc: "2.0",
+        method: "eth_getTransactionCount",
+        params: serde_json::json!([addr_hex, "pending"]),
+        id: 1,
+    };
+    let client = reqwest::Client::new();
+    let resp = client.post(rpc_url).json(&body).send().await?;
+    let status = resp.status();
+    let text = resp.text().await?;
+    if !status.is_success() { anyhow::bail!("RPC status {}: {}", status, text); }
+    let parsed: JsonRpcResponse<String> = serde_json::from_str(&text)?;
+    if let Some(err) = parsed.error { anyhow::bail!("RPC error: {}", err); }
+    let hex_nonce = parsed.result.ok_or_else(|| anyhow::anyhow!("missing result"))?;
+    let nonce = ethers_core::types::U256::from_str_radix(hex_nonce.trim_start_matches("0x"), 16)?;
+    Ok(nonce)
 }
 
 fn keccak256(data: &[u8]) -> [u8; 32] {
@@ -107,13 +147,17 @@ async fn main() -> Result<()> {
                         use ethers_core::types::{TransactionRequest, NameOrAddress, Bytes, U256};
                         use ethers_core::types::transaction::eip2718::TypedTransaction;
                         let chain_u64 = args.eip155_chain_ref.parse::<u64>()?;
+                        let from_addr = signer.address();
+                        // Fetch pending nonce for the signer
+                        let pending_nonce = fetch_pending_nonce(&args.evm_rpc_url, from_addr).await?;
                         let tx_req = TransactionRequest::new()
+                            .from(from_addr)
                             .to(NameOrAddress::Address(token))
                             .data(Bytes::from(calldata))
                             .chain_id(chain_u64)
                             .gas(U256::from(100000u64))
                             .gas_price(U256::from(2_000_000_000u64))
-                            .nonce(U256::from(0u64));
+                            .nonce(pending_nonce);
                         let typed: TypedTransaction = tx_req.into();
                         let sig = signer.sign_transaction(&typed).await?;
                         let raw = typed.rlp_signed(&sig);
@@ -123,10 +167,28 @@ async fn main() -> Result<()> {
                         let dest = DestinationChainIdProto { namespace: "eip155".to_string(), reference: args.eip155_chain_ref.clone() };
                         let mtx = MultiChainTransactionProto { step: 1, destination: Some(dest), transaction: raw_vec };
                         let req = SubmitSolutionRequest2Proto { request_sequence_id: seq, txs: vec![mtx] };
-                        let submit = orch.submit_solution2(Request::new(req)).await?.into_inner();
-                        if let Some(res2) = submit.result { if res2.status() != AppChainResultStatus::Ok { log::warn!("SubmitSolution2 failed: {:?}", res2.message); }}
-                        log::info!("handled sequence_id={}, submitted solution", seq);
-                        last_sequence_id = seq;
+                        let submit = match orch.submit_solution2(Request::new(req)).await {
+                            Ok(r) => r.into_inner(),
+                            Err(e) => { log::error!("submit_solution2 error: {}", e); continue; }
+                        };
+                        if let Some(res2) = submit.result {
+                            let status = res2.status();
+                            if status == AppChainResultStatus::Ok {
+                                if !submit.txids.is_empty() {
+                                    log::info!("handled sequence_id={}, submitted solution, txids={:?}", seq, submit.txids);
+                                } else {
+                                    log::info!("handled sequence_id={}, submitted solution", seq);
+                                }
+                                last_sequence_id = seq;
+                            } else if status == AppChainResultStatus::EventNotFound {
+                                log::warn!("SubmitSolution2 failed (not found/invalid state), skipping seq {}: {:?}", seq, res2.message);
+                                last_sequence_id = seq;
+                            } else {
+                                log::warn!("SubmitSolution2 failed: {:?}", res2.message);
+                            }
+                        } else {
+                            log::warn!("SubmitSolution2 returned empty result");
+                        }
                         continue;
                     }
                 }

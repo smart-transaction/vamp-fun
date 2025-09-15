@@ -37,4 +37,5 @@ CMD \
   "--evm-private-key-hex=${EVM_PRIVATE_KEY_HEX}" \
   "--erc20-token-address=${ERC20_TOKEN_ADDRESS}" \
   "--amount-wei=${AMOUNT_WEI}" \
-  "--eip155-chain-ref=${EIP155_CHAIN_REF}" 
+  "--eip155-chain-ref=${EIP155_CHAIN_REF}" \
+  "--evm-rpc-url=${EVM_RPC_URL}"

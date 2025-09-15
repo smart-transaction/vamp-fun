@@ -22,7 +22,7 @@ pub mod storage {
             if let Some(intent_id) = intent_id {
                 if let Some(request) = self.store.get_request_by_intent_id(&intent_id).await? {
                     match request.state {
-                        State::New | State::Validated => return Ok(Some(request)),
+                        State::New | State::Validated | State::UnderExecution => return Ok(Some(request)),
                         _ => {}
                     }
                 }

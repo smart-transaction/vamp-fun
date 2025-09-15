@@ -78,6 +78,7 @@ impl OrchestratorGrpcService {
             .map_err(|e| Status::internal(format!("EVM RPC decode error: {}", e)))?;
         if let Some(err) = rpc_res.error { return Err(Status::internal(format!("EVM RPC error: {}", err))); }
         let txid = rpc_res.result.ok_or_else(|| Status::internal("Missing result from EVM RPC"))?;
+        log::info!("EVM tx sent on chain {}: txid={}", chain_ref, txid);
         Ok(txid)
     }
 }
@@ -217,6 +218,7 @@ impl OrchestratorService for OrchestratorGrpcService {
                 "eip155" => {
                     // reference must be decimal string chainId
                     let txid = self.send_raw_evm_tx(&dest.reference, &tx.transaction).await?;
+                    log::info!("SubmitSolution2 sequence {} step {} sent tx {} on eip155:{}", req.request_sequence_id, tx.step, txid, dest.reference);
                     txids.push(txid);
                 }
                 "solana" => {

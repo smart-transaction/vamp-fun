@@ -32,8 +32,8 @@ if [ -z "${OPT}" ]; then
           ETHEREUM_RPC_URL_WSS="wss://service.lestnet.org:8888"
           REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x4e01a97f540D830b27F0b31Bd7eB1B477b7B6710"
           # Orchestrator EVM endpoints map (chainId -> RPC URL)
-          # Dev: eip155:21363 at lestnet service
-          EVM_ENDPOINT_21363="wss://service.lestnet.org:8888"
+          # Dev: eip155:21363 at lestnet service (HTTPS JSON-RPC)
+          EVM_ENDPOINT_21363="https://service.lestnet.org"
           break
           ;;
       "prod")
@@ -42,7 +42,7 @@ if [ -z "${OPT}" ]; then
           REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://cleanapp_stxn_redis:6379"
           ETHEREUM_RPC_URL_WSS=""
           REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS=""
-          EVM_ENDPOINT_21363="wss://service.lestnet.org:8888"
+          EVM_ENDPOINT_21363="https://service.lestnet.org"
           break
           ;;
       "quit")
@@ -59,7 +59,7 @@ else
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://cleanapp_stxn_redis:6379"
         ETHEREUM_RPC_URL_WSS="wss://service.lestnet.org:8888"
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS="0x4e01a97f540D830b27F0b31Bd7eB1B477b7B6710"
-        EVM_ENDPOINT_21363="wss://service.lestnet.org:8888"
+        EVM_ENDPOINT_21363="https://service.lestnet.org"
         ;;
     "prod")
         echo "Using prod environment"
@@ -67,7 +67,7 @@ else
         REQUEST_REGISTRATOR_STORAGE_REDIS_URL="redis://cleanapp_stxn_redis:6379"
         ETHEREUM_RPC_URL_WSS=""
         REQUEST_REGISTRATOR_ETHEREUM_CONTRACT_ADDRESS=""
-        EVM_ENDPOINT_21363="wss://service.lestnet.org:8888"
+        EVM_ENDPOINT_21363="https://service.lestnet.org"
         ;;
     *)
         echo "Unknown environment: ${OPT}. Use dev|prod"
@@ -170,6 +170,7 @@ ${SOLVER_CLEANAPP_DOCKER_IMAGE}
       - ERC20_TOKEN_ADDRESS=0x0000000000000000000000000000000000000000
       - AMOUNT_WEI=0
       - EIP155_CHAIN_REF=21363
+      - EVM_RPC_URL=${EVM_ENDPOINT_21363}
 
   cleanapp_stxn_redis:
     container_name: cleanapp_stxn_redis

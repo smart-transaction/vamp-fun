@@ -2,6 +2,7 @@ use std::fs;
 use crate::proto::{
     request_registrator_service_server::{RequestRegistratorService, RequestRegistratorServiceServer},
     PollRequestProto, PollResponseProto, AppChainResultProto, AppChainResultStatus, UserEventProto,
+    PollNextAvailableRequestProto, PollNextAvailableResponseProto,
     PushRequestProto, PushResponseProto,
 };
 use crate::rr::storage::Storage;
@@ -64,6 +65,47 @@ impl RequestRegistratorService for RRService {
         }
     }
 
+    async fn poll_next_available(
+        &self,
+        request: Request<PollNextAvailableRequestProto>,
+    ) -> Result<Response<PollNextAvailableResponseProto>, Status> {
+        let req = request.into_inner();
+        let mut seq = req.last_seen_sequence_id + 1;
+        let max_scan = 1000u64;
+        let mut scanned = 0u64;
+        loop {
+            if scanned >= max_scan { break; }
+            scanned += 1;
+            match self.storage.get_request_by_sequence_id(seq).await {
+                Ok(stored_request) => {
+                    let actionable = matches!(stored_request.state,
+                        appchain_core::types::RequestState::New | appchain_core::types::RequestState::Validated);
+                    if actionable {
+                        let proto_hex = stored_request.proto_data.as_deref()
+                            .ok_or_else(|| Status::internal("Missing proto_data for event"))?;
+                        let proto_bytes = hex::decode(proto_hex)
+                            .map_err(|e| Status::internal(format!("Failed to decode hex data from Redis: {}", e)))?;
+                        let user_event = UserEventProto::decode(&proto_bytes[..])
+                            .map_err(|e| Status::internal(format!("Failed to decode UserEventProto from Redis: {}", e)))?;
+                        return Ok(Response::new(PollNextAvailableResponseProto {
+                            result: AppChainResultProto { status: AppChainResultStatus::Ok.into(), message: None }.into(),
+                            sequence_id: stored_request.sequence_id,
+                            event: Some(user_event),
+                            intent_id: Some(stored_request.intent_id.as_bytes().to_vec()),
+                        }));
+                    }
+                }
+                Err(_) => { /* gap or beyond tip; continue scanning */ }
+            }
+            seq += 1;
+        }
+        Ok(Response::new(PollNextAvailableResponseProto {
+            result: AppChainResultProto { status: AppChainResultStatus::EventNotFound.into(), message: None }.into(),
+            sequence_id: req.last_seen_sequence_id,
+            event: None,
+            intent_id: None,
+        }))
+    }
     async fn push(
         &self,
         request: Request<PushRequestProto>,

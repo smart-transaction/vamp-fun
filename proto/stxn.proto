@@ -73,6 +73,20 @@ message PollResponseProto {
   UserEventProto event = 4;
 }
 
+// Stateless solver friendly polling: returns the next (by sequence_id) intent
+// that is still actionable (State::New | State::Validated) strictly after the
+// provided last_seen_sequence_id. If none found, returns EVENT_NOT_FOUND.
+message PollNextAvailableRequestProto {
+  uint64 last_seen_sequence_id = 1;
+}
+
+message PollNextAvailableResponseProto {
+  uint64 sequence_id = 1;
+  AppChainResultProto result = 2;
+  optional bytes intent_id = 3;
+  UserEventProto event = 4;
+}
+
 // New push API for external submitters (e.g., CleanApp ReportsPusher)
 message PushRequestProto {
   // A fully-formed UserEventProto to register
@@ -145,6 +159,9 @@ service RequestRegistratorService {
   // To be called periodically from the solver to the request registrator
   // to check if there are new requests to be solved.
   rpc Poll(PollRequestProto) returns (PollResponseProto);
+  // Returns the next request in actionable state (NEW or VALIDATED)
+  // strictly after last_seen_sequence_id, or EVENT_NOT_FOUND if none.
+  rpc PollNextAvailable(PollNextAvailableRequestProto) returns (PollNextAvailableResponseProto);
   // To be called by external submitters to push new events directly into the appchain store.
   rpc Push(PushRequestProto) returns (PushResponseProto);
 }

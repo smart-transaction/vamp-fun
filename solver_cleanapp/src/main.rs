@@ -118,8 +118,8 @@ async fn main() -> Result<()> {
 
     let mut last_sequence_id: u64 = 0;
     loop {
-        let poll_req = PollRequestProto { last_sequence_id };
-        let resp = rr.poll(Request::new(poll_req)).await?.into_inner();
+        let poll_req = proto::PollNextAvailableRequestProto { last_seen_sequence_id: last_sequence_id };
+        let resp = rr.poll_next_available(Request::new(poll_req)).await?.into_inner();
         if let Some(res) = resp.result.as_ref() {
             if res.status() == AppChainResultStatus::Ok {
                 let seq = resp.sequence_id;

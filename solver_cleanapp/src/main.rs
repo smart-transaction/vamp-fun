@@ -125,8 +125,34 @@ async fn main() -> Result<()> {
                 let seq = resp.sequence_id;
                 if let Some(event) = resp.event {
                     if let Some(_obj) = event.user_objective {
-                        // Fallback to zero address if not provided; orchestrator/RPC will reject if invalid
-                        let to = ethers_core::types::Address::zero();
+                        // Extract recipient from additional_data under key keccak("user_id")
+                        let user_id_key = keccak256(b"user_id").to_vec();
+                        let mut to_opt: Option<ethers_core::types::Address> = None;
+                        for ad in &event.additional_data {
+                            if ad.key == user_id_key {
+                                // Try interpret as ASCII hex address (e.g., "0x...")
+                                if let Ok(s) = std::str::from_utf8(&ad.value) {
+                                    let s_trim = s.trim();
+                                    if let Ok(addr) = s_trim.parse::<ethers_core::types::Address>() {
+                                        to_opt = Some(addr);
+                                        break;
+                                    }
+                                }
+                                // Fallback: if raw 20 bytes
+                                if ad.value.len() == 20 {
+                                    to_opt = Some(ethers_core::types::Address::from_slice(&ad.value));
+                                    break;
+                                }
+                            }
+                        }
+                        let to = match to_opt {
+                            Some(addr) => addr,
+                            None => {
+                                log::warn!("missing or invalid user_id recipient; skipping seq {}", seq);
+                                last_sequence_id = seq;
+                                continue;
+                            }
+                        };
                         let token = args.erc20_token_address.parse::<ethers_core::types::Address>()?;
                         let amount = ethers_core::types::U256::from_dec_str(&args.amount_wei)?;
 

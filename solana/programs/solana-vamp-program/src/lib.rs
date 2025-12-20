@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use prost::Message;
 
-declare_id!("CABA3ibLCuTDcTF4DQXuHK54LscXM5vBg7nWx1rzPaJH");
+declare_id!("FAyBECn6ppQgRwb5R4LryAzNic3XwsCuHakVpD1X7hFW");
 
 // Module declarations
 mod constant;
@@ -29,6 +29,8 @@ pub mod solana_vamp_program {
         token_decimals: u8,
         vamping_data: Vec<u8>,
     ) -> Result<()> {
+        let decimals = ctx.accounts.mint_account.decimals as u32;
+        msg!("Token decimals: {}", decimals);
         let vamping_info = TokenVampingInfoProto::decode(&vamping_data[..]).unwrap();
         let token_mapping_proto = vamping_info.token_mapping.unwrap_or_default();
 

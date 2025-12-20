@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use ethers::middleware::signer;
 use ethers::signers::Signer;
 use ethers::signers::LocalWallet;
 use prost::Message;
@@ -60,7 +61,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         &vamping_data.intent_id,
     )?;
 
+    println!("Balance hash: {:?}", balance_hash);
+
     let signer = LocalWallet::from_str(SOLVER_PRIVATE_KEY)?;
+    println!("Solver public key: {:?}", signer.address().as_bytes());
     let solver_signature = signer.sign_message(&balance_hash).await?;
     println!("Solver Signature: {:?}", solver_signature.to_vec());
 

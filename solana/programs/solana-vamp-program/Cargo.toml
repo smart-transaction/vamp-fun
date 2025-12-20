@@ -17,14 +17,13 @@ no-log-ix-name = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
 [dependencies]
-merkle_tree = { path = "../../../crates/merkle_tree" }
 anchor-lang = { version = "0.31.0", features = ["init-if-needed"] }
 anchor-spl = { version = "0.31.0", features = ["metadata"] }
 prost = "0.13.5"
 hex = "0.4.3"
 libsecp256k1 = "0.7.2"
 balance_util = { path = "../../../crates/balance_util"}
-spl-math = { version = "0.3.0", features = ["no-entrypoint"] }
+rust_decimal = { version = "1.39.0", features = ["macros"] }
 
 [build-dependencies]
 prost-build = "0.13.5"

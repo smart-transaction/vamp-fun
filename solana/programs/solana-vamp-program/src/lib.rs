@@ -30,7 +30,6 @@ pub mod solana_vamp_program {
         vamping_data: Vec<u8>,
     ) -> Result<()> {
         let decimals = ctx.accounts.mint_account.decimals as u32;
-        msg!("Token decimals: {}", decimals);
         let vamping_info = TokenVampingInfoProto::decode(&vamping_data[..]).unwrap();
         let token_mapping_proto = vamping_info.token_mapping.unwrap_or_default();
 

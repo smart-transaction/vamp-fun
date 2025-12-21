@@ -411,6 +411,8 @@ describe("solana-vamp-project", () => {
     const balanceAfterFirstClaim = await provider.connection.getBalance(claimerKeypair.publicKey);
     const solVaultBalanceAfterFirstClaim = await provider.connection.getBalance(accounts.solVault3);
     
+    console.log(`Initial claimer balance: ${initialClaimerBalance} lamports, balance after claim: ${balanceAfterFirstClaim} lamports`);
+
     const firstClaimCost = initialClaimerBalance - balanceAfterFirstClaim;
     const firstClaimDeposited = solVaultBalanceAfterFirstClaim - initialSolVaultBalance;
     

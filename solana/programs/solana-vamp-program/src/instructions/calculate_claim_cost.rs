@@ -27,35 +27,30 @@ pub fn calculate_claim_cost_bonding_curve(
         return Ok(Decimal::zero());
     }
 
-    let x1 = total_claimed;
-    let x2 = x1
-        .checked_add(token_amount)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
-
-    let divisor = Decimal::new(100000, 0);
-
-    // Calculate delta tokens
-    let delta_tokens = x2.checked_sub(x1).ok_or(ProgramError::ArithmeticOverflow)?;
-
-    // Part 1: Use a more gradual curve - linear with small slope instead of quadratic
-    let part1 = delta_tokens
-        .checked_mul(curve_slope)
-        .ok_or(ProgramError::ArithmeticOverflow)?
-        .checked_mul(delta_tokens)
-        .ok_or(ProgramError::ArithmeticOverflow)?
-        .checked_div(divisor) // Divide by 100000 to make the slope much smaller
-        .ok_or(ProgramError::ArithmeticOverflow)?;
-
-    // Part 2: b * (x2 - x1)
-    let part2 = delta_tokens
+    let base_cost = token_amount
         .checked_mul(base_price)
         .ok_or(ProgramError::ArithmeticOverflow)?;
-
-    let total_cost = part1
-        .checked_add(part2)
+    let curve_cost = curve_slope
+        .checked_mul(
+            token_amount
+                .checked_mul(total_claimed)
+                .ok_or(ProgramError::ArithmeticOverflow)?
+                .checked_add(
+                    token_amount
+                        .checked_mul(
+                            token_amount
+                                .checked_sub(Decimal::new(1, 0))
+                                .ok_or(ProgramError::ArithmeticOverflow)?,
+                        )
+                        .ok_or(ProgramError::ArithmeticOverflow)?
+                        .checked_div(Decimal::new(2, 0))
+                        .ok_or(ProgramError::ArithmeticOverflow)?,
+                )
+                .ok_or(ProgramError::ArithmeticOverflow)?,
+        )
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
-    Ok(total_cost)
+    Ok(base_cost.checked_add(curve_cost).ok_or(ProgramError::ArithmeticOverflow)?)
 }
 
 #[cfg(test)]
@@ -69,22 +64,49 @@ mod test {
     }
 
     #[test]
-    fn test_calculate_claim_cost_bonding_curve_high_liq() {
+    fn test_calculate_claim_cost_bonding_curve_one_three_times() {
         let claim_cost = calculate_claim_cost_bonding_curve(
             Decimal::new(1, 0),
-            Decimal::new(100, 0),
+            Decimal::new(0, 0),
             Decimal::new(1, 6),
-            Decimal::new(1, 3));
+            Decimal::new(1, 8),
+        );
+        assert_eq!(claim_cost, Ok(Decimal::new(1, 6)));
+        let claim_cost = calculate_claim_cost_bonding_curve(
+            Decimal::new(1, 0),
+            Decimal::new(1, 0),
+            Decimal::new(1, 6),
+            Decimal::new(1, 8),
+        );
         assert_eq!(claim_cost, Ok(Decimal::new(101, 8)));
+        let claim_cost = calculate_claim_cost_bonding_curve(
+            Decimal::new(1, 0),
+            Decimal::new(2, 0),
+            Decimal::new(1, 6),
+            Decimal::new(1, 8),
+        );
+        assert_eq!(claim_cost, Ok(Decimal::new(102, 8)));
     }
 
     #[test]
-    fn test_calculate_claim_cost_bonding_curve_low_liq() {
+    fn test_calculate_claim_cost_bonding_curve_three_one_time() {
         let claim_cost = calculate_claim_cost_bonding_curve(
-            Decimal::new(1, 0),
-            Decimal::new(5, 0),
+            Decimal::new(3, 0),
+            Decimal::new(0, 0),
             Decimal::new(1, 6),
-            Decimal::new(1, 3));
-        assert_eq!(claim_cost, Ok(Decimal::new(101, 8)));
+            Decimal::new(1, 8),
+        );
+        assert_eq!(claim_cost, Ok(Decimal::new(303, 8)));
+    }
+
+    #[test]
+    fn test_calculate_claim_cost_bonding_curve_tiny_amount() {
+        let claim_cost = calculate_claim_cost_bonding_curve(
+            Decimal::new(1, 9),
+            Decimal::new(0, 0),
+            Decimal::new(1, 6),
+            Decimal::new(1, 8),
+        );
+        assert_eq!(claim_cost, Ok(Decimal::new(303, 8)));
     }
 }

@@ -22,24 +22,26 @@ const program = anchor.workspace.solanaVampProgram as Program<SolanaVampProgram>
 const PROGRAM_ID = program.programId;
 const claimerKeypair = anchor.web3.Keypair.generate();
 
+const vampIdBase = Date.now();
+
 describe("solana-vamp-project", () => {
   const authority = provider.wallet.publicKey;
 
   // Helper functions
   async function setupInitAccounts(authority: PublicKey) {
-    let count = new BN(0);
+    let count = new BN(vampIdBase);
     const [mintAccount] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from('mint'), authority.toBuffer(), count.toArrayLike(Buffer, "le", 8)],
       program.programId
     );
 
-    count = new BN(1);
+    count = new BN(vampIdBase + 1);
     const [mintAccount2] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from('mint'), authority.toBuffer(), count.toArrayLike(Buffer, "le", 8)],
       program.programId
     );
 
-    count = new BN(2);
+    count = new BN(vampIdBase + 2);
     const [mintAccount3] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from('mint'), authority.toBuffer(), count.toArrayLike(Buffer, "le", 8)],
       program.programId
@@ -127,17 +129,6 @@ describe("solana-vamp-project", () => {
     };
   }
 
-  async function signMessage(message: string, privateKey: string): Promise<[string, string]> {
-    try {
-      const wallet = new ethers.Wallet(privateKey);
-      const signature = await wallet.signMessage(message);
-      return [wallet.address, signature];
-    } catch (error) {
-      console.error('Error signing message:', error);
-      throw error;
-    }
-  }
-
   function hexToBytes(hex: string): number[] {
     if (hex.length % 2 !== 0) {
       throw new Error("Invalid hex string");
@@ -212,7 +203,7 @@ describe("solana-vamp-project", () => {
     try {
       const tx = await program.methods
         .createTokenMint(
-          new BN(0),  // Vamp ID
+          new BN(vampIdBase),  // Vamp ID
           9,          // Decimals
           "My Memetoken",  // Token Name
           "MEME",  // Token Symbol
@@ -282,7 +273,7 @@ describe("solana-vamp-project", () => {
     // Initialize token mint
     await program.methods
       .createTokenMint(
-        new BN(1),  // Vamp ID
+        new BN(vampIdBase + 1),  // Vamp ID
         9,          // Decimals
         "My Memetoken",  // Token Name
         "MEME",  // Token Symbol
@@ -404,7 +395,7 @@ describe("solana-vamp-project", () => {
     // Initialize token mint
     await program.methods
       .createTokenMint(
-        new BN(2),  // Vamp ID
+        new BN(vampIdBase + 2),  // Vamp ID
         9,          // Decimals
         "My Memetoken",  // Token Name
         "MEME",  // Token Symbol
@@ -450,6 +441,8 @@ describe("solana-vamp-project", () => {
     );
     const ataTx = new anchor.web3.Transaction().add(ataIx);
     await provider.sendAndConfirm(ataTx, [claimerKeypair]);
+
+    console.log(`Claimer account: ${claimerKeypair.publicKey}`);
 
     // Get initial balances
     const initialClaimerBalance = await provider.connection.getBalance(claimerKeypair.publicKey);
@@ -514,38 +507,38 @@ describe("solana-vamp-project", () => {
       .signers([claimerKeypair])
       .rpc();
 
-    // const finalClaimerBalance = await provider.connection.getBalance(claimerKeypair.publicKey);
-    // const finalSolVaultBalance = await provider.connection.getBalance(accounts.solVault3);
+    const finalClaimerBalance = await provider.connection.getBalance(claimerKeypair.publicKey);
+    const finalSolVaultBalance = await provider.connection.getBalance(accounts.solVault3);
 
-    // const secondClaimCost = balanceAfterFirstClaim - finalClaimerBalance;
-    // const secondClaimDeposited = finalSolVaultBalance - solVaultBalanceAfterFirstClaim;
+    const secondClaimCost = balanceAfterFirstClaim - finalClaimerBalance;
+    const secondClaimDeposited = finalSolVaultBalance - solVaultBalanceAfterFirstClaim;
 
-    // console.log(`Second claim cost: ${secondClaimCost} lamports (${secondClaimCost / anchor.web3.LAMPORTS_PER_SOL} SOL)`);
-    // console.log(`Second claim deposited: ${secondClaimDeposited} lamports`);
+    console.log(`Second claim cost: ${secondClaimCost} lamports (${secondClaimCost / anchor.web3.LAMPORTS_PER_SOL} SOL)`);
+    console.log(`Second claim deposited: ${secondClaimDeposited} lamports`);
 
-    // // Verify bonding curve behavior: second claim should cost more per token
-    // const firstCostPerToken = firstClaimCost / smallAmount.toNumber();
-    // const secondCostPerToken = secondClaimCost / nextAmount.toNumber();
+    // Verify bonding curve behavior: second claim should cost more per token
+    const firstCostPerToken = firstClaimCost / smallAmount.toNumber();
+    const secondCostPerToken = secondClaimCost / nextAmount.toNumber();
 
-    // console.log(`First claim cost per token: ${firstCostPerToken} lamports`);
-    // console.log(`Second claim cost per token: ${secondCostPerToken} lamports`);
+    console.log(`First claim cost per token: ${firstCostPerToken} lamports`);
+    console.log(`Second claim cost per token: ${secondCostPerToken} lamports`);
 
-    // // The second claim should cost more per token due to bonding curve
-    // assert.isTrue(secondCostPerToken > firstCostPerToken, "Bonding curve not working - second claim should cost more per token");
+    // The second claim should cost more per token due to bonding curve
+    assert.isTrue(secondCostPerToken > firstCostPerToken, "Bonding curve not working - second claim should cost more per token");
 
-    // // Verify SOL was properly deposited
-    // assert.isTrue(finalSolVaultBalance > initialSolVaultBalance, "SOL was not deposited to vault");
-    // assert.isTrue(initialClaimerBalance > finalClaimerBalance, "SOL was not deducted from claimer");
+    // Verify SOL was properly deposited
+    assert.isTrue(finalSolVaultBalance > initialSolVaultBalance, "SOL was not deposited to vault");
+    assert.isTrue(initialClaimerBalance > finalClaimerBalance, "SOL was not deducted from claimer");
 
-    // // Verify the deposited amount matches the deducted amount (minus transaction fees)
-    // const totalDeposited = finalSolVaultBalance - initialSolVaultBalance;
-    // const totalDeducted = initialClaimerBalance - finalClaimerBalance;
-    // const transactionFees = totalDeducted - totalDeposited;
+    // Verify the deposited amount matches the deducted amount (minus transaction fees)
+    const totalDeposited = finalSolVaultBalance - initialSolVaultBalance;
+    const totalDeducted = initialClaimerBalance - finalClaimerBalance;
+    const transactionFees = totalDeducted - totalDeposited;
 
-    // console.log(`Total SOL deposited: ${totalDeposited} lamports`);
-    // console.log(`Total SOL deducted: ${totalDeducted} lamports`);
-    // console.log(`Transaction fees: ${transactionFees} lamports`);
+    console.log(`Total SOL deposited: ${totalDeposited} lamports`);
+    console.log(`Total SOL deducted: ${totalDeducted} lamports`);
+    console.log(`Transaction fees: ${transactionFees} lamports`);
 
-    // assert.isTrue(transactionFees > 0, "Transaction fees should be positive");
+    assert.isTrue(transactionFees > 0, "Transaction fees should be positive");
   });
 });

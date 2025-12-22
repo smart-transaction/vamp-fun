@@ -390,7 +390,7 @@ fn convert_to_sol(src_amount: &U256) -> Result<(u64, u8), Box<dyn Error>> {
     // Further truncating until the value fits u64
     // Setting it to zero right now, as we are fixed on decimals = 9.
     // Will be set to 9 later when we can customize decimals On Solana
-    let max_extra_decimals = 0u8;
+    let max_extra_decimals = 9u8;
     for decimals in 0..=max_extra_decimals {
         let trunc_amount = amount
             .checked_div(U256::from(10u64.pow(decimals as u32)))
@@ -614,5 +614,25 @@ mod tests {
         let result = fold_intent_id(&intent_id);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 0); // 1 XOR 2 XOR 3 = 0
+    }
+
+    #[test]
+    fn test_convert_to_sol_small_value() {
+        let res = convert_to_sol(&U256::from(123456789777000000111u128));
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), (123456789777, 9));
+    }
+
+    #[test]
+    fn test_convert_to_sol_large_value() {
+        let res = convert_to_sol(&U256::from(123123123456789123000000000000000111u128));
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), (12312312345678912300, 2));
+    }
+
+    #[test]
+    fn test_convert_to_sol_too_large_value() {
+        let res = convert_to_sol(&U256::from(123123123456789123555555000000000111u128));
+        assert!(res.is_err());
     }
 }

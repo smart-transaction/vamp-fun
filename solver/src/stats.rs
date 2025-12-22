@@ -48,7 +48,7 @@ pub async fn cleanup_stats(stats: Arc<Mutex<IndexerProcesses>>) {
                 .values()
                 .map(|v| (v.current_timestamp, v.chain_id, v.token_address))
                 .collect();
-            updated.sort_by_key(|v| (v.0));
+            updated.sort_by_key(|v| v.0);
             // Get first N items as oldest and remove them
             for remove_item in updated[0..num_to_remove].iter() {
                 stats.remove(&(remove_item.1, remove_item.2));

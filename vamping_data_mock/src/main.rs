@@ -12,6 +12,7 @@ pub mod vamp_fun {
 const SOLVER_PRIVATE_KEY: &str = "9aa4451744ed6f2e3eeee95923c8c5323d86a41315114961e5cabac111719c64";
 const VALIDATOR_PRIVATE_KEY: &str = "c9927bc21d1c962ee9a4f0634b49868ab80cb1b3f3522881849a5e81ca21edb0";
 const BALANCE_ACCOUNT_PRIVATE_KEY: &str = "fc813315c55817d4fb1396dcf772e1dfa84b8d3328713a6647930ec1983a67cf";
+const SECOND_ACCOUNT_PRIVATE_KEY: &str = "a5b69751153da2de176da6dc42934799fe0403cf97c67efe223d51ef20c98950";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -52,9 +53,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Folded Intent ID: {:?}", fold_intent_id(&vamping_data.intent_id)?);
 
     let balance_address = "8ebd059f9acef4758a8ac8d6e017d6c76b248c82";
+    let second_balance_address = "2dd0904a9ca9e20dc06982e61560fa6b95e68d3d";
     let balance_amount = 1_000_000_000u64;
+    let second_balance_amount = 3_000_000_000u64;
     println!("Balance Address: 0x{}", balance_address);
     println!("Balance Amount: {}", balance_amount);
+    println!("Second Balance Address: 0x{}", second_balance_address);
+    println!("Second Balance Amount: {}", second_balance_amount);
 
     // Add signatures
     let balance_hash = balance_util::get_balance_hash(
@@ -63,10 +68,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         &vamping_data.intent_id,
     )?;
 
-    println!("Balance hash: {:?}", balance_hash);
+    let second_balance_hash = balance_util::get_balance_hash(
+        &hex::decode(second_balance_address)?,
+        second_balance_amount,
+        &vamping_data.intent_id,
+    )?;
 
+    println!("Balance hash: {:?}", balance_hash);
+    println!("Second balance hash: {:?}", second_balance_hash);
+
+    // First signatures
     let signer = LocalWallet::from_str(SOLVER_PRIVATE_KEY)?;
-    println!("Solver public key: {:?}", signer.address().as_bytes());
     let solver_signature = signer.sign_message(&balance_hash).await?;
     println!("Solver Signature: {:?}", solver_signature.to_vec());
 
@@ -77,6 +89,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let signer = LocalWallet::from_str(BALANCE_ACCOUNT_PRIVATE_KEY)?;
     let owner_signature = signer.sign_message(&balance_hash).await?;
     println!("Owner Signature: {:?}", owner_signature.to_vec());
+
+    // Second signatures
+    let signer = LocalWallet::from_str(SOLVER_PRIVATE_KEY)?;
+    let second_solver_signature = signer.sign_message(&second_balance_hash).await?;
+    println!("Second Solver Signature: {:?}", second_solver_signature.to_vec());
+
+    let signer = LocalWallet::from_str(VALIDATOR_PRIVATE_KEY)?;
+    let second_validator_signature = signer.sign_message(&second_balance_hash).await?;
+    println!("Second Validator Signature: {:?}", second_validator_signature.to_vec());
+
+    let signer = LocalWallet::from_str(SECOND_ACCOUNT_PRIVATE_KEY)?;
+    let second_owner_signature = signer.sign_message(&second_balance_hash).await?;
+    println!("Second Owner Signature: {:?}", second_owner_signature.to_vec());
 
     Ok(())
 }

@@ -155,25 +155,38 @@ describe("solana-vamp-project", () => {
     assert.equal(vampStateAccount.bump, vampStateBump, "Bump mismatch");
   }
 
-  function getEthAddress() {
+  function getOwnerAddress() {
     return "0x8ebd059f9acef4758a8ac8d6e017d6c76b248c82";
   }
 
+  function getSecondOwnerAddress() {
+    return "0x2dd0904a9ca9e20dc06982e61560fa6b95e68d3d";
+  }
+
   function getEthAddressBytes() {
-    return hexToBytes(getEthAddress());
+    return hexToBytes(getOwnerAddress());
+  }
+
+  function getSecondEthAddressBytes() {
+    return hexToBytes(getSecondOwnerAddress());
   }
 
   async function getSignatures() {
     const solverSignature = [251, 190, 51, 170, 61, 104, 94, 173, 134, 86, 195, 233, 114, 39, 131, 218, 205, 35, 184, 80, 233, 53, 220, 244, 27, 165, 216, 133, 6, 251, 209, 206, 62, 148, 200, 51, 176, 66, 113, 38, 158, 246, 60, 234, 141, 183, 42, 176, 53, 65, 143, 195, 84, 99, 162, 156, 57, 192, 188, 82, 3, 23, 55, 169, 27];
-
     const validatorSignature = [132, 102, 82, 207, 139, 9, 105, 132, 111, 194, 73, 232, 249, 93, 122, 112, 80, 215, 153, 195, 146, 169, 161, 84, 195, 61, 80, 124, 160, 220, 174, 148, 91, 127, 181, 185, 19, 26, 125, 186, 208, 87, 72, 6, 210, 252, 242, 117, 76, 4, 174, 63, 192, 211, 223, 144, 225, 206, 40, 241, 224, 119, 94, 225, 27];
-
     const ownerSignature = [140, 92, 134, 184, 0, 228, 15, 165, 64, 112, 11, 199, 184, 110, 96, 93, 125, 4, 68, 147, 124, 176, 160, 51, 76, 86, 4, 248, 101, 100, 3, 147, 9, 252, 21, 198, 4, 40, 200, 2, 43, 44, 193, 163, 224, 105, 113, 21, 65, 218, 235, 207, 125, 43, 216, 68, 106, 155, 15, 99, 210, 221, 127, 220, 28];
+
+    const secondSolverSignature = [78, 69, 141, 74, 57, 150, 183, 190, 149, 211, 64, 137, 152, 192, 166, 69, 240, 192, 144, 42, 246, 182, 91, 60, 81, 207, 59, 28, 197, 183, 143, 243, 68, 94, 88, 238, 235, 148, 194, 195, 190, 154, 174, 48, 60, 253, 215, 248, 164, 228, 77, 56, 10, 43, 37, 16, 193, 82, 19, 205, 168, 244, 53, 121, 27];
+    const secondValidatorSignature = [90, 241, 93, 132, 20, 114, 46, 241, 201, 99, 229, 113, 223, 183, 21, 128, 36, 101, 179, 154, 32, 182, 75, 177, 11, 238, 75, 187, 173, 98, 114, 202, 9, 57, 143, 30, 39, 240, 127, 203, 251, 20, 185, 172, 200, 44, 236, 192, 243, 162, 243, 210, 208, 23, 108, 110, 7, 136, 227, 17, 1, 2, 74, 191, 28];
+    const secondOwnerSignature = [78, 179, 178, 224, 98, 52, 7, 40, 55, 149, 95, 61, 239, 74, 75, 217, 238, 76, 2, 66, 198, 137, 90, 68, 88, 44, 57, 56, 170, 84, 194, 169, 110, 197, 220, 4, 155, 3, 206, 205, 197, 138, 136, 15, 24, 103, 149, 69, 29, 59, 5, 23, 62, 142, 204, 150, 232, 64, 160, 214, 112, 178, 106, 48, 27];
 
     return {
       solverSignature,
       validatorSignature,
       ownerSignature,
+      secondSolverSignature,
+      secondValidatorSignature,
+      secondOwnerSignature,
     };
   }
 
@@ -262,7 +275,7 @@ describe("solana-vamp-project", () => {
     const mintAccount2 = accounts.mintAccount2;
 
     const [claimState] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("claim"), accounts.vampState2.toBuffer(), Buffer.from(getEthAddress().slice(2), "hex")],
+      [Buffer.from("claim"), accounts.vampState2.toBuffer(), Buffer.from(getOwnerAddress().slice(2), "hex")],
       PROGRAM_ID
     );
 
@@ -406,7 +419,7 @@ describe("solana-vamp-project", () => {
         new BN(1_000),  // Curve slope, => 1e-6
         new BN(10_000_000), // Base Price, 0.01 SOL
         new BN(100_000_000), // Max Price, 0.1 SOL
-        new BN(30_000_000),  // Flat Price if Bonding Curve isn't used
+        new BN(30_000_000),  // Flat Price if Bonding Curve isn't used, 0.03 SOL
       )
       .accounts({
         authority,
@@ -445,11 +458,11 @@ describe("solana-vamp-project", () => {
     // Claim a small amount first (should cost less)
     const smallAmount = new BN(1_000_000_000); // 1 token
     const [claimState1] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("claim"), accounts.vampState3.toBuffer(), Buffer.from(getEthAddress().slice(2), "hex")],
+      [Buffer.from("claim"), accounts.vampState3.toBuffer(), Buffer.from(getOwnerAddress().slice(2), "hex")],
       PROGRAM_ID
     );
 
-    const { solverSignature, validatorSignature, ownerSignature } = await getSignatures();
+    const { solverSignature, validatorSignature, ownerSignature, secondSolverSignature, secondValidatorSignature, secondOwnerSignature } = await getSignatures();
 
     await program.methods
       .claim(getEthAddressBytes(), smallAmount, solverSignature, validatorSignature, ownerSignature)
@@ -478,28 +491,28 @@ describe("solana-vamp-project", () => {
     console.log(`First claim cost: ${firstClaimCost} lamports (${firstClaimCost / anchor.web3.LAMPORTS_PER_SOL} SOL)`);
     console.log(`First claim deposited: ${firstClaimDeposited} lamports`);
 
-    // // Claim a larger amount (should cost more due to bonding curve)
-    // const nextAmount = new BN(1_000_000_000); // 1 token
-    // const [claimState2] = anchor.web3.PublicKey.findProgramAddressSync(
-    //   [Buffer.from("claim"), accounts.vampState3.toBuffer(), Buffer.from("0x1234567890123456789012345678901234567890".slice(2), "hex")],
-    //   PROGRAM_ID
-    // );
+    // Claim a larger amount (should cost more due to bonding curve)
+    const nextAmount = new BN(3_000_000_000); // 3 tokens
+    const [claimState2] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("claim"), accounts.vampState3.toBuffer(), Buffer.from(getSecondOwnerAddress().slice(2), "hex")],
+      PROGRAM_ID
+    );
 
-    // await program.methods
-    //   .claim(getEthAddressBytes(), nextAmount, solverSignature, validatorSignature, ownerSignature)
-    //   .accounts({
-    //     authority: claimerKeypair.publicKey,
-    //     vampState: accounts.vampState3,
-    //     claimState: claimState2,
-    //     vault: accounts.vault3,
-    //     solVault: accounts.solVault3,
-    //     claimerTokenAccount,
-    //     mintAccount: accounts.mintAccount3,
-    //     token_program: TOKEN_PROGRAM_ID,
-    //     systemProgram: anchor.web3.SystemProgram.programId,
-    //   })
-    //   .signers([claimerKeypair])
-    //   .rpc();
+    await program.methods
+      .claim(getSecondEthAddressBytes(), nextAmount, secondSolverSignature, secondValidatorSignature, secondOwnerSignature)
+      .accounts({
+        authority: claimerKeypair.publicKey,
+        vampState: accounts.vampState3,
+        claimState: claimState2,
+        vault: accounts.vault3,
+        solVault: accounts.solVault3,
+        claimerTokenAccount,
+        mintAccount: accounts.mintAccount3,
+        token_program: TOKEN_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([claimerKeypair])
+      .rpc();
 
     // const finalClaimerBalance = await provider.connection.getBalance(claimerKeypair.publicKey);
     // const finalSolVaultBalance = await provider.connection.getBalance(accounts.solVault3);

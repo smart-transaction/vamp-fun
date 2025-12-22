@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use prost::Message;
 
 declare_id!("FAyBECn6ppQgRwb5R4LryAzNic3XwsCuHakVpD1X7hFW");
 
@@ -8,15 +7,11 @@ mod constant;
 mod event;
 mod instructions;
 mod state;
-mod use_proto;
 
 // Re-exports
-use event::ErrorCode;
 use event::TokenMintCreated;
 use instructions::*;
 use instructions::initialize::VampingParams;
-
-use use_proto::vamp_fun::TokenVampingInfoProto;
 
 #[program]
 pub mod solana_vamp_program {
@@ -26,47 +21,48 @@ pub mod solana_vamp_program {
     pub fn create_token_mint(
         ctx: Context<Initialize>,
         vamp_identifier: u64,
-        token_decimals: u8,
-        vamping_data: Vec<u8>,
+        _token_decimals: u8,
+        token_name: String,
+        token_symbol: String,
+        token_erc20_address: Vec<u8>,
+        token_uri: String,
+        amount: u64,
+        solver_public_key: Vec<u8>,
+        validator_public_key: Vec<u8>,
+        intent_id: Vec<u8>,
+        paid_claiming_enabled: bool,
+        use_bonding_curve: bool,
+        curve_slope: u64,
+        base_price: u64,
+        max_price: u64,
+        flat_price_per_token: u64
     ) -> Result<()> {
-        let vamping_info = TokenVampingInfoProto::decode(&vamping_data[..]).unwrap();
-        let token_mapping_proto = vamping_info.token_mapping.unwrap_or_default();
-
-        require!(
-            token_mapping_proto.addresses.len() == token_mapping_proto.amounts.len(),
-            ErrorCode::InvalidTokenMapping,
-        );
-
-        // Extract vamping parameters from protobuf
-        let vamping_params = vamping_info.vamping_params.map(|params| VampingParams {
-            paid_claiming_enabled: params.paid_claiming_enabled,
-            use_bonding_curve: params.use_bonding_curve,
-            curve_slope: params.curve_slope,
-            base_price: params.base_price,
-            max_price: params.max_price,
-            flat_price_per_token: params.flat_price_per_token,
-        });
+        // Vamping parameters
+        let vamping_params = VampingParams {
+            paid_claiming_enabled,
+            use_bonding_curve,
+            curve_slope,
+            base_price,
+            max_price: Some(max_price),
+            flat_price_per_token,
+        };
 
         ctx.accounts.create_token_mint(
             vamp_identifier,
-            vamping_info.token_name.clone(),
-            vamping_info.token_symbol.clone(),
-            vamping_info.token_uri.unwrap_or_default(),
-            vamping_info.amount,
-            token_decimals,
-            vamping_info.solver_public_key,
-            vamping_info.validator_public_key,
-            vamping_info.intent_id,
+            token_name.clone(),
+            token_symbol.clone(),
+            token_uri,
+            amount,
+            solver_public_key,
+            validator_public_key,
+            intent_id,
             &ctx.bumps,
-            vamping_params,
+            Some(vamping_params)
         )?;
-
-        let token_name = vamping_info.token_name.clone();
-        let token_symbol = vamping_info.token_symbol.clone();
 
         let hex_address = format!(
             "0x{}",
-            vamping_info.token_erc20_address.encode_hex::<String>()
+            token_erc20_address.encode_hex::<String>()
         );
 
         emit!(TokenMintCreated {
@@ -74,7 +70,7 @@ pub mod solana_vamp_program {
             token_name,
             token_symbol,
             token_erc20_address: hex_address,
-            amount: vamping_info.amount
+            amount: amount
         });
         Ok(())
     }

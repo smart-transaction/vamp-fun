@@ -155,10 +155,6 @@ describe("solana-vamp-project", () => {
     assert.equal(vampStateAccount.bump, vampStateBump, "Bump mismatch");
   }
 
-  async function getVampingData(): Promise<Buffer> {
-    return Buffer.from([18, 12, 77, 121, 32, 77, 109, 101, 109, 116, 111, 107, 101, 110, 26, 4, 77, 69, 77, 69, 34, 20, 10, 11, 85, 6, 100, 79, 145, 115, 236, 165, 13, 29, 125, 44, 172, 229, 150, 165, 229, 85, 42, 27, 104, 116, 116, 112, 115, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 47, 116, 111, 107, 101, 110, 47, 49, 48, 128, 240, 179, 163, 223, 248, 70, 56, 9, 72, 1, 80, 210, 133, 216, 204, 4, 90, 20, 249, 139, 130, 139, 56, 155, 239, 78, 187, 181, 145, 28, 161, 126, 79, 121, 137, 201, 6, 141, 98, 20, 139, 37, 237, 6, 226, 22, 85, 63, 141, 66, 101, 153, 96, 97, 176, 160, 101, 175, 163, 92, 106, 32, 17, 17, 17, 17, 17, 17, 17, 17, 34, 34, 34, 34, 34, 34, 34, 34, 119, 119, 119, 119, 119, 119, 119, 119, 153, 153, 153, 153, 153, 153, 153, 153]);
-  }
-
   function getEthAddress() {
     return "0x8ebd059f9acef4758a8ac8d6e017d6c76b248c82";
   }
@@ -171,7 +167,7 @@ describe("solana-vamp-project", () => {
     const solverSignature = [251, 190, 51, 170, 61, 104, 94, 173, 134, 86, 195, 233, 114, 39, 131, 218, 205, 35, 184, 80, 233, 53, 220, 244, 27, 165, 216, 133, 6, 251, 209, 206, 62, 148, 200, 51, 176, 66, 113, 38, 158, 246, 60, 234, 141, 183, 42, 176, 53, 65, 143, 195, 84, 99, 162, 156, 57, 192, 188, 82, 3, 23, 55, 169, 27];
 
     const validatorSignature = [132, 102, 82, 207, 139, 9, 105, 132, 111, 194, 73, 232, 249, 93, 122, 112, 80, 215, 153, 195, 146, 169, 161, 84, 195, 61, 80, 124, 160, 220, 174, 148, 91, 127, 181, 185, 19, 26, 125, 186, 208, 87, 72, 6, 210, 252, 242, 117, 76, 4, 174, 63, 192, 211, 223, 144, 225, 206, 40, 241, 224, 119, 94, 225, 27];
-  
+
     const ownerSignature = [140, 92, 134, 184, 0, 228, 15, 165, 64, 112, 11, 199, 184, 110, 96, 93, 125, 4, 68, 147, 124, 176, 160, 51, 76, 86, 4, 248, 101, 100, 3, 147, 9, 252, 21, 198, 4, 40, 200, 2, 43, 44, 193, 163, 224, 105, 113, 21, 65, 218, 235, 207, 125, 43, 216, 68, 106, 155, 15, 99, 210, 221, 127, 220, 28];
 
     return {
@@ -181,14 +177,45 @@ describe("solana-vamp-project", () => {
     };
   }
 
+  /*
+{
+    merkle_root: [],
+    token_name: "My Memetoken",
+    token_symbol: "MEME",
+    token_erc20_address: [10, 11, 85, 6, 100, 79, 145, 115, 236, 165, 13, 29, 125, 44, 172, 229, 150, 165, 229, 85],
+    token_uri: "https://example.com/token/1",
+    amount: 312012000000000,
+    decimal: 9,
+    solver_public_key: [249, 139, 130, 139, 56, 155, 239, 78, 187, 181, 145, 28, 161, 126, 79, 121, 137, 201, 6, 141],
+    validator_public_key: [139, 37, 237, 6, 226, 22, 85, 63, 141, 66, 101, 153, 96, 97, 176, 160, 101, 175, 163, 92],
+    intent_id: [17, 17, 17, 17, 17, 17, 17, 17, 34, 34, 34, 34, 34, 34, 34, 34, 119, 119, 119, 119, 119, 119, 119, 119, 153, 153, 153, 153, 153, 153, 153, 153],
+}
+  */
+
   // Test cases
   it("Initializes Vamp State and Mints Token", async () => {
     const accounts = await setupInitAccounts(authority);
-    const vampingData = await getVampingData();
 
     try {
       const tx = await program.methods
-        .createTokenMint(new BN(0), 9, vampingData)
+        .createTokenMint(
+          new BN(0),  // Vamp ID
+          9,          // Decimals
+          "My Memetoken",  // Token Name
+          "MEME",  // Token Symbol
+          Buffer.from([10, 11, 85, 6, 100, 79, 145, 115, 236, 165, 13, 29, 125, 44, 172, 229, 150, 165, 229, 85]),  // Token ERC20 Address
+          "https://example.com/token/1",  // Token URI
+          new BN(312012000000000),  // Amount
+          Buffer.from([249, 139, 130, 139, 56, 155, 239, 78, 187, 181, 145, 28, 161, 126, 79, 121, 137, 201, 6, 141]),  // Solver Public Key
+          Buffer.from([139, 37, 237, 6, 226, 22, 85, 63, 141, 66, 101, 153, 96, 97, 176, 160, 101, 175, 163, 92]),  // Validator Public Key
+          Buffer.from([17, 17, 17, 17, 17, 17, 17, 17, 34, 34, 34, 34, 34, 34, 34, 34, 119, 119, 119, 119, 119, 119, 119, 119, 153, 153, 153, 153, 153, 153, 153, 153]),  // Intent ID
+          true,  // Paid Claim Enabled
+          true,  // Use Bonding Curve
+          new BN(1_000),  // Curve slope, => 1e-6
+          new BN(10_000_000), // Base Price, 0.01 SOL
+          new BN(100_000_000), // Max Price, 0.1 SOL
+          new BN(30_000_000),  // Flat Price if Bonding Curve isn't used
+        )
         .accounts({
           authority,
           mintAccount: accounts.mintAccount,
@@ -233,7 +260,6 @@ describe("solana-vamp-project", () => {
   it("Claims tokens for a user based on ETH address mapping", async () => {
     const accounts = await setupInitAccounts(authority);
     const mintAccount2 = accounts.mintAccount2;
-    const vampingData = await getVampingData();
 
     const [claimState] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("claim"), accounts.vampState2.toBuffer(), Buffer.from(getEthAddress().slice(2), "hex")],
@@ -242,7 +268,24 @@ describe("solana-vamp-project", () => {
 
     // Initialize token mint
     await program.methods
-      .createTokenMint(new BN(1), 9, vampingData)
+      .createTokenMint(
+        new BN(1),  // Vamp ID
+        9,          // Decimals
+        "My Memetoken",  // Token Name
+        "MEME",  // Token Symbol
+        Buffer.from([10, 11, 85, 6, 100, 79, 145, 115, 236, 165, 13, 29, 125, 44, 172, 229, 150, 165, 229, 85]),  // Token ERC20 Address
+        "https://example.com/token/1",  // Token URI
+        new BN(312012000000000),  // Amount
+        Buffer.from([249, 139, 130, 139, 56, 155, 239, 78, 187, 181, 145, 28, 161, 126, 79, 121, 137, 201, 6, 141]),  // Solver Public Key
+        Buffer.from([139, 37, 237, 6, 226, 22, 85, 63, 141, 66, 101, 153, 96, 97, 176, 160, 101, 175, 163, 92]),  // Validator Public Key
+        Buffer.from([17, 17, 17, 17, 17, 17, 17, 17, 34, 34, 34, 34, 34, 34, 34, 34, 119, 119, 119, 119, 119, 119, 119, 119, 153, 153, 153, 153, 153, 153, 153, 153]),  // Intent ID
+        true,  // Paid Claim Enabled
+        true,  // Use Bonding Curve
+        new BN(1_000),  // Curve slope, => 1e-6
+        new BN(10_000_000), // Base Price, 0.01 SOL
+        new BN(100_000_000), // Max Price, 0.1 SOL
+        new BN(30_000_000),  // Flat Price if Bonding Curve isn't used
+      )
       .accounts({
         authority,
         mintAccount: mintAccount2,
@@ -283,7 +326,7 @@ describe("solana-vamp-project", () => {
     const initialSolVaultBalance = await provider.connection.getBalance(accounts.solVault2);
 
     // Execute claim
-    const {solverSignature, validatorSignature, ownerSignature} = await getSignatures();
+    const { solverSignature, validatorSignature, ownerSignature } = await getSignatures();
 
     await program.methods
       .claim(getEthAddressBytes(), new BN(1_000_000_000), solverSignature, validatorSignature, ownerSignature)
@@ -308,12 +351,12 @@ describe("solana-vamp-project", () => {
     // Verify SOL was deposited to SOL vault
     const finalSolVaultBalance = await provider.connection.getBalance(accounts.solVault2);
     const finalClaimerBalance = await provider.connection.getBalance(claimerKeypair.publicKey);
-    
+
     console.log(`Initial SOL vault balance: ${initialSolVaultBalance} lamports`);
     console.log(`Final SOL vault balance: ${finalSolVaultBalance} lamports`);
     console.log(`SOL deposited to vault: ${finalSolVaultBalance - initialSolVaultBalance} lamports`);
     console.log(`SOL deducted from claimer: ${initialClaimerBalance - finalClaimerBalance} lamports`);
-    
+
     // Verify SOL was transferred (should be greater than 0)
     assert.isTrue(finalSolVaultBalance > initialSolVaultBalance, "SOL was not deposited to vault");
     assert.isTrue(initialClaimerBalance > finalClaimerBalance, "SOL was not deducted from claimer");
@@ -344,11 +387,27 @@ describe("solana-vamp-project", () => {
 
   it("Tests bonding curve SOL calculation and deposition", async () => {
     const accounts = await setupInitAccounts(authority);
-    const vampingData = await getVampingData();
 
     // Initialize token mint
     await program.methods
-      .createTokenMint(new BN(2), 9, vampingData)
+      .createTokenMint(
+        new BN(2),  // Vamp ID
+        9,          // Decimals
+        "My Memetoken",  // Token Name
+        "MEME",  // Token Symbol
+        Buffer.from([10, 11, 85, 6, 100, 79, 145, 115, 236, 165, 13, 29, 125, 44, 172, 229, 150, 165, 229, 85]),  // Token ERC20 Address
+        "https://example.com/token/1",  // Token URI
+        new BN(312012000000000),  // Amount
+        Buffer.from([249, 139, 130, 139, 56, 155, 239, 78, 187, 181, 145, 28, 161, 126, 79, 121, 137, 201, 6, 141]),  // Solver Public Key
+        Buffer.from([139, 37, 237, 6, 226, 22, 85, 63, 141, 66, 101, 153, 96, 97, 176, 160, 101, 175, 163, 92]),  // Validator Public Key
+        Buffer.from([17, 17, 17, 17, 17, 17, 17, 17, 34, 34, 34, 34, 34, 34, 34, 34, 119, 119, 119, 119, 119, 119, 119, 119, 153, 153, 153, 153, 153, 153, 153, 153]),  // Intent ID
+        true,  // Paid Claim Enabled
+        true,  // Use Bonding Curve
+        new BN(1_000),  // Curve slope, => 1e-6
+        new BN(10_000_000), // Base Price, 0.01 SOL
+        new BN(100_000_000), // Max Price, 0.1 SOL
+        new BN(30_000_000),  // Flat Price if Bonding Curve isn't used
+      )
       .accounts({
         authority,
         mintAccount: accounts.mintAccount3,
@@ -390,7 +449,7 @@ describe("solana-vamp-project", () => {
       PROGRAM_ID
     );
 
-    const {solverSignature, validatorSignature, ownerSignature} = await getSignatures();
+    const { solverSignature, validatorSignature, ownerSignature } = await getSignatures();
 
     await program.methods
       .claim(getEthAddressBytes(), smallAmount, solverSignature, validatorSignature, ownerSignature)
@@ -410,12 +469,12 @@ describe("solana-vamp-project", () => {
 
     const balanceAfterFirstClaim = await provider.connection.getBalance(claimerKeypair.publicKey);
     const solVaultBalanceAfterFirstClaim = await provider.connection.getBalance(accounts.solVault3);
-    
+
     console.log(`Initial claimer balance: ${initialClaimerBalance} lamports, balance after claim: ${balanceAfterFirstClaim} lamports`);
 
     const firstClaimCost = initialClaimerBalance - balanceAfterFirstClaim;
     const firstClaimDeposited = solVaultBalanceAfterFirstClaim - initialSolVaultBalance;
-    
+
     console.log(`First claim cost: ${firstClaimCost} lamports (${firstClaimCost / anchor.web3.LAMPORTS_PER_SOL} SOL)`);
     console.log(`First claim deposited: ${firstClaimDeposited} lamports`);
 
@@ -444,36 +503,36 @@ describe("solana-vamp-project", () => {
 
     // const finalClaimerBalance = await provider.connection.getBalance(claimerKeypair.publicKey);
     // const finalSolVaultBalance = await provider.connection.getBalance(accounts.solVault3);
-    
+
     // const secondClaimCost = balanceAfterFirstClaim - finalClaimerBalance;
     // const secondClaimDeposited = finalSolVaultBalance - solVaultBalanceAfterFirstClaim;
-    
+
     // console.log(`Second claim cost: ${secondClaimCost} lamports (${secondClaimCost / anchor.web3.LAMPORTS_PER_SOL} SOL)`);
     // console.log(`Second claim deposited: ${secondClaimDeposited} lamports`);
 
     // // Verify bonding curve behavior: second claim should cost more per token
     // const firstCostPerToken = firstClaimCost / smallAmount.toNumber();
     // const secondCostPerToken = secondClaimCost / nextAmount.toNumber();
-    
+
     // console.log(`First claim cost per token: ${firstCostPerToken} lamports`);
     // console.log(`Second claim cost per token: ${secondCostPerToken} lamports`);
-    
+
     // // The second claim should cost more per token due to bonding curve
     // assert.isTrue(secondCostPerToken > firstCostPerToken, "Bonding curve not working - second claim should cost more per token");
-    
+
     // // Verify SOL was properly deposited
     // assert.isTrue(finalSolVaultBalance > initialSolVaultBalance, "SOL was not deposited to vault");
     // assert.isTrue(initialClaimerBalance > finalClaimerBalance, "SOL was not deducted from claimer");
-    
+
     // // Verify the deposited amount matches the deducted amount (minus transaction fees)
     // const totalDeposited = finalSolVaultBalance - initialSolVaultBalance;
     // const totalDeducted = initialClaimerBalance - finalClaimerBalance;
     // const transactionFees = totalDeducted - totalDeposited;
-    
+
     // console.log(`Total SOL deposited: ${totalDeposited} lamports`);
     // console.log(`Total SOL deducted: ${totalDeducted} lamports`);
     // console.log(`Transaction fees: ${transactionFees} lamports`);
-    
+
     // assert.isTrue(transactionFees > 0, "Transaction fees should be positive");
   });
 });

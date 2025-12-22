@@ -11,9 +11,9 @@ use anchor_spl::{
 };
 
 // Controls how quickly price rises - using a much smaller value for gentler curve
-const CURVE_SLOPE: u64 = 1;                     // Much smaller slope for gentler curve
-const BASE_PRICE: u64 = 10_000_000;             // 0.01 SOL base price in lamports
-const MAX_PRICE: u64 = 100_000_000;             // 0.1 SOL max price per token in lamports
+const DEFAULT_CURVE_SLOPE: u64 = 1;                     // Much smaller slope for gentler curve
+const DEFAULT_BASE_PRICE: u64 = 10_000_000;             // 0.01 SOL base price in lamports
+const DEFAULT_MAX_PRICE: u64 = 100_000_000;             // 0.1 SOL max price per token in lamports
 
 // Structure for vamping parameters
 #[derive(Clone)]
@@ -95,7 +95,6 @@ impl<'info> Initialize<'info> {
         token_symbol: String,
         token_uri: String,
         amount: u64,
-        _token_decimals: u8,
         solver_public_key: Vec<u8>,
         validator_public_key: Vec<u8>,
         intent_id: Vec<u8>,
@@ -151,9 +150,9 @@ impl<'info> Initialize<'info> {
         let params = vamping_params.unwrap_or(VampingParams {
             paid_claiming_enabled: false,
             use_bonding_curve: false,
-            curve_slope: CURVE_SLOPE,
-            base_price: BASE_PRICE,
-            max_price: Some(MAX_PRICE),
+            curve_slope: DEFAULT_CURVE_SLOPE,
+            base_price: DEFAULT_BASE_PRICE,
+            max_price: Some(DEFAULT_MAX_PRICE),
             flat_price_per_token: 1,
         });
 

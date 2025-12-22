@@ -28,6 +28,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     vamping_data.validator_public_key = hex::decode("8b25ed06e216553f8d4265996061b0a065afa35c")?;
     vamping_data.intent_id = hex::decode("1111111111111111222222222222222277777777777777779999999999999999")?;
 
+    println!("Vamping data: {:#?}", vamping_data);
+
     let mut encoded_vamping_data = Vec::new();
     vamping_data.encode(&mut encoded_vamping_data)?;
 

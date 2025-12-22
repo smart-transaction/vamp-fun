@@ -86,27 +86,23 @@ mod test {
             Decimal::new(1, 8),
         );
         assert_eq!(claim_cost, Ok(Decimal::new(102, 8)));
+        let claim_cost = calculate_claim_cost_bonding_curve(
+            Decimal::new(1, 0),
+            Decimal::new(3, 0),
+            Decimal::new(1, 6),
+            Decimal::new(1, 8),
+        );
+        assert_eq!(claim_cost, Ok(Decimal::new(103, 8)));
     }
 
     #[test]
     fn test_calculate_claim_cost_bonding_curve_three_one_time() {
         let claim_cost = calculate_claim_cost_bonding_curve(
-            Decimal::new(3, 0),
+            Decimal::new(4, 0),
             Decimal::new(0, 0),
             Decimal::new(1, 6),
             Decimal::new(1, 8),
         );
-        assert_eq!(claim_cost, Ok(Decimal::new(303, 8)));
-    }
-
-    #[test]
-    fn test_calculate_claim_cost_bonding_curve_tiny_amount() {
-        let claim_cost = calculate_claim_cost_bonding_curve(
-            Decimal::new(1, 9),
-            Decimal::new(0, 0),
-            Decimal::new(1, 6),
-            Decimal::new(1, 8),
-        );
-        assert_eq!(claim_cost, Ok(Decimal::new(303, 8)));
+        assert_eq!(claim_cost, Ok(Decimal::new(406, 8)));
     }
 }

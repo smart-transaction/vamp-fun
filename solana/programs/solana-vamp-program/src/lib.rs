@@ -21,7 +21,7 @@ pub mod solana_vamp_program {
     pub fn create_token_mint(
         ctx: Context<Initialize>,
         vamp_identifier: u64,
-        _token_decimals: u8,
+        token_decimals: u8,
         token_name: String,
         token_symbol: String,
         token_erc20_address: Vec<u8>,

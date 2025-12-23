@@ -175,8 +175,6 @@ pub fn buy_claim_tokens(
     .try_into()
     .map_err(|_| ProgramError::ArithmeticOverflow)?;
 
-    msg!("Claim Cost for token amount {}: {}", balance, claim_cost);
-
     // Transfer SOL from claimer to SOL vault using system program
     let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
         &ctx.accounts.authority.key(),

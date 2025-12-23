@@ -22,7 +22,7 @@ const program = anchor.workspace.solanaVampProgram as Program<SolanaVampProgram>
 const PROGRAM_ID = program.programId;
 const claimerKeypair = anchor.web3.Keypair.generate();
 
-const vampIdBase = Date.now();
+const vampIdBase = Date.now() * 10;
 
 describe("solana-vamp-project", () => {
   const authority = provider.wallet.publicKey;

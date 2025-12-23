@@ -351,7 +351,7 @@
           "type": "u64"
         },
         {
-          "name": "_token_decimals",
+          "name": "token_decimals",
           "type": "u8"
         },
         {

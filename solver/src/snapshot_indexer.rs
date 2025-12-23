@@ -67,7 +67,6 @@ pub struct SnapshotIndexer {
     solver_use_bonding_curve: bool,
     solver_curve_slope: u64,
     solver_base_price: u64,
-    solver_max_price: u64,
     solver_flat_price_per_token: u64,
     // Optional overrides to suppress frontend/EVM-provided values
     override_paid_claiming_enabled: Option<bool>,
@@ -93,7 +92,6 @@ impl SnapshotIndexer {
         solver_use_bonding_curve: bool,
         solver_curve_slope: u64,
         solver_base_price: u64,
-        solver_max_price: u64,
         solver_flat_price_per_token: u64,
         // Optional overrides to suppress frontend/EVM-provided values
         override_paid_claiming_enabled: Option<bool>,
@@ -116,7 +114,6 @@ impl SnapshotIndexer {
             solver_use_bonding_curve,
             solver_curve_slope,
             solver_base_price,
-            solver_max_price,
             solver_flat_price_per_token,
             override_paid_claiming_enabled,
             override_use_bonding_curve,
@@ -183,7 +180,6 @@ impl SnapshotIndexer {
         let solver_use_bonding_curve = self.solver_use_bonding_curve;
         let solver_curve_slope = self.solver_curve_slope;
         let solver_base_price = self.solver_base_price;
-        let solver_max_price = self.solver_max_price;
         let solver_flat_price_per_token = self.solver_flat_price_per_token;
         let override_paid_claiming_enabled = self.override_paid_claiming_enabled;
         let override_use_bonding_curve = self.override_use_bonding_curve;
@@ -302,7 +298,6 @@ impl SnapshotIndexer {
                 solver_use_bonding_curve,
                 solver_curve_slope,
                 solver_base_price,
-                solver_max_price,
                 solver_flat_price_per_token,
                 // Overrides
                 override_paid_claiming_enabled,

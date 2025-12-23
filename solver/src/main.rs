@@ -166,7 +166,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         args.use_bonding_curve,
         args.curve_slope,
         args.base_price,
-        args.max_price,
         args.flat_price_per_token,
         // pass overrides
         args.override_paid_claiming_enabled,

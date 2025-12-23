@@ -12,7 +12,6 @@ use ethers::{
     types::{Address, U256},
 };
 use log::info;
-use merkle_tree::{Leaf, MerkleTree};
 use mpl_token_metadata::ID as TOKEN_METADATA_PROGRAM_ID;
 use mysql::TxOpts;
 use mysql::prelude::Queryable;
@@ -35,11 +34,29 @@ use crate::stats::{IndexerProcesses, VampingStatus};
 use crate::use_proto::proto::chain_selection_proto::Chain;
 use crate::use_proto::proto::{AppChainResultStatus, ChainSelectionProto, LatestBlockHashRequestProto, SolanaCluster, SubmitSolutionForValidationRequestProto, VampSolutionForValidationProto};
 use crate::use_proto::proto::{
-    SubmitSolutionRequestProto, TokenMappingProto, TokenVampingInfoProto, UserEventProto,
+    SubmitSolutionRequestProto, UserEventProto,
     orchestrator_service_client::OrchestratorServiceClient,
     validator_service_client::ValidatorServiceClient,
 };
 use crate::use_proto::proto::VampSolutionValidatedDetailsProto;
+
+struct CloneTransactionArgs {
+    token_decimals: u8,
+    token_name: String,
+    token_symbol: String,
+    token_erc20_address: Vec<u8>,
+    token_uri: String,
+    amount: u64,
+    solver_public_key: Vec<u8>,
+    validator_public_key: Vec<u8>,
+    intent_id: Vec<u8>,
+    paid_claiming_enabled: bool,
+    use_bonding_curve: bool,
+    curve_slope: u64,
+    base_price: u64,
+    max_price: u64,
+    flat_price_per_token: u64
+}
 
 pub async fn process_and_send_snapshot(
     request_data: TokenRequestData,
@@ -57,7 +74,6 @@ pub async fn process_and_send_snapshot(
     solver_use_bonding_curve: bool,
     solver_curve_slope: u64,
     solver_base_price: u64,
-    solver_max_price: u64,
     solver_flat_price_per_token: u64,
     // Optional overrides to suppress frontend/EVM-provided values
     override_paid_claiming_enabled: Option<bool>,
@@ -79,35 +95,9 @@ pub async fn process_and_send_snapshot(
     }
     // Convert the amount into a Solana format
     let (amount, decimals) = convert_to_sol(&amount)?;
-    info!("🎯 Token conversion: amount={}, decimals={}", amount, decimals);
-    let solana_snapshot = original_snapshot
-        .iter()
-        .map(|(k, v)| {
-            let amount = v
-                .amount
-                .checked_div(U256::from(10u64.pow(18 - decimals as u32)));
-            (*k, amount.unwrap_or_default().as_u64())
-        })
-        .collect::<HashMap<_, _>>();
-    // Create the Merkle tree
-    let leaves = solana_snapshot
-        .iter()
-        .map(|(k, v)| {
-            let leaf = Leaf {
-                account: k.to_fixed_bytes(),
-                amount: *v,
-                decimals,
-            };
-            leaf
-        })
-        .collect::<Vec<_>>();
-    let merkle_tree = MerkleTree::new(&leaves);
-    let root = merkle_tree.root;
 
     let mut user_event = UserEventProto::default();
     user_event.app_id = keccak256(VAMPING_APP_ID.as_bytes()).to_vec();
-
-    let salt = Utc::now().timestamp() as u64;
 
     // Build the individual_balance_entry_by_oth_address map for the proto
     let mut individual_balance_entry_by_oth_address = std::collections::HashMap::new();
@@ -196,39 +186,27 @@ pub async fn process_and_send_snapshot(
         .unwrap_or_else(|| request_data.curve_slope.unwrap_or(solver_curve_slope));
     let final_base_price = override_base_price
         .unwrap_or_else(|| request_data.base_price.unwrap_or(solver_base_price));
-    let final_max_price_opt = match override_max_price {
-        Some(v) => Some(v),
-        None => request_data.max_price.or(Some(solver_max_price)),
-    };
+    let final_max_price = if let Some(v) = override_max_price { v } else { 0 };
     let final_flat_price_per_token = override_flat_price_per_token
         .unwrap_or_else(|| request_data.flat_price_per_token.unwrap_or(solver_flat_price_per_token));
 
     // Now create the TokenVampingInfoProto with the validator address from the response
-    let token_vamping_info = TokenVampingInfoProto {
-        merkle_root: root.to_vec(),
+    let transaction_args = CloneTransactionArgs {
         token_name: request_data.token_full_name,
         token_symbol: request_data.token_symbol_name,
         token_erc20_address: request_data.erc20_address.as_bytes().to_vec(),
-        token_uri: Some(request_data.token_uri),
+        token_uri: request_data.token_uri,
         amount,
-        decimal: decimals as u32,
-        token_mapping: Some(TokenMappingProto {
-            addresses: Vec::new(),
-            amounts: Vec::new(),
-        }),
-        chain_id: request_data.chain_id,
-        salt,
+        token_decimals: decimals,
         solver_public_key: eth_private_key.address().to_fixed_bytes().to_vec(),
         validator_public_key: hex::decode(vamp_validated_details.validator_address.strip_prefix("0x").unwrap_or(&vamp_validated_details.validator_address))?,
         intent_id: request_data.intent_id.clone(),
-        vamping_params: Some(crate::use_proto::proto::VampingParamsProto {
-            paid_claiming_enabled: final_paid_claiming_enabled,
-            use_bonding_curve: final_use_bonding_curve,
-            curve_slope: final_curve_slope,
-            base_price: final_base_price,
-            max_price: final_max_price_opt,
-            flat_price_per_token: final_flat_price_per_token,
-        }),
+        paid_claiming_enabled: final_paid_claiming_enabled,
+        use_bonding_curve: final_use_bonding_curve,
+        curve_slope: final_curve_slope,
+        base_price: final_base_price,
+        max_price: final_max_price,
+        flat_price_per_token: final_flat_price_per_token,
     };
 
     // Log vamping parameters for debugging
@@ -237,12 +215,9 @@ pub async fn process_and_send_snapshot(
     info!("   Use Bonding Curve: {}", final_use_bonding_curve);
     info!("   Curve Slope: {}", final_curve_slope);
     info!("   Base Price: {} lamports", final_base_price);
-    info!("   Max Price: {:?} lamports", final_max_price_opt);
+    info!("   Max Price: {:?} lamports", final_max_price);
     info!("   Flat Price Per Token: {} lamports", final_flat_price_per_token);
     info!("   Intent ID: 0x{}", hex::encode(&request_data.intent_id));
-
-    let mut encoded_vamping_info = Vec::new();
-    token_vamping_info.encode(&mut encoded_vamping_info)?;
 
     let mut orchestrator_client: OrchestratorServiceClient<Channel> =
         OrchestratorServiceClient::connect(orchestrator_url.clone()).await?;
@@ -282,9 +257,7 @@ pub async fn process_and_send_snapshot(
         solana_payer_keypair.clone(),
         solana_program.clone(),
         recent_blockhash,
-        &request_data.intent_id,
-        encoded_vamping_info,
-        decimals,
+        transaction_args
     )?;
 
     let transaction = postcard::to_allocvec(&transaction);
@@ -483,11 +456,9 @@ fn prepare_transaction(
     payer_keypair: Arc<Keypair>,
     program: Arc<Program<Arc<Keypair>>>,
     recent_blockhash: [u8; 32],
-    intent_id: &[u8],
-    vamping_data_bytes: Vec<u8>,
-    decimals: u8,
+    transaction_args: CloneTransactionArgs,
 ) -> Result<(Transaction, Pubkey, Pubkey), Box<dyn Error>> {
-    let vamp_identifier = fold_intent_id(&intent_id)?;
+    let vamp_identifier = fold_intent_id(&transaction_args.intent_id)?;
 
     let (mint_account, _) = Pubkey::find_program_address(
         &[
@@ -532,13 +503,26 @@ fn prepare_transaction(
             rent: sysvar::rent::ID,
         })
         .args(args::CreateTokenMint {
-            vamp_identifier: fold_intent_id(&intent_id)?,
-            token_decimals: decimals, // Use the provided decimals
-            vamping_data: vamping_data_bytes,
+            vamp_identifier,
+            token_decimals: transaction_args.token_decimals,
+            token_name: transaction_args.token_name,
+            token_symbol: transaction_args.token_symbol,
+            token_erc20_address: transaction_args.token_erc20_address,
+            token_uri: transaction_args.token_uri,
+            amount: transaction_args.amount,
+            solver_public_key: transaction_args.solver_public_key,
+            validator_public_key: transaction_args.validator_public_key,
+            intent_id: transaction_args.intent_id,
+            paid_claiming_enabled: transaction_args.paid_claiming_enabled,
+            use_bonding_curve: transaction_args.use_bonding_curve,
+            curve_slope: transaction_args.curve_slope,
+            base_price: transaction_args.base_price,
+            max_price: transaction_args.max_price,
+            flat_price_per_token: transaction_args.flat_price_per_token
         })
         .instructions()?;
 
-    info!("🔧 Creating token mint with decimals: {}", decimals);
+    info!("🔧 Creating token mint with decimals: {}", transaction_args.token_decimals);
 
     // Add compute limit
     let compute_ix = ComputeBudgetInstruction::set_compute_unit_limit(2_000_000);

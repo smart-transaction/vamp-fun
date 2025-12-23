@@ -351,12 +351,64 @@
           "type": "u64"
         },
         {
-          "name": "token_decimals",
+          "name": "_token_decimals",
           "type": "u8"
         },
         {
-          "name": "vamping_data",
+          "name": "token_name",
+          "type": "string"
+        },
+        {
+          "name": "token_symbol",
+          "type": "string"
+        },
+        {
+          "name": "token_erc20_address",
           "type": "bytes"
+        },
+        {
+          "name": "token_uri",
+          "type": "string"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "solver_public_key",
+          "type": "bytes"
+        },
+        {
+          "name": "validator_public_key",
+          "type": "bytes"
+        },
+        {
+          "name": "intent_id",
+          "type": "bytes"
+        },
+        {
+          "name": "paid_claiming_enabled",
+          "type": "bool"
+        },
+        {
+          "name": "use_bonding_curve",
+          "type": "bool"
+        },
+        {
+          "name": "curve_slope",
+          "type": "u64"
+        },
+        {
+          "name": "base_price",
+          "type": "u64"
+        },
+        {
+          "name": "max_price",
+          "type": "u64"
+        },
+        {
+          "name": "flat_price_per_token",
+          "type": "u64"
         }
       ]
     }

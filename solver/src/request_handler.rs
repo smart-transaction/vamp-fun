@@ -7,7 +7,7 @@ use crate::use_proto::proto::{SolanaCluster, UserEventProto};
 
 use ethers::types::Address;
 use ethers::utils::keccak256;
-use log::info;
+use tracing::info;
 
 pub struct DeployTokenHandler {
     pub indexer: Arc<SnapshotIndexer>,

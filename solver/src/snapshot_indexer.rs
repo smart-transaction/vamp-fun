@@ -14,7 +14,7 @@ use ethers::{
     types::{Address, Filter, H256, U256},
     utils::keccak256,
 };
-use log::{error, info, warn};
+use tracing::{error, info, warn};
 use mysql::{prelude::Queryable, Value};
 use solana_sdk::signature::Keypair;
 use tokio::spawn;

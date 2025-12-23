@@ -16,20 +16,21 @@ use axum::{
 };
 use clap::Parser;
 use ethers::signers::LocalWallet;
-use log::{Level, error, info};
 use mysql_conn::DbConn;
 use snapshot_indexer::SnapshotIndexer;
 use solana_sdk::signature::Keypair;
 use stats::{IndexerProcesses, cleanup_stats};
-use stderrlog::Timestamp;
 use tokio::{net::TcpListener, spawn};
 use tower_http::cors::{Any, CorsLayer};
+use tracing::{error, info};
+use tracing_subscriber::EnvFilter;
 
 mod chain_info;
 mod http_handler;
 mod mysql_conn;
 mod request_handler;
 mod request_registrator_listener;
+mod send_transaction;
 mod snapshot_indexer;
 mod snapshot_processor;
 mod stats;
@@ -37,85 +38,66 @@ mod use_proto;
 
 #[derive(Parser, Debug)]
 pub struct Args {
-    #[arg(long, default_value_t = 9000)]
+    #[arg(long, env = "PORT", default_value_t = 9000)]
     pub port: u16,
 
-    #[arg(long)]
+    #[arg(long, env = "REQUEST_REGISTRATOR_URL")]
     pub request_registrator_url: String,
 
-    #[arg(long)]
+    #[arg(long, env = "VALIDATOR_URL")]
     pub validator_url: String,
     
-    #[arg(long)]
+    #[arg(long, env = "ORCHESTRATOR_URL")]
     pub orchestrator_url: String,
 
-    #[arg(long, default_value = "40s")]
+    #[arg(long, env = "POLL_FREQUENCY_SECS", default_value = "40s")]
     pub poll_frequency_secs: String,
 
-    #[arg(long)]
+    #[arg(long, env = "MYSQL_USER")]
     pub mysql_user: String,
 
-    #[arg(long)]
+    #[arg(long, env = "MYSQL_PASSWORD")]
     pub mysql_password: String,
 
-    #[arg(long)]
+    #[arg(long, env = "MYSQL_HOST")]
     pub mysql_host: String,
 
-    #[arg(long, default_value_t = 3306)]
+    #[arg(long, env = "MYSQL_PORT", default_value_t = 3306)]
     pub mysql_port: u16,
 
-    #[arg(long)]
+    #[arg(long, env = "MYSQL_DATABASE")]
     pub mysql_database: String,
 
-    #[arg(long)]
+    #[arg(long, env = "QUICKNODE_API_KEY")]
     pub quicknode_api_key: Option<String>,
 
-    #[arg(long)]
-    pub private_key: LocalWallet,
+    #[arg(long, env = "ETHEREUM_PRIVATE_KEY")]
+    pub ethereum_private_key: LocalWallet,
 
-    #[arg(long)]
+    #[arg(long, env = "SOLANA_PRIVATE_KEY")]
     pub solana_private_key: String,
 
-    #[arg(long)]
+    #[arg(long, env = "DEFAULT_SOLANA_CLUSTER")]
     pub default_solana_cluster: String,
 
     // Vamping configuration parameters
-    #[arg(long, default_value_t = false, num_args(0..=1), value_parser = clap::value_parser!(bool))]
+    #[arg(long, env = "PAID_CLAIMING_ENABLED", default_value_t = false, num_args(0..=1), value_parser = clap::value_parser!(bool))]
     pub paid_claiming_enabled: bool,
 
-    #[arg(long, default_value_t = false, num_args(0..=1), value_parser = clap::value_parser!(bool))]
+    #[arg(long, env = "USE_BONDING_CURVE", default_value_t = false, num_args(0..=1), value_parser = clap::value_parser!(bool))]
     pub use_bonding_curve: bool,
 
-    #[arg(long, default_value_t = 1)]
+    #[arg(long, env = "CURVE_SLOPE", default_value_t = 1)]
     pub curve_slope: u64,
 
-    #[arg(long, default_value_t = 1)]
+    #[arg(long, env = "BASE_PRICE", default_value_t = 1)]
     pub base_price: u64,
 
-    #[arg(long, default_value_t = 1000)]
+    #[arg(long, env = "MAX_PRICE", default_value_t = 1000)]
     pub max_price: u64,
 
-    #[arg(long, default_value_t = 1)]
+    #[arg(long, env = "FLAT_PRICE_PER_TOKEN", default_value_t = 1)]
     pub flat_price_per_token: u64,
-
-    // Optional overrides to suppress frontend/EVM-provided values
-    #[arg(long)]
-    pub override_paid_claiming_enabled: Option<bool>,
-
-    #[arg(long)]
-    pub override_use_bonding_curve: Option<bool>,
-
-    #[arg(long)]
-    pub override_curve_slope: Option<u64>,
-
-    #[arg(long)]
-    pub override_base_price: Option<u64>,
-
-    #[arg(long)]
-    pub override_max_price: Option<u64>,
-
-    #[arg(long)]
-    pub override_flat_price_per_token: Option<u64>,
 }
 
 #[tokio::main]
@@ -123,12 +105,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
     let poll_frequency = parse_duration::parse(&args.poll_frequency_secs)?;
 
-    stderrlog::new()
-        .verbosity(Level::Info)
-        .timestamp(Timestamp::Millisecond)
-        .show_module_names(true)
-        .init()
-        .unwrap();
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
+        .init();
 
     // Initialize RabbitMQ listener
     let mut deploy_token_listener = request_registrator_listener::RequestRegistratorListener::new(

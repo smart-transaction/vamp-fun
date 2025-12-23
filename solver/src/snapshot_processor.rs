@@ -11,7 +11,7 @@ use ethers::{
     signers::{LocalWallet, Signer},
     types::{Address, U256},
 };
-use log::info;
+use tracing::info;
 use mpl_token_metadata::ID as TOKEN_METADATA_PROGRAM_ID;
 use mysql::TxOpts;
 use mysql::prelude::Queryable;

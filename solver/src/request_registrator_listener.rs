@@ -5,7 +5,7 @@ use std::{
 };
 
 use ethers::utils::keccak256;
-use log::{error, info};
+use tracing::{error, info};
 use mysql::prelude::Queryable;
 use tokio::time::sleep;
 use tonic::{Request, transport::Channel};

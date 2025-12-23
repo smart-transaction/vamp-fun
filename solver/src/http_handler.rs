@@ -5,7 +5,7 @@ use std::{
 
 use axum::{Json, extract::Query, http::StatusCode};
 use ethers::types::U256;
-use log::error;
+use tracing::error;
 use mysql::{prelude::Queryable, Row, Value};
 use serde::{Deserialize, Serialize};
 

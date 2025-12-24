@@ -1,10 +1,10 @@
-use std::error::Error;
 use std::sync::{Arc, Mutex};
 
 use crate::snapshot_indexer::{SnapshotIndexer, TokenRequestData};
 use crate::stats::{IndexerProcesses, VampingStatus};
 use crate::use_proto::proto::{SolanaCluster, UserEventProto};
 
+use anyhow::{anyhow, Result};
 use ethers::types::Address;
 use ethers::utils::keccak256;
 use tracing::info;
@@ -76,7 +76,7 @@ impl DeployTokenHandler {
         handler
     }
 
-    pub async fn handle(&self, sequence_id: u64, event: UserEventProto) -> Result<(), Box<dyn Error>> {
+    pub async fn handle(&self, sequence_id: u64, event: UserEventProto) -> Result<()> {
         info!("DeployTokenHandler triggered");
         let mut request_data = TokenRequestData::default();
         request_data.sequence_id = sequence_id;
@@ -96,7 +96,7 @@ impl DeployTokenHandler {
                 request_data.token_uri = String::from_utf8(add_data.value).unwrap();
             } else if add_data.key == self.token_decimal_name {
                 if add_data.value.len() != 1 {
-                    return Err("Invalid token decimal length".into());
+                    return Err(anyhow!("Invalid token decimal length"));
                 }
                 info!("Token decimal: {:?}", add_data.value[0]);
                 request_data.token_decimal = add_data.value[0];

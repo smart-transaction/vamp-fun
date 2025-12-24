@@ -1,9 +1,9 @@
 use std::{
-    error::Error,
     sync::Arc,
     time::{Duration, SystemTime},
 };
 
+use anyhow::{anyhow, Result};
 use ethers::utils::keccak256;
 use tracing::{error, info};
 use mysql::prelude::Queryable;
@@ -34,7 +34,7 @@ impl RequestRegistratorListener {
         request_registrator_url: String,
         poll_frequency: Duration,
         db_conn: DbConn,
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> Result<Self> {
         info!(
             "Connecting to request registrator at {}",
             request_registrator_url
@@ -57,7 +57,7 @@ impl RequestRegistratorListener {
     pub async fn listen(
         &mut self,
         deploy_token_handler: Arc<DeployTokenHandler>,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<()> {
         let tick_frequency = parse_duration::parse(TICK_FREQUENCY)?;
         let vamping_app_id = keccak256(VAMPING_APP_ID.as_bytes());
         let mut last_timestamp = 0u64;
@@ -130,8 +130,8 @@ impl RequestRegistratorListener {
         }
     }
 
-    fn read_last_sequence_id(&self) -> Result<Option<u64>, Box<dyn Error>> {
-        let mut conn = self.db_conn.create_db_conn()?;
+    fn read_last_sequence_id(&self) -> Result<Option<u64>> {
+        let mut conn = self.db_conn.create_db_conn().map_err(|e| anyhow!("Error creating DB connection: {}", e))?;
 
         let stmt = "SELECT sequence_id FROM request_logs ORDER BY ts DESC LIMIT 1";
         let seq_id: Option<u64> = conn.exec_first(stmt, ())?;
@@ -139,8 +139,8 @@ impl RequestRegistratorListener {
         Ok(seq_id)
     }
 
-    fn write_sequence_id(&self, sequence_id: u64) -> Result<(), Box<dyn Error>> {
-        let mut conn = self.db_conn.create_db_conn()?;
+    fn write_sequence_id(&self, sequence_id: u64) -> Result<()> {
+        let mut conn = self.db_conn.create_db_conn().map_err(|e| anyhow!("Error creating DB connection: {}", e))?;
 
         let stmt = "INSERT INTO request_logs (sequence_id) VALUES (?)";
         conn.exec_drop(stmt, (sequence_id,))?;

@@ -10,7 +10,7 @@ panic = "unwind"
 balance_util = { path = "../crates/balance_util" }
 merkle_tree = { path = "../crates/merkle_tree" }
 axum = "0.8.3"
-clap = { version = "4.5.34", features = ["derive"] }
+clap = { version = "4.5.34", features = ["derive", "env"] }
 ethers = "2.0.14"
 futures = "0.3.31"
 hex = "0.4.3"
@@ -38,6 +38,7 @@ anchor-lang = "0.31.1"
 postcard = { version = "1.1.1", features = ["alloc"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["fmt", "env-filter"] }
+anyhow = "1.0.100"
 
 [build-dependencies]
 tonic-build = "0.13.0"

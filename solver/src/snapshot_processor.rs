@@ -75,13 +75,6 @@ pub async fn process_and_send_snapshot(
     solver_curve_slope: u64,
     solver_base_price: u64,
     solver_flat_price_per_token: u64,
-    // Optional overrides to suppress frontend/EVM-provided values
-    override_paid_claiming_enabled: Option<bool>,
-    override_use_bonding_curve: Option<bool>,
-    override_curve_slope: Option<u64>,
-    override_base_price: Option<u64>,
-    override_max_price: Option<u64>,
-    override_flat_price_per_token: Option<u64>,
 ) -> Result<(), Box<dyn Error>> {
     info!("Received indexed snapshot for intent_id: {}", hex::encode(&request_data.intent_id));
     {
@@ -178,17 +171,12 @@ pub async fn process_and_send_snapshot(
     };
 
     // Determine final vamping params with precedence: overrides > frontend/EVM (request_data) > solver defaults
-    let final_paid_claiming_enabled = override_paid_claiming_enabled
-        .unwrap_or_else(|| request_data.paid_claiming_enabled.unwrap_or(solver_paid_claiming_enabled));
-    let final_use_bonding_curve = override_use_bonding_curve
-        .unwrap_or_else(|| request_data.use_bonding_curve.unwrap_or(solver_use_bonding_curve));
-    let final_curve_slope = override_curve_slope
-        .unwrap_or_else(|| request_data.curve_slope.unwrap_or(solver_curve_slope));
-    let final_base_price = override_base_price
-        .unwrap_or_else(|| request_data.base_price.unwrap_or(solver_base_price));
-    let final_max_price = if let Some(v) = override_max_price { v } else { 0 };
-    let final_flat_price_per_token = override_flat_price_per_token
-        .unwrap_or_else(|| request_data.flat_price_per_token.unwrap_or(solver_flat_price_per_token));
+    let final_paid_claiming_enabled = request_data.paid_claiming_enabled.unwrap_or(solver_paid_claiming_enabled);
+    let final_use_bonding_curve = request_data.use_bonding_curve.unwrap_or(solver_use_bonding_curve);
+    let final_curve_slope = request_data.curve_slope.unwrap_or(solver_curve_slope);
+    let final_base_price = request_data.base_price.unwrap_or(solver_base_price);
+    let final_max_price = 0;
+    let final_flat_price_per_token = request_data.flat_price_per_token.unwrap_or(solver_flat_price_per_token);
 
     // Now create the TokenVampingInfoProto with the validator address from the response
     let transaction_args = CloneTransactionArgs {

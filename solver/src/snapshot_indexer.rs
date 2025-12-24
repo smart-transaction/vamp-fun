@@ -1,12 +1,13 @@
 use std::{
     cmp::{max, min},
     collections::HashMap,
-    error::Error,
     str::FromStr,
     sync::{Arc, Mutex},
 };
 
-use anchor_client::Program;
+use anchor_client::{Client, Cluster, Program};
+use anchor_lang::declare_program;
+use anyhow::{anyhow, Result};
 use chrono::Utc;
 use ethers::{
     providers::{Http, Middleware, Provider},
@@ -20,10 +21,7 @@ use solana_sdk::signature::Keypair;
 use tokio::spawn;
 
 use crate::{
-    chain_info::{fetch_chains, get_quicknode_mapping, ChainInfo},
-    mysql_conn::DbConn,
-    snapshot_processor::process_and_send_snapshot,
-    stats::{IndexerProcesses, IndexerStats, VampingStatus}, use_proto::proto::SolanaCluster,
+    args::SharedArgs, chain_info::{ChainInfo, fetch_chains, get_quicknode_mapping}, mysql_conn::DbConn, snapshot_processor::process_and_send_snapshot, stats::{IndexerProcesses, IndexerStats, VampingStatus}, use_proto::proto::SolanaCluster
 };
 
 #[derive(Default)]
@@ -53,9 +51,20 @@ pub struct TokenAmount {
     pub signature: Vec<u8>,
 }
 
+declare_program!(solana_vamp_program);
+
+fn get_program_instance(
+    payer_keypair: Arc<Keypair>,
+) -> Result<Program<Arc<Keypair>>> {
+    // The cluster doesn't matter here, it's used only for the instructions creation.
+    let anchor_client = Client::new(Cluster::Debug, payer_keypair.clone());
+    Ok(anchor_client.program(solana_vamp_program::ID)?)
+}
+
 pub struct SnapshotIndexer {
     chain_info: HashMap<u64, ChainInfo>,
     quicknode_chains: HashMap<u64, String>,
+
     db_conn: DbConn,
     validator_url: String,
     orchestrator_url: String,
@@ -68,67 +77,43 @@ pub struct SnapshotIndexer {
     solver_curve_slope: u64,
     solver_base_price: u64,
     solver_flat_price_per_token: u64,
-    // Optional overrides to suppress frontend/EVM-provided values
-    override_paid_claiming_enabled: Option<bool>,
-    override_use_bonding_curve: Option<bool>,
-    override_curve_slope: Option<u64>,
-    override_base_price: Option<u64>,
-    override_max_price: Option<u64>,
-    override_flat_price_per_token: Option<u64>,
 }
 
 const BLOCK_STEP: usize = 9990;
 
 impl SnapshotIndexer {
-    pub fn new(
-        db_conn: DbConn, 
-        validator_url: String, 
-        orchestrator_url: String, 
-        private_key: LocalWallet, 
-        solana_payer_keypair: Arc<Keypair>, 
-        solana_program: Arc<Program<Arc<Keypair>>>,
-        // Solver vamping parameters for fallback
-        solver_paid_claiming_enabled: bool,
-        solver_use_bonding_curve: bool,
-        solver_curve_slope: u64,
-        solver_base_price: u64,
-        solver_flat_price_per_token: u64,
-        // Optional overrides to suppress frontend/EVM-provided values
-        override_paid_claiming_enabled: Option<bool>,
-        override_use_bonding_curve: Option<bool>,
-        override_curve_slope: Option<u64>,
-        override_base_price: Option<u64>,
-        override_max_price: Option<u64>,
-        override_flat_price_per_token: Option<u64>,
-    ) -> Self {
-        Self {
+    pub fn new(args: SharedArgs) -> Result<Self> {
+        let args = args.read().map_err(|e| anyhow!("Error accessing args: {}", e))?;
+        let solana_payer_keypair = Arc::new(Keypair::from_base58_string(&args.solana_private_key));
+        let solana_program = Arc::new(get_program_instance(solana_payer_keypair.clone())?);
+        Ok(Self {
             chain_info: HashMap::new(),
             quicknode_chains: HashMap::new(),
-            db_conn,
-            validator_url,
-            orchestrator_url,
-            private_key,
+            db_conn: DbConn::new(
+                args.mysql_host.clone(),
+                args.mysql_port.to_string(),
+                args.mysql_user.clone(),
+                args.mysql_password.clone(),
+                args.mysql_database.clone(),
+            ),
+            validator_url: args.validator_url.clone(),
+            orchestrator_url: args.orchestrator_url.clone(),
+            private_key: args.ethereum_private_key.clone(),
             solana_payer_keypair,
             solana_program,
-            solver_paid_claiming_enabled,
-            solver_use_bonding_curve,
-            solver_curve_slope,
-            solver_base_price,
-            solver_flat_price_per_token,
-            override_paid_claiming_enabled,
-            override_use_bonding_curve,
-            override_curve_slope,
-            override_base_price,
-            override_max_price,
-            override_flat_price_per_token,
-        }
+            solver_paid_claiming_enabled: args.paid_claiming_enabled,
+            solver_use_bonding_curve: args.use_bonding_curve,
+            solver_curve_slope: args.curve_slope,
+            solver_base_price: args.base_price,
+            solver_flat_price_per_token: args.flat_price_per_token,
+        })
     }
 
     pub async fn init_chain_info(
         &mut self,
         quicknode_api_key: Option<String>,
-    ) -> Result<(), Box<dyn Error>> {
-        let chains = fetch_chains().await?;
+    ) -> Result<()> {
+        let chains = fetch_chains().await.map_err(|e| anyhow!("Error chains fetching: {}", e))?;
         self.chain_info = chains;
 
         if let Some(api_key) = quicknode_api_key {
@@ -142,7 +127,7 @@ impl SnapshotIndexer {
         &self,
         request_data: TokenRequestData,
         stats: Arc<Mutex<IndexerProcesses>>,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<()> {
         info!(
             "Indexing snapshot for token address: {:?} at block number: {:?}",
             request_data.erc20_address, request_data.block_number
@@ -181,12 +166,6 @@ impl SnapshotIndexer {
         let solver_curve_slope = self.solver_curve_slope;
         let solver_base_price = self.solver_base_price;
         let solver_flat_price_per_token = self.solver_flat_price_per_token;
-        let override_paid_claiming_enabled = self.override_paid_claiming_enabled;
-        let override_use_bonding_curve = self.override_use_bonding_curve;
-        let override_curve_slope = self.override_curve_slope;
-        let override_base_price = self.override_base_price;
-        let override_max_price = self.override_max_price;
-        let override_flat_price_per_token = self.override_flat_price_per_token;
         
         spawn(async move {
             let first_block = prev_block_number.unwrap_or(0) + 1;
@@ -299,13 +278,6 @@ impl SnapshotIndexer {
                 solver_curve_slope,
                 solver_base_price,
                 solver_flat_price_per_token,
-                // Overrides
-                override_paid_claiming_enabled,
-                override_use_bonding_curve,
-                override_curve_slope,
-                override_base_price,
-                override_max_price,
-                override_flat_price_per_token,
             )
             .await
             {
@@ -321,7 +293,7 @@ impl SnapshotIndexer {
         Ok(())
     }
 
-    async fn connect_chain(&self, chain_id: u64) -> Result<Provider<Http>, Box<dyn Error>> {
+    async fn connect_chain(&self, chain_id: u64) -> Result<Provider<Http>> {
         if let Some(quicknode_url) = self.quicknode_chains.get(&chain_id) {
             let provider = Provider::<Http>::try_from(quicknode_url.as_str())?;
             let _ = provider.get_block_number().await?;
@@ -331,7 +303,7 @@ impl SnapshotIndexer {
         let chain_info = self.chain_info.get(&chain_id).ok_or(format!(
             "Chain ID {} is not registered in the chainid network",
             chain_id
-        ))?;
+        )).map_err(|e| anyhow!("Error getting chain info: {}", e))?;
         for chain_url in &chain_info.rpc {
             let provider = Provider::<Http>::try_from(chain_url.as_str())?;
             if let Err(err) = provider.get_block_number().await {
@@ -343,16 +315,16 @@ impl SnapshotIndexer {
             }
             return Ok(provider);
         }
-        Err("Failed to connect to any RPC URL for the specified chain ID".into())
+        Err(anyhow!("Failed to connect to any RPC URL for the specified chain ID"))
     }
 
     pub fn read_token_supply(
         &self,
         chain_id: u64,
         erc20_address: Address,
-    ) -> Result<(HashMap<Address, TokenAmount>, Option<usize>), Box<dyn Error>> {
+    ) -> Result<(HashMap<Address, TokenAmount>, Option<usize>)> {
         let mut token_supply = HashMap::new();
-        let mut conn = self.db_conn.create_db_conn()?;
+        let mut conn = self.db_conn.create_db_conn().map_err(|e| anyhow!("Error creating DB connection: {}", e))?;
         // Reading the current snapshot from the database
         let stmt = "SELECT holder_address, holder_amount, signature FROM tokens WHERE chain_id = ? AND erc20_address = ?";
         let addr_str = format!("{:#x}", erc20_address);

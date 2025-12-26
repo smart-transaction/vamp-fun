@@ -1,15 +1,6 @@
 {
     "MAINNET": [
         {
-            "name": "ethereum",
-            "rpcEnvKey": "ETHEREUM_MAINNET_RPC",
-            "chainId": 1,
-            "verifier": "etherscan",
-            "verifierUrl": "https://api.etherscan.io/api",
-            "explorerUrl": "https://etherscan.io",
-            "apiKeyEnv": "ETHERSCAN_API_KEY"
-        },
-        {
             "name": "base",
             "rpcEnvKey": "BASE_MAINNET_RPC",
             "chainId": 8453,
@@ -17,63 +8,9 @@
             "verifierUrl": "https://api.basescan.org/api",
             "explorerUrl": "https://basescan.org",
             "apiKeyEnv": "BASESCAN_API_KEY"
-        },
-        {
-            "name": "optimism",
-            "rpcEnvKey": "OPTIMISM_MAINNET_RPC",
-            "chainId": 10,
-            "verifier": "etherscan",
-            "verifierUrl": "https://api-optimistic.etherscan.io/api",
-            "explorerUrl": "https://optimistic.etherscan.io",
-            "apiKeyEnv": "OPTIMISMSCAN_API_KEY"
-        },
-        {
-            "name": "polygon",
-            "rpcEnvKey": "POLYGON_MAINNET_RPC",
-            "chainId": 137,
-            "verifier": "etherscan",
-            "verifierUrl": "https://api.polygonscan.com/api",
-            "explorerUrl": "https://polygonscan.com",
-            "apiKeyEnv": "POLYGONSCAN_API_KEY"
-        },
-        {
-            "name": "arbitrum",
-            "rpcEnvKey": "ARBITRUM_MAINNET_RPC",
-            "chainId": 42161,
-            "verifier": "etherscan",
-            "verifierUrl": "https://api.arbiscan.io/api",
-            "explorerUrl": "https://arbiscan.io",
-            "apiKeyEnv": "ARBITRUMSCAN_API_KEY"
         }
     ],
     "TESTNET": [
-        {
-            "name": "sepolia",
-            "rpcEnvKey": "SEPOLIA_RPC",
-            "chainId": 11155111,
-            "verifier": "etherscan",
-            "verifierUrl": "https://api.etherscan.io/api",
-            "explorerUrl": "https://sepolia.etherscan.io",
-            "apiKeyEnv": "ETHERSCAN_API_KEY"
-        },
-        {
-            "name": "polygon_amoy",
-            "rpcEnvKey": "POLYGON_AMOY_RPC",
-            "chainId": 80002,
-            "verifier": "etherscan",
-            "verifierUrl": "https://api-amoy.polygonscan.com/api",
-            "explorerUrl": "https://amoy.polygonscan.com",
-            "apiKeyEnv": "POLYGONSCAN_API_KEY"
-        },
-        {
-            "name": "arbitrum_sepolia",
-            "rpcEnvKey": "ARBITRUM_SEPOLIA_RPC",
-            "chainId": 421614,
-            "verifier": "etherscan",
-            "verifierUrl": "https://api-sepolia.arbiscan.io/api",
-            "explorerUrl": "https://sepolia.arbiscan.io",
-            "apiKeyEnv": "ARBITRUMSCAN_API_KEY"
-        },
         {
             "name": "base_sepolia",
             "rpcEnvKey": "BASE_SEPOLIA_RPC",
@@ -82,15 +19,6 @@
             "verifierUrl": "https://api-sepolia.basescan.org/api",
             "explorerUrl": "https://sepolia.basescan.org",
             "apiKeyEnv": "BASESCAN_API_KEY"
-        },
-        {
-            "name": "optimism_sepolia",
-            "rpcEnvKey": "OPTIMISM_SEPOLIA_RPC",
-            "chainId": 11155420,
-            "verifier": "etherscan",
-            "verifierUrl": "https://api-sepolia-optimistic.etherscan.io/api",
-            "explorerUrl": "https://sepolia-optimism.etherscan.io",
-            "apiKeyEnv": "OPTIMISMSCAN_API_KEY"
         }
     ]
 }

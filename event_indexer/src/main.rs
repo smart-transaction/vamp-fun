@@ -24,6 +24,7 @@ mod cfg;
 mod eth_client;
 mod event_publisher;
 mod indexer;
+mod vamper_event;
 
 #[derive(Serialize)]
 struct HealthResponse {

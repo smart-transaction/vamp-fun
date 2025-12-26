@@ -2,11 +2,11 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 /// @dev ERC-1046 draft extension (not provided by OpenZeppelin)
 interface IERC20MetadataURI {
@@ -18,7 +18,7 @@ contract VampTokenEmitterUpgradeable is
     Initializable,
     UUPSUpgradeable,
     OwnableUpgradeable,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuard
 {
     // ---- custom errors (cheaper than revert strings) ----
     error ZeroToken();
@@ -52,8 +52,6 @@ contract VampTokenEmitterUpgradeable is
     /// @param _feeWei Required ETH fee in wei
     function initialize(address initialOwner, uint256 _feeWei) external initializer {
         __Ownable_init(initialOwner);
-        __UUPSUpgradeable_init();
-        __ReentrancyGuard_init();
 
         feeWei = _feeWei;
         nonce = 0;

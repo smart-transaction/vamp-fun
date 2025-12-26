@@ -2,7 +2,11 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20MetadataURI.sol";
+
+/// @dev ERC-1046 draft extension (not provided by OpenZeppelin)
+interface IERC20MetadataURI {
+    function tokenURI() external view returns (string memory);
+}
 
 contract VampTokenEmitter {
     address public owner;
@@ -51,7 +55,7 @@ contract VampTokenEmitter {
         (bool ok, ) = owner.call{value: msg.value}("");
         require(ok, "FEE_TRANSFER_FAILED");
 
-        // Compute deterministic globally-unique intentId
+        // Deterministic globally-unique intentId
         uint256 currentNonce = nonce;
         bytes32 intentId = keccak256(
             abi.encodePacked(
@@ -66,7 +70,7 @@ contract VampTokenEmitter {
             nonce = currentNonce + 1;
         }
 
-        // ERC-20 metadata (name + symbol)
+        // ERC-20 metadata
         string memory tName = IERC20Metadata(token).name();
         string memory tSymbol = IERC20Metadata(token).symbol();
 

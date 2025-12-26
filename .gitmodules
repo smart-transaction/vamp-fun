@@ -7,3 +7,6 @@
 [submodule "ethereum/Vamper/lib/forge-std"]
 	path = ethereum/Vamper/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "ethereum/Vamper/lib/openzeppelin-contracts"]
+	path = ethereum/Vamper/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts

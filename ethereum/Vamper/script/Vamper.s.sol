@@ -2,17 +2,17 @@
 pragma solidity ^0.8.13;
 
 import {Script, console} from "forge-std/Script.sol";
-import {Counter} from "../src/Counter.sol";
+import {Vamper} from "../src/Vamper.sol";
 
 contract CounterScript is Script {
-    Counter public counter;
+    Vamper public vamper;
 
     function setUp() public {}
 
     function run() public {
         vm.startBroadcast();
 
-        counter = new Counter();
+        vamper = new Vamper(1000000000);  // 1 GWei
 
         vm.stopBroadcast();
     }

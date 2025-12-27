@@ -16,7 +16,6 @@ abstract contract BaseDeployer is Script {
     }
 
     struct RawNetworkConfigWrapper {
-        RawNetworkConfig lestnet;
         RawNetworkConfig[] mainnet;
         RawNetworkConfig[] testnet;
     }
@@ -58,8 +57,6 @@ abstract contract BaseDeployer is Script {
             _processNetworkArray(wrapper.mainnet);
         } else if (networkTypeHash == keccak256(abi.encodePacked("TESTNET"))) {
             _processNetworkArray(wrapper.testnet);
-        } else if (networkTypeHash == keccak256(abi.encodePacked("LESTNET"))) {
-            _processSingleNetwork(wrapper.lestnet);
         } else {
             revert("Unsupported network type");
         }
@@ -129,8 +126,8 @@ abstract contract BaseDeployer is Script {
         return vm.envUint(envVar);
     }
 
-    function _computeCreate2Address(bytes32 salt, bytes32 creationCode) internal pure returns (address) {
-        return computeCreate2Address(salt, creationCode);
+    function _computeCreate2Address(bytes32 salt, bytes32 creationCode, address contractAddress) internal pure returns (address) {
+        return vm.computeCreate2Address(salt, creationCode);
     }
 
     function _generateSalt() internal returns (bytes32) {

@@ -4,8 +4,9 @@ out = "out"
 libs = ["lib"]
 solc = "0.8.33"
 evm_version = "cancun"
-bytecode_hash = "none"
-cbor_metadata = false
+# bytecode_hash = "none"
+# cbor_metadata = false
+via_ir = true
 fs_permissions = [{ access = "read", path = "./config/networks.json"}]
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

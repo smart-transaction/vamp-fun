@@ -16,9 +16,9 @@
             "rpcEnvKey": "BASE_SEPOLIA_RPC",
             "chainId": 84532,
             "verifier": "etherscan",
-            "verifierUrl": "https://api-sepolia.basescan.org/api",
+            "verifierUrl": "https://api.etherscan.io/v2/api?chainid=84532",
             "explorerUrl": "https://sepolia.basescan.org",
-            "apiKeyEnv": "BASESCAN_API_KEY"
+            "apiKeyEnv": "ETHERSCAN_API_KEY"
         }
     ]
 }

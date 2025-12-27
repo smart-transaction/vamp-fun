@@ -30,7 +30,9 @@ contract DeployVampTokenEmitterUpgradeable is BaseDeployer {
 
             address contractAddress = address(new VampTokenEmitterUpgradeable{salt: salt}());
             address computedAddress = _computeCreate2Address(
-                salt, hashInitCode(abi.encodePacked(type(VampTokenEmitterUpgradeable).creationCode, abi.encode(owner)))
+                salt,
+                keccak256(type(VampTokenEmitterUpgradeable).creationCode),
+                contractAddress
             );
             require(contractAddress == computedAddress, "Contract address mismatch");
             console.log("VampTokenEmitterUpgradeable deployed to:", contractAddress);

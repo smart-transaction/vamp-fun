@@ -105,6 +105,7 @@ if [[ -n "$SALT" ]]; then
 else
     FORGE_CMD+=" --sig \"run()\""
 fi
+echo ${FORGE_CMD}
 eval "$FORGE_CMD"
 
 echo -e "\n${GREEN}✅ Successfully deployed ${DEPLOY_COUNT} ${CONTRACT_NAME} instances!${NC}"

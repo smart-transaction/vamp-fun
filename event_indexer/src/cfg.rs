@@ -26,9 +26,6 @@ pub struct Cfg {
     #[arg(long, env = "VAMP_FUN_CONTRACT_ADDRESS")]
     pub vamp_fun_contract_address: String,
 
-    #[arg(long, env = "EVENT_TOPIC0")]
-    pub event_topic0: String,
-
     #[arg(long, env = "CONFIRMATIONS", default_value_t = 12)]
     pub confirmations: u64,
 

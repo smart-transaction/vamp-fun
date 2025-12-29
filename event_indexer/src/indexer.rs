@@ -8,7 +8,7 @@ use sqlx::{MySql, MySqlPool, Row, Transaction};
 use alloy_primitives::{Address, B256};
 use alloy_rpc_types::{Filter, Log};
 
-use crate::{app_state::AppState, eth_client::EthClient};
+use crate::{app_state::AppState, eth_client::EthClient, vamper_event::topic0};
 
 pub async fn indexer_loop(state: AppState) -> Result<()> {
     info!("indexer loop started");
@@ -62,9 +62,7 @@ pub async fn indexer_tick(state: &AppState) -> anyhow::Result<()> {
         .parse()
         .map_err(|e| anyhow!("Error parsing contract address: {}", e))?;
 
-    let topic0: B256 = state.cfg.event_topic0
-        .parse()
-        .map_err(|e| anyhow!("Eror parsing topic0: {}", e))?;
+    let topic0 = topic0();
 
     while current_from <= finalized {
         let current_to = (current_from + state.cfg.max_block_range - 1).min(finalized);

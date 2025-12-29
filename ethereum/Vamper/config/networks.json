@@ -5,9 +5,9 @@
             "rpcEnvKey": "BASE_MAINNET_RPC",
             "chainId": 8453,
             "verifier": "etherscan",
-            "verifierUrl": "https://api.basescan.org/api",
+            "verifierUrl": "https://api.etherscan.io/v2/api?chainid=8453",
             "explorerUrl": "https://basescan.org",
-            "apiKeyEnv": "BASESCAN_API_KEY"
+            "apiKeyEnv": "ETHERCAN_API_KEY"
         }
     ],
     "TESTNET": [

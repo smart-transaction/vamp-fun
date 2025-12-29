@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.33;
+pragma solidity ^0.8.30;
 
 import {Script} from "forge-std/Script.sol";
 import {stdJson} from "forge-std/StdJson.sol";
@@ -126,12 +126,8 @@ abstract contract BaseDeployer is Script {
         return vm.envUint(envVar);
     }
 
-    function _computeCreate2Address(bytes32 salt, bytes32 creationCode, address contractAddress) internal pure returns (address) {
-        return vm.computeCreate2Address(salt, creationCode);
-    }
-
-    function _generateSalt() internal returns (bytes32) {
-        return bytes32(uint256(vm.randomUint()));
+    function _computeCreate2Address(bytes32 salt, bytes32 creationCode, address deployer) internal pure returns (address) {
+        return vm.computeCreate2Address(salt, creationCode, deployer);
     }
 
     function _getOwner() internal view returns (address) {

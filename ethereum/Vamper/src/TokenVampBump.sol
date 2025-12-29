@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.33;
+pragma solidity ^0.8.30;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /// @dev ERC-1046 draft extension (not provided by OpenZeppelin)
 interface IERC20MetadataURI {
@@ -14,16 +11,14 @@ interface IERC20MetadataURI {
 }
 
 /// @notice UUPS-upgradeable, reentrancy-protected intent emitter
-contract VampTokenEmitterUpgradeable is
-    Initializable,
-    UUPSUpgradeable,
-    OwnableUpgradeable,
-    ReentrancyGuard
+contract TokenVampBump is ReentrancyGuard, Ownable
 {
     // ---- custom errors (cheaper than revert strings) ----
     error ZeroToken();
     error BadFee();
     error FeeTransferFailed();
+    error NotAnOwner();
+    error ZeroOwner();
 
     uint256 public feeWei;
 
@@ -42,17 +37,8 @@ contract VampTokenEmitterUpgradeable is
     );
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        // Prevent the implementation contract from being initialized.
-        _disableInitializers();
-    }
-
-    /// @notice Initializer (replaces constructor for upgradeable contracts)
-    /// @param initialOwner Owner address for OwnableUpgradeable
     /// @param _feeWei Required ETH fee in wei
-    function initialize(address initialOwner, uint256 _feeWei) external initializer {
-        __Ownable_init(initialOwner);
-
+    constructor(address _owner, uint256 _feeWei) Ownable(_owner) {
         feeWei = _feeWei;
         nonce = 0;
     }
@@ -68,6 +54,7 @@ contract VampTokenEmitterUpgradeable is
         if (msg.value != feeWei) revert BadFee();
 
         address caller = msg.sender;
+
         uint64 currentNonce = nonce;
 
         // Deterministic globally-unique intentId
@@ -85,8 +72,18 @@ contract VampTokenEmitterUpgradeable is
         if (!ok) revert FeeTransferFailed();
 
         // ERC-20 metadata (may revert for non-conforming tokens)
-        string memory tName = IERC20Metadata(token).name();
-        string memory tSymbol = IERC20Metadata(token).symbol();
+        string memory tName;
+        try IERC20Metadata(token).name() returns (string memory name) {
+            tName = name;
+        } catch {
+            tName = "";
+        }
+        string memory tSymbol;
+        try IERC20Metadata(token).symbol() returns (string memory symbol) {
+            tSymbol = symbol;
+        } catch {
+            tSymbol = "";
+        }
 
         // ERC-1046 tokenURI (best-effort)
         string memory tUri;
@@ -107,7 +104,4 @@ contract VampTokenEmitterUpgradeable is
             tUri
         );
     }
-
-    /// @dev UUPS authorization hook
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }

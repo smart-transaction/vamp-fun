@@ -3,8 +3,6 @@
 
 # Usage: ./deploy.sh <network-type> <contract-name> [chains] [count] [names-array] [symbols-array]
 # Example: ./deploy.sh testnet MockERC20 '["chain"]' 2 '["Token1","Token2"]' '["T1","T2"]'
-# CallBreaker with salt
-# ./deploy.sh testnet CallBreaker '["chain"]' 12345
 
 set -eo pipefail
 
@@ -48,35 +46,11 @@ if [[ "$1" =~ ^\[.*\]$ ]]; then
     shift
 fi
 
-# Contract-specific parameter handling
-case "$CONTRACT_NAME" in
-    "MockERC20")
-        # Get deploy count
-        if [[ "$1" =~ ^[0-9]+$ ]]; then
-            DEPLOY_COUNT="$1"
-            shift
-        fi
-        
-        # Process names and symbols arrays
-        if [[ $# -ge 2 ]]; then
-            NAMES=($(echo "$1" | jq -r '.[]'))
-            SYMBOLS=($(echo "$2" | jq -r '.[]'))
-            shift 2
-        fi
-
-        # Validate array lengths
-        if [[ ${#NAMES[@]} -ne $DEPLOY_COUNT || ${#SYMBOLS[@]} -ne $DEPLOY_COUNT ]]; then
-            error_exit "Array lengths must match deploy count. Names: ${#NAMES[@]}, Symbols: ${#SYMBOLS[@]}, Expected: $DEPLOY_COUNT"
-        fi
-        ;;
-    *)
-        # For other contracts, handle normally
-        if [[ "$1" =~ ^[0-9]+$ ]]; then
-            SALT="$1"
-            shift
-        fi
-        ;;
-esac
+# Salt
+SALT=3483729438
+# Fee in WEI
+# 10 GWei
+FEE=10000000000
 
 # Convert network type to uppercase
 NETWORK_TYPE=$(echo "$NETWORK_TYPE" | tr '[:lower:]' '[:upper:]')
@@ -100,11 +74,8 @@ SCRIPT_PATH="script/Deploy${CONTRACT_NAME}.s.sol"
 [ ! -f "$SCRIPT_PATH" ] && error_exit "Deployment script not found: $SCRIPT_PATH"
 
 FORGE_CMD="forge script $SCRIPT_PATH --broadcast -vvvv --ffi"
-if [[ -n "$SALT" ]]; then
-    FORGE_CMD+=" --sig \"run(uint256)\" $SALT"
-else
-    FORGE_CMD+=" --sig \"run()\""
-fi
+FORGE_CMD+=" --sig \"run(uint256,uint256)\" $SALT $FEE"
+
 echo ${FORGE_CMD}
 eval "$FORGE_CMD"
 

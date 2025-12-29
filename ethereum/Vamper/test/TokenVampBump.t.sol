@@ -1,23 +1,22 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.33;
+pragma solidity ^0.8.30;
 
 import "forge-std/Test.sol";
 
 // OZ proxy
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import "../src/VampTokenEmitterUpgradeable.sol";
+import "../src/TokenVampBump.sol";
 import "../src/MockERC20MetadataURI.sol";
 
 contract VampTokenEmitterUpgradeableTest is Test {
-    VampTokenEmitterUpgradeable internal impl;
-    VampTokenEmitterUpgradeable internal vamp; // proxy as implementation type
+    TokenVampBump internal vamp;
     MockERC20MetadataURI internal token;
 
-    address internal owner = address(0xABCD);
+    address internal owner  = address(0xABCD);
     address internal user  = address(0xBEEF);
 
-    uint256 internal feeWei = 0.01 ether;
+    uint256 internal feeWei = 1 gwei;
 
     // Re-declare the event so we can use vm.expectEmit with it
     event VampTokenIntent(
@@ -34,47 +33,46 @@ contract VampTokenEmitterUpgradeableTest is Test {
     function setUp() public {
         // Fund accounts
         vm.deal(owner, 10 ether);
-        vm.deal(user,  10 ether);
+        vm.deal(user, 10 ether);
 
         // Deploy mock token
         token = new MockERC20MetadataURI("Mock Token", "MOCK", "ipfs://mock-token-uri");
 
         // Deploy implementation
-        impl = new VampTokenEmitterUpgradeable();
-
-        // Encode initializer call
-        bytes memory initData = abi.encodeCall(
-            VampTokenEmitterUpgradeable.initialize,
-            (owner, feeWei)
-        );
-
-        // Deploy ERC1967Proxy pointing at implementation and initializing it
-        ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
-
-        // Treat proxy address as the upgradeable contract
-        vamp = VampTokenEmitterUpgradeable(payable(address(proxy)));
+        vamp = new TokenVampBump(owner, feeWei);
     }
 
     function test_initialize_setsOwnerFeeNonce() public view {
-        assertEq(vamp.owner(), owner);
         assertEq(vamp.feeWei(), feeWei);
         assertEq(vamp.nonce(), 0);
     }
 
+    function test_setFee_owner_success() public {
+        vm.prank(vamp.owner());
+        vamp.setFee(2 gwei);
+        assertEq(vamp.feeWei(), 2 gwei);
+    }
+
+    function test_setFee_non_owner_fail() public {
+        vm.prank(user);
+        vm.expectRevert();
+        vamp.setFee(2 gwei);
+    }
+
     function test_vampToken_revertsOnZeroToken() public {
         vm.prank(user);
-        vm.expectRevert(); // custom error, keep generic
+        vm.expectRevert();
         vamp.vampToken{value: feeWei}(address(0));
     }
 
     function test_vampToken_revertsOnBadFee() public {
         vm.prank(user);
-        vm.expectRevert(); // BadFee()
+        vm.expectRevert();
         vamp.vampToken{value: feeWei - 1}(address(token));
     }
 
     function test_vampToken_transfersFee_emitsEvent_andIncrementsNonce() public {
-        uint256 ownerBalBefore = owner.balance;
+        uint256 ownerBalBefore = vamp.owner().balance;
 
         // Expect emit with exact values
         // - chainId: block.chainid
@@ -103,7 +101,7 @@ contract VampTokenEmitterUpgradeableTest is Test {
         vamp.vampToken{value: feeWei}(address(token));
 
         // Owner received the fee
-        assertEq(owner.balance - ownerBalBefore, feeWei);
+        assertEq(vamp.owner().balance - ownerBalBefore, feeWei);
 
         // Nonce increments
         assertEq(vamp.nonce(), 1);

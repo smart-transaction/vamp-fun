@@ -19,13 +19,12 @@ impl EventPublisher {
         })
     }
 
-    pub fn publish(&self, event: &Log) -> Result<()> {
-        // topic0
-        let topic0 = VampTokenIntent::SIGNATURE_HASH;
-
+    pub async fn publish(&self, event: &Log) -> Result<()> {
         // decoding a raw log -> typed
         let typed = VampTokenIntent::decode_log(event)?;
         let ev: &VampTokenIntent = &typed.data;
+
+        self.publisher.publish(&ev).await?;
 
         Ok(())
     }

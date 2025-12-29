@@ -1,7 +1,8 @@
 use alloy::sol;
+use serde::{Deserialize, Serialize};
 
 sol! {
-    #[derive(Debug)]
+    #[derive(Debug, Deserialize, Serialize)]
     event VampTokenIntent(
         uint256 chainId,
         uint256 blockNumber,

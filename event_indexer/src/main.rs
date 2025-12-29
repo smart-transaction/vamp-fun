@@ -17,7 +17,7 @@ use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use urlencoding::encode;
 
-use crate::{app_state::AppState, cfg::Cfg, eth_client::EthClient, indexer::{ensure_checkpoint_row, indexer_loop}};
+use crate::{app_state::AppState, cfg::Cfg, eth_client::EthClient, event_publisher::EventPublisher, indexer::{ensure_checkpoint_row, indexer_loop}};
 
 mod app_state;
 mod cfg;
@@ -61,8 +61,9 @@ async fn main() -> Result<()> {
         .map_err(|e| anyhow::anyhow!("failed to connect provider: {e}"))?;
 
     let eth = Arc::new(EthClient { provider: Arc::new(provider) });
+    let publisher = Arc::new(EventPublisher::new(args.clone()).await?);
 
-    let state = AppState { db, eth, cfg: args.clone() };
+    let state = AppState { db, eth, cfg: args.clone(), publisher };
 
     tokio::spawn(indexer_loop(state.clone()));
 

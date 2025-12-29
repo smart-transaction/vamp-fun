@@ -71,7 +71,7 @@ pub async fn indexer_tick(state: &AppState) -> anyhow::Result<()> {
 
         let logs = fetch_logs(contract, topic0, state.eth.clone(), current_from, current_to).await?;
         if !logs.is_empty() {
-            persist_logs_and_advance_checkpoint(&state.db, state.cfg.chain_id, &logs).await?;
+            persist_logs_and_advance_checkpoint(state, &logs).await?;
         } else {
             // Even if no logs, you may still want to advance checkpoint *carefully*.
             // This skeleton advances only when it sees logs; some teams also advance
@@ -96,7 +96,8 @@ pub async fn fetch_logs(contract: Address, topic0: B256, eth: Arc<EthClient>, fr
     Ok(logs)
 }
 
-pub async fn persist_logs_and_advance_checkpoint(db: &MySqlPool, chain_id: u64, logs: &[Log]) -> anyhow::Result<()> {
+// pub async fn persist_logs_and_advance_checkpoint(db: &MySqlPool, chain_id: u64, logs: &[Log]) -> anyhow::Result<()> {
+pub async fn persist_logs_and_advance_checkpoint(state: &AppState, logs: &[Log]) -> anyhow::Result<()> {
     // Sort logs by (block_number, log_index) so checkpoint advancement is correct.
     let mut logs_sorted = logs.to_vec();
     logs_sorted.sort_by_key(|l| {
@@ -105,11 +106,12 @@ pub async fn persist_logs_and_advance_checkpoint(db: &MySqlPool, chain_id: u64, 
         (bn, li)
     });
 
-    let mut tx = db.begin().await.context("begin tx")?;
+    let mut tx = state.db.begin().await.context("begin tx")?;
 
     // Insert idempotently
     for l in &logs_sorted {
-        insert_event_idempotent(&mut tx, chain_id, l).await?;
+        state.publisher.publish(&l.inner).await?;
+        insert_event_idempotent(&mut tx, state.cfg.chain_id, l).await?;
     }
 
     // Advance checkpoint to the last log we successfully considered.

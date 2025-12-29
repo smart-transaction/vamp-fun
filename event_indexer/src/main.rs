@@ -17,10 +17,11 @@ use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use urlencoding::encode;
 
-use crate::{app_state::AppState, cfg::Cfg, eth_client::EthClient, event_publisher::EventPublisher, indexer::{ensure_checkpoint_row, indexer_loop}};
+use crate::{app_state::AppState, cfg::Cfg, db_init::init_db, eth_client::EthClient, event_publisher::EventPublisher, indexer::{ensure_checkpoint_row, indexer_loop}};
 
 mod app_state;
 mod cfg;
+mod db_init;
 mod eth_client;
 mod event_publisher;
 mod indexer;
@@ -53,6 +54,7 @@ async fn main() -> Result<()> {
     let mysql_url = get_mysql_url(args.clone())?;
 
     let db = MySqlPool::connect(&mysql_url).await.map_err(|e| anyhow!("connect mysql: {}", e))?;
+    init_db(&db).await?;
     ensure_checkpoint_row(&db).await?;
 
     let provider = ProviderBuilder::new()

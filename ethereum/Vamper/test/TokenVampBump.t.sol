@@ -11,10 +11,12 @@ import "../src/MockERC20MetadataURI.sol";
 
 contract VampTokenEmitterUpgradeableTest is Test {
     TokenVampBump internal vamp;
+    TokenVampBump internal zeroVamp;
     MockERC20MetadataURI internal token;
 
     address internal owner  = address(0xABCD);
     address internal user  = address(0xBEEF);
+    address internal wrongToken = address(0xDEAD);
 
     uint256 internal feeWei = 1 gwei;
 
@@ -40,6 +42,7 @@ contract VampTokenEmitterUpgradeableTest is Test {
 
         // Deploy implementation
         vamp = new TokenVampBump(owner, feeWei);
+        zeroVamp = new TokenVampBump(owner, 0);
     }
 
     function test_initialize_setsOwnerFeeNonce() public view {
@@ -63,6 +66,12 @@ contract VampTokenEmitterUpgradeableTest is Test {
         vm.prank(user);
         vm.expectRevert();
         vamp.vampToken{value: feeWei}(address(0));
+    }
+
+    function test_vampToken_revertsOnNotAToken() public {
+        vm.prank(user);
+        vm.expectRevert();
+        vamp.vampToken{value: feeWei}(address(wrongToken));
     }
 
     function test_vampToken_revertsOnBadFee() public {
@@ -105,6 +114,42 @@ contract VampTokenEmitterUpgradeableTest is Test {
 
         // Nonce increments
         assertEq(vamp.nonce(), 1);
+    }
+
+    function test_vampToken_transfersZeroFee_emitsEventOnly() public {
+        uint256 ownerBalBefore = zeroVamp.owner().balance;
+
+        // Expect emit with exact values
+        // - chainId: block.chainid
+        // - blockNumber: current block number at execution time
+        // - intentId: keccak256(abi.encodePacked(chainid, address(thisProxy), caller, nonceBefore))
+        // - caller: user
+        // - token: mock token address
+        // - name/symbol/tokenURI: from mock
+        bytes32 expectedIntentId = keccak256(
+            abi.encodePacked(block.chainid, address(zeroVamp), user, uint64(0))
+        );
+
+        vm.expectEmit(true, true, true, true, address(zeroVamp));
+        emit VampTokenIntent(
+            block.chainid,
+            block.number,
+            expectedIntentId,
+            user,
+            address(token),
+            "Mock Token",
+            "MOCK",
+            "ipfs://mock-token-uri"
+        );
+
+        vm.prank(user);
+        zeroVamp.vampToken{value: 0}(address(token));
+
+        // Owner received the fee
+        assertEq(zeroVamp.owner().balance - ownerBalBefore, 0);
+
+        // Nonce increments
+        assertEq(zeroVamp.nonce(), 1);
     }
 
     function test_intentId_isDeterministicAndUniqueAcrossCalls() public {

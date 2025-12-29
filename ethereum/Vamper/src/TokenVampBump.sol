@@ -13,7 +13,8 @@ interface IERC20MetadataURI {
 /// @notice UUPS-upgradeable, reentrancy-protected intent emitter
 contract TokenVampBump is ReentrancyGuard, Ownable
 {
-    // ---- custom errors (cheaper than revert strings) ----
+    // ---- custom errors ----
+    error NotAToken();
     error ZeroToken();
     error BadFee();
     error FeeTransferFailed();
@@ -43,6 +44,10 @@ contract TokenVampBump is ReentrancyGuard, Ownable
         nonce = 0;
     }
 
+    function isContract(address addr) internal view returns (bool) {
+        return addr.code.length > 0;
+    }
+
     function setFee(uint256 _feeWei) external onlyOwner {
         feeWei = _feeWei;
     }
@@ -51,6 +56,7 @@ contract TokenVampBump is ReentrancyGuard, Ownable
     /// @param token ERC-20 token address
     function vampToken(address token) external payable nonReentrant {
         if (token == address(0)) revert ZeroToken();
+        if (!isContract(token)) revert NotAToken();
         if (msg.value != feeWei) revert BadFee();
 
         address caller = msg.sender;
@@ -66,10 +72,12 @@ contract TokenVampBump is ReentrancyGuard, Ownable
             nonce = currentNonce + 1;
         }
 
-        // Forward ETH fee to owner
-        address owner_ = owner();
-        (bool ok, ) = payable(owner_).call{value: msg.value}("");
-        if (!ok) revert FeeTransferFailed();
+        // Forward ETH fee to owner if fee is set
+        if (feeWei > 0) {
+            address owner_ = owner();
+            (bool ok, ) = payable(owner_).call{value: msg.value}("");
+            if (!ok) revert FeeTransferFailed();
+        }
 
         // ERC-20 metadata (may revert for non-conforming tokens)
         string memory tName;

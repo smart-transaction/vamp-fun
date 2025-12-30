@@ -1,24 +1,22 @@
-PORT=8082
-MYSQL_HOST=localhost
-MYSQL_PORT=3306
-MYSQL_USER=server
-MYSQL_PASSWORD=secret2
-MYSQL_DB=vampfun
-ETH_RPC_URL=
-VAMP_FUN_CONTRACT_ADDRESS="https://base-sepolia.g.alchemy.com/v2/ICXxRS_FHofIsVaTe_LxtU9Uaqfxw8Rc"
-EVENT_TOPIC0=""
-CONFIRMATIONS", default_value_t = 12)]
-OVERLAP_BLOCKS", default_value_t = 50)]
-MAX_BLOCK_RANGE", default_value_t = 2000)]
-POLL_SECS", default_value_t = 5)]
-DEPLOYMENT_BLOCK", default_value_t = 0)]
-CHAIN_ID")]
-AMQP_HOST")]
-AMQP_PORT")]
-AMQP_USER")]
-AMQP_PASSWORD")]
-EXCHANGE_NAME")]
-ROUTING_KEY")]
-
+export PORT=8082
+export MYSQL_HOST="localhost"
+export MYSQL_PORT=3306
+export MYSQL_USER="vamper"
+export MYSQL_PASSWORD="secret2"
+export MYSQL_DB="vampfun"
+export ETH_RPC_URL="https://sepolia.base.org"
+export VAMP_FUN_CONTRACT_ADDRESS="0x7103d6B2FAFd717571890c7DeBcF21d84626316A"
+export CONFIRMATIONS=12
+export OVERLAP_BLOCKS=50
+export MAX_BLOCK_RANGE=20000
+export POLL_SECS=5
+export DEPLOYMENT_BLOCK=35618000
+export CHAIN_ID=84532
+export AMQP_HOST="localhost"
+export AMQP_PORT="5672"
+export AMQP_USER="guest"
+export AMQP_PASSWORD="guest"
+export EXCHANGE_NAME="vamp-fun"
+export ROUTING_KEY="event.vamp"
 
 cargo run

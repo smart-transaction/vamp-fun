@@ -1,6 +1,6 @@
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use axum::{
     Router,
     http::{
@@ -12,7 +12,6 @@ use axum::{
 };
 use clap::Parser;
 use mysql_conn::DbConn;
-use reqwest::StatusCode;
 use snapshot_indexer::SnapshotIndexer;
 use stats::{IndexerProcesses, cleanup_stats};
 use tokio::{net::TcpListener, spawn};
@@ -20,10 +19,11 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
-use crate::args::Args;
+use crate::{args::Args, db_init::init_db};
 
 mod args;
 mod chain_info;
+mod db_init;
 mod http_handler;
 mod mysql_conn;
 mod request_handler;
@@ -36,9 +36,10 @@ mod use_proto;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let args = Args::parse();
+    let args = Arc::new(Args::parse());
     let poll_frequency = parse_duration::parse(&args.poll_frequency_secs)?;
-    let shared_args = Arc::new(RwLock::new(args));
+
+    init_db(args.clone()).await?;
 
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -47,23 +48,22 @@ async fn main() -> Result<()> {
         .init();
 
     // Initialize RabbitMQ listener
-    let args_inst = shared_args.read().map_err(|e| anyhow!("Error accessing args: {}", e))?;
     let mut deploy_token_listener = request_registrator_listener::RequestRegistratorListener::new(
-        args_inst.request_registrator_url.clone(),
+        args.request_registrator_url.clone(),
         poll_frequency,
         DbConn::new(
-            args_inst.mysql_host.clone(),
-            args_inst.mysql_port.to_string(),
-            args_inst.mysql_user.clone(),
-            args_inst.mysql_password.clone(),
-            args_inst.mysql_database.clone(),
+            args.mysql_host.clone(),
+            args.mysql_port.to_string(),
+            args.mysql_user.clone(),
+            args.mysql_password.clone(),
+            args.mysql_database.clone(),
         ),
     )
     .await?;
 
     // Initialize SnapshotIndexer
-    let mut indexer = SnapshotIndexer::new(shared_args.clone())?;
-    let quicknode_api_key = args_inst.quicknode_api_key.clone();
+    let mut indexer = SnapshotIndexer::new(args.clone())?;
+    let quicknode_api_key = args.quicknode_api_key.clone();
     if let Some(quicknode_api_key) = quicknode_api_key {
         if quicknode_api_key.len() == 0 {
             indexer.init_chain_info(None).await?;
@@ -78,7 +78,7 @@ async fn main() -> Result<()> {
     let deploy_token_handler = Arc::new(request_handler::DeployTokenHandler::new(
         indexer.clone(),
         indexing_stats.clone(),
-        args_inst.default_solana_cluster.clone(),
+        args.default_solana_cluster.clone(),
     ));
 
     spawn(async move {
@@ -99,27 +99,23 @@ async fn main() -> Result<()> {
         .allow_origin(Any)
         .allow_headers([ACCEPT, ACCEPT_LANGUAGE, CONTENT_LANGUAGE, CONTENT_TYPE]);
 
-    let shared_args_copy = shared_args.clone();
+    let shared_args_copy = args.clone();
     let app = Router::new()
         .route("/", get(|| async { "Vamp.fun Solver" }))
         .route(
             "/get_claim_amount",
             get({
                 async move |params| {
-                    if let Ok(args_inst) = shared_args_copy.read() {
-                        http_handler::handle_get_claim_amount(
-                            params,
-                            DbConn::new(
-                                args_inst.mysql_host.clone(),
-                                args_inst.mysql_port.to_string(),
-                                args_inst.mysql_user.clone(),
-                                args_inst.mysql_password.clone(),
-                                args_inst.mysql_database.clone(),
-                            ),
-                        )
-                    } else {
-                        Err(StatusCode::INTERNAL_SERVER_ERROR)
-                    }
+                    http_handler::handle_get_claim_amount(
+                        params,
+                        DbConn::new(
+                            shared_args_copy.mysql_host.clone(),
+                            shared_args_copy.mysql_port.to_string(),
+                            shared_args_copy.mysql_user.clone(),
+                            shared_args_copy.mysql_password.clone(),
+                            shared_args_copy.mysql_database.clone(),
+                        ),
+                    ).await
                 }
             }),
         )
@@ -129,7 +125,7 @@ async fn main() -> Result<()> {
         )
         .layer(cors);
 
-    let port = args_inst.port;
+    let port = args.port;
     let tcp_listener = TcpListener::bind(format!("0.0.0.0:{}", port))
         .await
         .unwrap();

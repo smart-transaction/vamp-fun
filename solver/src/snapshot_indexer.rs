@@ -7,7 +7,7 @@ use std::{
 
 use anchor_client::{Client, Cluster, Program};
 use anchor_lang::declare_program;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use ethers::{
     providers::{Http, Middleware, Provider},
@@ -16,12 +16,12 @@ use ethers::{
     utils::keccak256,
 };
 use tracing::{error, info, warn};
-use mysql::{prelude::Queryable, Value};
 use solana_sdk::signature::Keypair;
+use sqlx::Row;
 use tokio::spawn;
 
 use crate::{
-    args::SharedArgs, chain_info::{ChainInfo, fetch_chains, get_quicknode_mapping}, mysql_conn::DbConn, snapshot_processor::process_and_send_snapshot, stats::{IndexerProcesses, IndexerStats, VampingStatus}, use_proto::proto::SolanaCluster
+    args::Args, chain_info::{ChainInfo, fetch_chains, get_quicknode_mapping}, mysql_conn::DbConn, snapshot_processor::process_and_send_snapshot, stats::{IndexerProcesses, IndexerStats, VampingStatus}, use_proto::proto::SolanaCluster
 };
 
 #[derive(Default)]
@@ -79,11 +79,10 @@ pub struct SnapshotIndexer {
     solver_flat_price_per_token: u64,
 }
 
-const BLOCK_STEP: usize = 9990;
+const BLOCK_STEP: u64 = 9990;
 
 impl SnapshotIndexer {
-    pub fn new(args: SharedArgs) -> Result<Self> {
-        let args = args.read().map_err(|e| anyhow!("Error accessing args: {}", e))?;
+    pub fn new(args: Arc<Args>) -> Result<Self> {
         let solana_payer_keypair = Arc::new(Keypair::from_base58_string(&args.solana_private_key));
         let solana_program = Arc::new(get_program_instance(solana_payer_keypair.clone())?);
         Ok(Self {
@@ -136,7 +135,7 @@ impl SnapshotIndexer {
         let provider = Arc::new(self.connect_chain(request_data.chain_id).await?);
 
         let (mut token_supply, prev_block_number) =
-            self.read_token_supply(request_data.chain_id, request_data.erc20_address)?;
+            self.read_token_supply(request_data.chain_id, request_data.erc20_address).await?;
 
         let mut total_amount = token_supply
             .iter()
@@ -169,7 +168,7 @@ impl SnapshotIndexer {
         
         spawn(async move {
             let first_block = prev_block_number.unwrap_or(0) + 1;
-            let latest_block = request_data.block_number as usize;
+            let latest_block = request_data.block_number;
             {
                 if let Ok(mut stats) = stats.lock() {
                     let item = stats
@@ -183,7 +182,7 @@ impl SnapshotIndexer {
 
             let event_signature = H256::from_slice(&keccak256("Transfer(address,address,uint256)"));
 
-            for b in (first_block..latest_block + 1).step_by(BLOCK_STEP) {
+            for b in (first_block..latest_block + 1).step_by(BLOCK_STEP as usize) {
                 let block_from = b;
                 let block_to = min(b + BLOCK_STEP - 1, latest_block);
                 info!("Processing blocks from {} to {}", block_from, block_to);
@@ -318,46 +317,60 @@ impl SnapshotIndexer {
         Err(anyhow!("Failed to connect to any RPC URL for the specified chain ID"))
     }
 
-    pub fn read_token_supply(
+    pub async fn read_token_supply(
         &self,
         chain_id: u64,
         erc20_address: Address,
-    ) -> Result<(HashMap<Address, TokenAmount>, Option<usize>)> {
+    ) -> Result<(HashMap<Address, TokenAmount>, Option<u64>)> {
         let mut token_supply = HashMap::new();
-        let mut conn = self.db_conn.create_db_conn().map_err(|e| anyhow!("Error creating DB connection: {}", e))?;
+        let conn = self.db_conn.create_db_conn().await.map_err(|e| anyhow!("Error creating DB connection: {}", e))?;
         // Reading the current snapshot from the database
-        let stmt = "SELECT holder_address, holder_amount, signature FROM tokens WHERE chain_id = ? AND erc20_address = ?";
         let addr_str = format!("{:#x}", erc20_address);
-        let result = conn.exec_iter(stmt, (chain_id, &addr_str))?;
+        let rows = sqlx::query(
+            r#"
+                SELECT holder_address, holder_amount, signature
+                FROM tokens
+                WHERE chain_id = ?
+                  AND erc20_address = ?
+            "#
+        )
+        .bind(&addr_str)
+        .fetch_all(&conn)
+        .await
+        .context("fetch token supply")?;
 
-        for row in result {
-            let row = row?;
-            let token_address: Option<String> = row.get(0);
-            let token_supply_value: Option<String> = row.get(1);
-            let mut solver_signature = String::new();
-            let signature_value: Value = row.get(2).unwrap_or(Value::NULL);
-            if signature_value != Value::NULL {
-                solver_signature = row.get(2).unwrap();
-            }
-            if let Some(token_address) = token_address {
-                if let Some(token_supply_value) = token_supply_value {
-                    let token_supply_value = U256::from_dec_str(&token_supply_value)?;
-                    let token_address = Address::from_str(&token_address)?;
-                    token_supply.insert(
-                        token_address,
-                        TokenAmount {
-                            amount: token_supply_value,
-                            signature: hex::decode(&solver_signature)?,
-                        },
-                    );
-                }
-            }
+        for row in rows {
+            let token_address = row.get::<&str, usize>(0);
+            let token_supply_value = row.get::<&str, usize>(1);
+            let solver_signature = row.get::<&str, usize>(2);
+            let token_supply_value = U256::from_dec_str(&token_supply_value)?;
+            let token_address = Address::from_str(&token_address)?;
+            token_supply.insert(
+                token_address,
+                TokenAmount {
+                    amount: token_supply_value,
+                    signature: hex::decode(&solver_signature)?,
+                },
+            );
         }
 
         // Reading the latest block number from the database
-        let stmt = "SELECT block_number FROM epochs WHERE chain_id = ? AND erc20_address = ? ORDER BY block_number DESC LIMIT 1";
-        let block_num: Option<usize> = conn.exec_first(stmt, (chain_id, &addr_str))?;
+        let row = sqlx::query(
+            r#"
+                SELECT block_number
+                FROM epochs
+                WHERE chain_id = ?
+                    AND erc20_address = ?
+                ORDER BY block_number DESC
+                LIMIT 1
+            "#
+        )
+        .bind(&chain_id)
+        .bind(&addr_str)
+        .fetch_optional(&conn)
+        .await
+        .context("Fetch latest block")?;
 
-        Ok((token_supply, block_num))
+        Ok((token_supply, row.map(|r| r.get::<u64, usize>(0))))
     }
 }

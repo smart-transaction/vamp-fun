@@ -3,10 +3,10 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Context, Result, anyhow};
 use ethers::utils::keccak256;
+use sqlx::Row;
 use tracing::{error, info};
-use mysql::prelude::Queryable;
 use tokio::time::sleep;
 use tonic::{Request, transport::Channel};
 
@@ -70,7 +70,7 @@ impl RequestRegistratorListener {
                 continue;
             }
             last_timestamp = time_now.as_secs();
-            let ids = self.read_last_sequence_id()?;
+            let ids = self.read_last_sequence_id().await?;
             let mut request_proto = PollRequestProto::default();
             if let Some(last_id) = ids {
                 request_proto.last_sequence_id = last_id;
@@ -115,7 +115,7 @@ impl RequestRegistratorListener {
                                 error!("Failed to handle event: {:?}", err);
                             }
                         }
-                        self.write_sequence_id(sequence_id)?;
+                        self.write_sequence_id(sequence_id).await?;
                     }
                     AppChainResultStatus::EventNotFound => {
                         // No new event, just skip
@@ -130,20 +130,36 @@ impl RequestRegistratorListener {
         }
     }
 
-    fn read_last_sequence_id(&self) -> Result<Option<u64>> {
-        let mut conn = self.db_conn.create_db_conn().map_err(|e| anyhow!("Error creating DB connection: {}", e))?;
+    async fn read_last_sequence_id(&self) -> Result<Option<u64>> {
+        let conn = self.db_conn.create_db_conn().await.map_err(|e| anyhow!("Error creating DB connection: {}", e))?;
 
-        let stmt = "SELECT sequence_id FROM request_logs ORDER BY ts DESC LIMIT 1";
-        let seq_id: Option<u64> = conn.exec_first(stmt, ())?;
+        let seq_id = sqlx::query(r#"
+            SELECT sequence_id
+            FROM request_logs
+            ORDER BY ts DESC
+            LIMIT 1
+        "#)
+        .fetch_optional(&conn)
+        .await
+        .context("fetch the last sequence ID")?
+        .map(|v| v.get::<u64, usize>(0));
 
         Ok(seq_id)
     }
 
-    fn write_sequence_id(&self, sequence_id: u64) -> Result<()> {
-        let mut conn = self.db_conn.create_db_conn().map_err(|e| anyhow!("Error creating DB connection: {}", e))?;
+    async fn write_sequence_id(&self, sequence_id: u64) -> Result<()> {
+        let conn = self.db_conn.create_db_conn().await.map_err(|e| anyhow!("Error creating DB connection: {}", e))?;
 
-        let stmt = "INSERT INTO request_logs (sequence_id) VALUES (?)";
-        conn.exec_drop(stmt, (sequence_id,))?;
+        sqlx::query(
+            r#"
+                INSERT INTO request_logs (sequence_id)
+                VALUES (?)
+            "#
+        )
+        .bind(sequence_id)
+        .execute(&conn)
+        .await
+        .context("write sequence ID")?;
 
         Ok(())
     }

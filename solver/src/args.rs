@@ -1,5 +1,3 @@
-use std::sync::{Arc, RwLock};
-
 use clap::Parser;
 use ethers::signers::LocalWallet;
 
@@ -72,5 +70,3 @@ pub struct Args {
     #[arg(long, env = "FLAT_PRICE_PER_TOKEN", default_value_t = 1)]
     pub flat_price_per_token: u64,
 }
-
-pub type SharedArgs = Arc<RwLock<Args>>;

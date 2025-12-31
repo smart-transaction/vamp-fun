@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use anchor_client::Program;
 use anchor_client::anchor_lang::declare_program;
+use anyhow::{anyhow, Context, Result};
 use balance_util::get_balance_hash;
 use chrono::Utc;
 use ethers::utils::keccak256;
@@ -13,8 +14,6 @@ use ethers::{
 };
 use tracing::info;
 use mpl_token_metadata::ID as TOKEN_METADATA_PROGRAM_ID;
-use mysql::TxOpts;
-use mysql::prelude::Queryable;
 use prost::Message;
 use sha3::Digest;
 use solana_sdk::hash::Hash;
@@ -289,7 +288,7 @@ pub async fn process_and_send_snapshot(
                         &vamp_state.to_string(),
                         &vamp_validated_details.root_intent_cid,
                         &hex::encode(&request_data.intent_id),
-                    )?;
+                    ).await?;
 
                     let mut ethereum_snapshot = original_snapshot.clone();
                     // Truncate values that are < 1 Gwei, compute signatures
@@ -308,7 +307,7 @@ pub async fn process_and_send_snapshot(
                         request_data.erc20_address,
                         request_data.block_number,
                         &ethereum_snapshot,
-                    )?;
+                    ).await?;
                 } else {
                     return Err(format!("Payload not found in orchestrator response for intent_id: {}", hex::encode(&request_data.intent_id)).into());
                 }
@@ -380,7 +379,7 @@ fn convert_to_sol(src_amount: &U256) -> Result<(u64, u8), Box<dyn Error>> {
     .into())
 }
 
-fn write_cloning(
+async fn write_cloning(
     db_conn: DbConn,
     chain_id: u64,
     erc20_address: Address,
@@ -389,51 +388,105 @@ fn write_cloning(
     vamp_state_address: &str,
     root_intent_cid: &str,
     intent_id: &str,
-) -> Result<(), Box<dyn Error>> {
-    let mut conn = db_conn.create_db_conn()?;
+) -> Result<()> {
+    let conn = db_conn.create_db_conn().await.map_err(|e| anyhow!("create DB com=nnection: {}", e))?;
     let addr_str = format!("{:#x}", erc20_address);
-    conn.exec_drop(
-        "INSERT INTO clonings (chain_id, erc20_address, target_txid, mint_account_address, token_spl_address, root_intent_cid, intent_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
-        (chain_id, &addr_str, target_txid, mint_account_address, vamp_state_address, root_intent_cid, intent_id),
-    )?;
+
+    sqlx::query(
+        r#"
+            INSERT INTO clonings (
+                chain_id,
+                erc20_address,
+                target_txid,
+                mint_account_address,
+                token_spl_address,
+                root_intent_cid,
+                intent_id,
+                created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+        "#
+    )
+    .bind(&chain_id)
+    .bind(&addr_str)
+    .bind(target_txid)
+    .bind(mint_account_address)
+    .bind(vamp_state_address)
+    .bind(root_intent_cid)
+    .bind(intent_id)
+    .execute(&conn)
+    .await
+    .context("write cloning")?;
+
     Ok(())
 }
 
-fn write_token_supply(
+async fn write_token_supply(
     db_conn: DbConn,
     chain_id: u64,
     erc20_address: Address,
     block_number: u64,
     token_supply: &HashMap<Address, TokenAmount>,
-) -> Result<(), Box<dyn Error>> {
-    let mut conn = db_conn.create_db_conn()?;
+) -> Result<()> {
+    let conn = db_conn.create_db_conn().await.map_err(|e| anyhow!("error connecting to database: {}", e))?;
     // Delete existing records for the given erc20_address
-    let mut tx = conn.start_transaction(TxOpts::default())?;
-    let stmt = "DELETE FROM tokens WHERE chain_id = ? AND erc20_address = ?";
+    let mut tx = conn.begin().await.context("begin tx")?;
     let str_address = format!("{:#x}", erc20_address);
-    tx.exec_drop(stmt, (chain_id, &str_address))?; // Delete existing records for the given erc20_address
+    sqlx::query(
+        r#"
+            DELETE FROM tokens
+            WHERE chain_id = ?
+                AND erc20_address = ?
+        "#
+    )
+    .bind(&chain_id)
+    .bind(&str_address)
+    .execute(&mut *tx)
+    .await
+    .context("delete existing token supply")?;
 
     // Insert new supplies
     for (token_address, supply) in token_supply {
-        let stmt = "INSERT INTO tokens (chain_id, erc20_address, holder_address, holder_amount, signature) VALUES (?, ?, ?, ?, ?)";
         let addr_str = format!("{:#x}", erc20_address);
         let token_addr_str = format!("{:#x}", token_address);
-        tx.exec_drop(
-            stmt,
-            (
-                chain_id,
-                addr_str,
-                token_addr_str,
-                supply.amount.to_string(),
-                hex::encode(&supply.signature),
-            ),
-        )?;
+        sqlx::query(
+            r#"
+                INSERT INTO tokens (
+                    chain_id,
+                    erc20_address,
+                    holder_address,
+                    holder_amount,
+                    signature
+                )
+                VALUES (?, ?, ?, ?, ?)
+            "#
+        )
+        .bind(&chain_id)
+        .bind(&addr_str)
+        .bind(&token_addr_str)
+        .bind(supply.amount.to_string().as_str())
+        .bind(hex::encode(&supply.signature).as_str())
+        .execute(&mut *tx)
+        .await
+        .context("insert token supply")?;
     }
     // Insert new epoch
-    let stmt = "INSERT INTO epochs (chain_id, erc20_address, block_number) VALUES(?, ?, ?)";
-    tx.exec_drop(stmt, (chain_id, &str_address, block_number))?;
+    sqlx::query(
+        r#"
+            INSERT INTO epochs (
+                chain_id,
+                erc20_address,
+                block_number)
+            VALUES(?, ?, ?)
+        "#
+    )
+    .bind(&chain_id)
+    .bind(&str_address)
+    .bind(&block_number)
+    .execute(&mut *tx)
+    .await
+    .context("insert new epoch")?;
 
-    tx.commit()?;
+    tx.commit().await.context("commit transaction")?;
     Ok(())
 }
 

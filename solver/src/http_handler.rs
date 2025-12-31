@@ -3,15 +3,15 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use anyhow::Result;
 use axum::{Json, extract::Query, http::StatusCode};
 use ethers::types::U256;
+use sqlx::Row;
 use tracing::error;
-use mysql::{prelude::Queryable, Row, Value};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    mysql_conn::DbConn,
-    stats::{IndexerProcesses, IndexerStats},
+    mysql_conn::DbConn, stats::{IndexerProcesses, IndexerStats}
 };
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -29,16 +29,16 @@ pub struct TokenClaimData {
     pub intent_id: String,
 }
 
-pub fn handle_get_claim_amount(
+pub async fn handle_get_claim_amount(
     params: Query<HashMap<String, String>>,
     db_conn: DbConn,
 ) -> Result<Json<TokenClaimData>, StatusCode> {
-    let db_conn = db_conn.create_db_conn();
+    let db_conn = db_conn.create_db_conn().await;
     if let Err(err) = db_conn {
         log::error!("Failed to create DB connection: {:?}", err);
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
-    let mut db_conn = db_conn.unwrap();
+    let db_conn = db_conn.unwrap();
 
     let chain_id = match params.get("chain_id") {
         Some(chain_id) => match u64::from_str_radix(chain_id, 10) {
@@ -81,30 +81,36 @@ pub fn handle_get_claim_amount(
         intent_id: "".to_string(),
     };
 
-    let stmt = "SELECT holder_amount, signature FROM tokens WHERE chain_id = ? AND erc20_address = ? AND holder_address = ?";
-    match db_conn.exec_first(stmt, (&chain_id, &token_address, &user_address)) {
-        Ok(row) => {
-            if row.is_none() {
-                log::error!("No data found for the given parameters");
+    let rows = sqlx::query(
+        r#"
+            SELECT holder_amount, signature
+            FROM tokens
+            WHERE chain_id = ?
+              AND erc20_address = ?
+              AND holder_address = ?"#)
+        .bind(&chain_id)
+        .bind(&token_address)
+        .bind(&user_address)
+        .fetch_all(&db_conn)
+        .await;
+
+    match rows {
+        Ok(rows) => {
+            if rows.is_empty() {
+                log::error!("No token data found for the given parameters");
                 return Err(StatusCode::NOT_FOUND);
             }
-            let row: Row = row.unwrap();
-            let amount: Option<String> = row.get(0);
-            if let Some(amount) = amount {
-                let num_amount = U256::from_dec_str(&amount)
-                    .unwrap_or_default()
-                    .checked_div(U256::from(10u64.pow(9)))
-                    .unwrap_or_default();
-                claim_data.amount = num_amount.to_string();
-            }
-            let mut solver_signature = String::new();
-            let signature_value: Value = row.get(1).unwrap_or(Value::NULL);
-            if signature_value != Value::NULL {
-                solver_signature = row.get(1).unwrap();
-            }
-            claim_data.solver_signature = solver_signature.clone();
+            let row = &rows[0];
+            let amount = row.get::<&str, usize>(0);
+            let num_amount = U256::from_dec_str(amount)
+                .unwrap_or_default()
+                .checked_div(U256::from(10u64.pow(9)))
+                .unwrap_or_default();
+            claim_data.amount = num_amount.to_string();
+            let solver_signature = row.get::<&str, usize>(1);
+            claim_data.solver_signature = solver_signature.to_string();
             // Temporary duplication of the solver signature, the validator signature will be added later
-            claim_data.validator_signature = solver_signature;
+            claim_data.validator_signature = solver_signature.to_string();
         }
         Err(err) => {
             log::error!("Failed to execute query: {:?}", err);
@@ -112,20 +118,36 @@ pub fn handle_get_claim_amount(
         }
     }
 
-    let stmt = "SELECT target_txid, token_spl_address, mint_account_address, root_intent_cid, intent_id FROM clonings WHERE chain_id = ? AND erc20_address = ? ORDER BY created_at DESC LIMIT 1";
-    match db_conn.exec_first(stmt, (&chain_id, &token_address)) {
-        Ok(row) => {
-            let row: Row = row.unwrap();
-            let target_txid: Option<String> = row.get(0);
-            let token_spl_address: Option<String> = row.get(1);
-            let mint_account_address: Option<String> = row.get(2);
-            let root_intent_cid: Option<String> = row.get(3);
-            let intent_id: Option<String> = row.get(4);
-            claim_data.target_txid = target_txid.unwrap_or("".to_string());
-            claim_data.token_spl_address = token_spl_address.unwrap_or("".to_string());
-            claim_data.mint_account_address = mint_account_address.unwrap_or("".to_string());
-            claim_data.root_intent_cid = root_intent_cid.unwrap_or("".to_string());
-            claim_data.intent_id = intent_id.unwrap_or("".to_string());
+    let rows = sqlx::query(
+        r#"
+            SELECT target_txid, token_spl_address, mint_account_address, root_intent_cid, intent_id
+            FROM clonings
+            WHERE chain_id = ?
+              AND erc20_address = ?
+            ORDER BY created_at DESC LIMIT 1
+        "#
+    )
+    .bind(&chain_id)
+    .bind(&token_address)
+    .fetch_all(&db_conn)
+    .await;
+    match rows {
+        Ok(rows) => {
+            if rows.is_empty() {
+                log::error!("No cloning data found for the given parameters");
+                return Err(StatusCode::NOT_FOUND);
+            }
+            let row = &rows[0];
+            let target_txid = row.get::<&str, usize>(0);
+            let token_spl_address = row.get::<&str, usize>(1);
+            let mint_account_address = row.get::<&str, usize>(2);
+            let root_intent_cid = row.get::<&str, usize>(3);
+            let intent_id = row.get::<&str, usize>(4);
+            claim_data.target_txid = target_txid.to_string();
+            claim_data.token_spl_address = token_spl_address.to_string();
+            claim_data.mint_account_address = mint_account_address.to_string();
+            claim_data.root_intent_cid = root_intent_cid.to_string();
+            claim_data.intent_id = intent_id.to_string();
         }
         Err(err) => {
             log::error!("Failed to execute query: {:?}", err);

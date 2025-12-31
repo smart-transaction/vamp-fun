@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, sync::Arc};
 
 use alloy_provider::ProviderBuilder;
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result};
 use clap::Parser;
 use axum::{
     extract::State,
@@ -53,7 +53,7 @@ async fn main() -> Result<()> {
 
     let mysql_url = get_mysql_url(args.clone())?;
 
-    let db = MySqlPool::connect(&mysql_url).await.map_err(|e| anyhow!("connect mysql: {}", e))?;
+    let db = MySqlPool::connect(&mysql_url).await.context("connect mysql")?;
     init_db(&db).await?;
     ensure_checkpoint_row(&db).await?;
 

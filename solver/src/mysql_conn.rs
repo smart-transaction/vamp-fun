@@ -1,6 +1,7 @@
 use std::error::Error;
 
-use mysql::{Pool, PooledConn};
+use anyhow::Context;
+use sqlx::MySqlPool;
 use urlencoding::encode;
 
 #[derive(Clone, Debug)]
@@ -29,13 +30,19 @@ impl DbConn {
         }
     }
 
-    pub fn create_db_conn(&self) -> Result<PooledConn, Box<dyn Error>> {
+    pub async fn create_db_conn(&self) -> Result<MySqlPool, Box<dyn Error>> {
         let encoded_password = encode(&self.mysql_password);
         let mysql_url = format!(
             "mysql://{}:{}@{}:{}/{}",
-            self.mysql_user, encoded_password, self.mysql_host, self.mysql_port, self.mysql_database
+            self.mysql_user,
+            encoded_password,
+            self.mysql_host,
+            self.mysql_port,
+            self.mysql_database
         );
-        let db_conn = Pool::new(mysql_url.as_str())?.get_conn()?;
+        let db_conn = MySqlPool::connect(&mysql_url)
+            .await
+            .context("connect mysql")?;
         Ok(db_conn)
     }
 }

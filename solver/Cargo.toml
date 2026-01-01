@@ -8,7 +8,6 @@ panic = "unwind"
 
 [dependencies]
 balance_util = { path = "../crates/balance_util" }
-merkle_tree = { path = "../crates/merkle_tree" }
 axum = "0.8.3"
 clap = { version = "4.5.34", features = ["derive", "env"] }
 ethers = "2.0.14"

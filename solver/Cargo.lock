@@ -3772,13 +3772,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "merkle_tree"
-version = "0.1.0"
-dependencies = [
- "sha3",
-]
-
-[[package]]
 name = "merlin"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9576,7 +9569,6 @@ dependencies = [
  "futures",
  "hex",
  "log",
- "merkle_tree",
  "mpl-token-metadata",
  "parse_duration",
  "postcard",

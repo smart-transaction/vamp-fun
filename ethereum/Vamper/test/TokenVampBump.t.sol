@@ -22,8 +22,8 @@ contract VampTokenEmitterUpgradeableTest is Test {
 
     // Re-declare the event so we can use vm.expectEmit with it
     event VampTokenIntent(
-        uint256 chainId,
-        uint256 blockNumber,
+        uint64 chainId,
+        uint64 blockNumber,
         bytes32 intentId,
         address caller,
         address token,
@@ -96,8 +96,8 @@ contract VampTokenEmitterUpgradeableTest is Test {
 
         vm.expectEmit(true, true, true, true, address(vamp));
         emit VampTokenIntent(
-            block.chainid,
-            block.number,
+            uint64(block.chainid),
+            uint64(block.number),
             expectedIntentId,
             user,
             address(token),
@@ -132,8 +132,8 @@ contract VampTokenEmitterUpgradeableTest is Test {
 
         vm.expectEmit(true, true, true, true, address(zeroVamp));
         emit VampTokenIntent(
-            block.chainid,
-            block.number,
+            uint64(block.chainid),
+            uint64(block.number),
             expectedIntentId,
             user,
             address(token),
@@ -180,9 +180,9 @@ contract VampTokenEmitterUpgradeableTest is Test {
 
     // --- helper: parse intentId from the VampTokenIntent log ---
     function _extractIntentIdFromLogs(Vm.Log[] memory logs) internal pure returns (bytes32) {
-        // topic0 = keccak256("VampTokenIntent(uint256,uint256,bytes32,address,address,string,string,string)")
+        // topic0 = keccak256("VampTokenIntent(uint64,uint64,bytes32,address,address,string,string,string)")
         bytes32 topic0 = keccak256(
-            "VampTokenIntent(uint256,uint256,bytes32,address,address,string,string,string)"
+            "VampTokenIntent(uint64,uint64,bytes32,address,address,string,string,string)"
         );
 
         for (uint256 i = 0; i < logs.length; i++) {
@@ -190,8 +190,8 @@ contract VampTokenEmitterUpgradeableTest is Test {
                 // Since we removed `indexed`, ALL args are in data (not in topics),
                 // so we decode the whole payload.
                 (
-                    uint256 chainId,
-                    uint256 blockNumber,
+                    uint64 chainId,
+                    uint64 blockNumber,
                     bytes32 intentId,
                     address caller,
                     address tokenAddr,
@@ -200,7 +200,7 @@ contract VampTokenEmitterUpgradeableTest is Test {
                     string memory tokenURI
                 ) = abi.decode(
                     logs[i].data,
-                    (uint256, uint256, bytes32, address, address, string, string, string)
+                    (uint64, uint64, bytes32, address, address, string, string, string)
                 );
 
                 // silence unused warnings by referencing variables (optional)

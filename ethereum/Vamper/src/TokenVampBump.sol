@@ -27,8 +27,8 @@ contract TokenVampBump is ReentrancyGuard, Ownable
     uint64 public nonce;
 
     event VampTokenIntent(
-        uint256 chainId,
-        uint256 blockNumber,
+        uint64 chainId,
+        uint64 blockNumber,
         bytes32 intentId,
         address caller,
         address token,
@@ -102,8 +102,8 @@ contract TokenVampBump is ReentrancyGuard, Ownable
         }
 
         emit VampTokenIntent(
-            block.chainid,
-            block.number,
+            uint64(block.chainid),
+            uint64(block.number),
             intentId,
             caller,
             token,

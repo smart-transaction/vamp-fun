@@ -6,15 +6,6 @@ pub struct Args {
     #[arg(long, env = "PORT", default_value_t = 9000)]
     pub port: u16,
 
-    #[arg(long, env = "REQUEST_REGISTRATOR_URL")]
-    pub request_registrator_url: String,
-
-    #[arg(long, env = "VALIDATOR_URL")]
-    pub validator_url: String,
-    
-    #[arg(long, env = "ORCHESTRATOR_URL")]
-    pub orchestrator_url: String,
-
     #[arg(long, env = "SOLANA_DEVNET_URL")]
     pub solana_devnet_url: String,
 
@@ -67,6 +58,7 @@ pub struct Args {
     #[arg(long, env = "FLAT_PRICE_PER_TOKEN", default_value_t = 1)]
     pub flat_price_per_token: u64,
 
+    // RabbitMQ queue params
     #[arg(long, env = "AMQP_HOST")]
     pub amqp_host: String,
 

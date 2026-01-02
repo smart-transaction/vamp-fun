@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 sol! {
     #[derive(Debug, Deserialize, Serialize)]
     event VampTokenIntent(
-        uint256 chainId,
-        uint256 blockNumber,
+        uint64 chainId,
+        uint64 blockNumber,
         bytes32 intentId,
         address caller,
         address token,

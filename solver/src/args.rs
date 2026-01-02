@@ -21,9 +21,6 @@ pub struct Args {
     #[arg(long, env = "SOLANA_MAINNET_URL")]
     pub solana_mainnet_url: String,
 
-    #[arg(long, env = "POLL_FREQUENCY_SECS", default_value = "40s")]
-    pub poll_frequency_secs: String,
-
     #[arg(long, env = "MYSQL_USER")]
     pub mysql_user: String,
 
@@ -69,4 +66,25 @@ pub struct Args {
 
     #[arg(long, env = "FLAT_PRICE_PER_TOKEN", default_value_t = 1)]
     pub flat_price_per_token: u64,
+
+    #[arg(long, env = "AMQP_HOST")]
+    pub amqp_host: String,
+
+    #[arg(long, env = "AMQP_PORT")]
+    pub amqp_port: u16,
+
+    #[arg(long, env = "AMQP_USER")]
+    pub amqp_user: String,
+
+    #[arg(long, env = "AMQP_PASSWORD")]
+    pub amqp_password: String,
+
+    #[arg(long, env = "EXCHANGE_NAME")]
+    pub exchange_name: String,
+
+    #[arg(long, env = "QUEUE_NAME")]
+    pub queue_name: String,
+
+    #[arg(long, env = "ROUTING_KEY")]
+    pub routing_key: String,
 }

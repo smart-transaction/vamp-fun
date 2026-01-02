@@ -21,7 +21,7 @@ use sqlx::Row;
 use tokio::spawn;
 
 use crate::{
-    args::Args, chain_info::{ChainInfo, fetch_chains, get_quicknode_mapping}, mysql_conn::DbConn, snapshot_processor::process_and_send_snapshot, stats::{IndexerProcesses, IndexerStats, VampingStatus}, use_proto::proto::SolanaCluster
+    args::Args, chain_info::{ChainInfo, fetch_chains, get_quicknode_mapping}, mysql_conn::DbConn, snapshot_processor::process_and_send_snapshot, stats::{IndexerProcesses, IndexerStats, VampingStatus}
 };
 
 #[derive(Default)]
@@ -32,17 +32,16 @@ pub struct TokenRequestData {
     pub token_full_name: String,
     pub token_symbol_name: String,
     pub token_uri: String,
-    pub token_decimal: u8,
     pub block_number: u64,
     pub intent_id: Vec<u8>,
-    pub solana_cluster: Option<SolanaCluster>,
+    pub solana_cluster: String,
     // Vamping parameters from additional_data (optional, fallback to solver config if not provided)
-    pub paid_claiming_enabled: Option<bool>,
-    pub use_bonding_curve: Option<bool>,
-    pub curve_slope: Option<u64>,
-    pub base_price: Option<u64>,
-    pub max_price: Option<u64>,
-    pub flat_price_per_token: Option<u64>,
+    pub paid_claiming_enabled: bool,
+    pub use_bonding_curve: bool,
+    pub curve_slope: u64,
+    pub base_price: u64,
+    pub max_price: u64,
+    pub flat_price_per_token: u64,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -66,17 +65,9 @@ pub struct SnapshotIndexer {
     quicknode_chains: HashMap<u64, String>,
 
     db_conn: DbConn,
-    validator_url: String,
-    orchestrator_url: String,
     private_key: LocalWallet,
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,
-    // Solver vamping parameters for fallback
-    solver_paid_claiming_enabled: bool,
-    solver_use_bonding_curve: bool,
-    solver_curve_slope: u64,
-    solver_base_price: u64,
-    solver_flat_price_per_token: u64,
 }
 
 const BLOCK_STEP: u64 = 9990;
@@ -95,16 +86,9 @@ impl SnapshotIndexer {
                 args.mysql_password.clone(),
                 args.mysql_database.clone(),
             ),
-            validator_url: args.validator_url.clone(),
-            orchestrator_url: args.orchestrator_url.clone(),
             private_key: args.ethereum_private_key.clone(),
             solana_payer_keypair,
             solana_program,
-            solver_paid_claiming_enabled: args.paid_claiming_enabled,
-            solver_use_bonding_curve: args.use_bonding_curve,
-            solver_curve_slope: args.curve_slope,
-            solver_base_price: args.base_price,
-            solver_flat_price_per_token: args.flat_price_per_token,
         })
     }
 
@@ -157,14 +141,6 @@ impl SnapshotIndexer {
         let private_key = self.private_key.clone();
         let solana_payer_keypair = self.solana_payer_keypair.clone();
         let solana_program = self.solana_program.clone();
-        let validator_url = self.validator_url.clone();
-        let orchestrator_url = self.orchestrator_url.clone();
-        // Clone solver vamping parameters for the async block
-        let solver_paid_claiming_enabled = self.solver_paid_claiming_enabled;
-        let solver_use_bonding_curve = self.solver_use_bonding_curve;
-        let solver_curve_slope = self.solver_curve_slope;
-        let solver_base_price = self.solver_base_price;
-        let solver_flat_price_per_token = self.solver_flat_price_per_token;
         
         spawn(async move {
             let first_block = prev_block_number.unwrap_or(0) + 1;
@@ -264,19 +240,11 @@ impl SnapshotIndexer {
                 request_data,
                 total_amount,
                 token_supply,
-                validator_url,
-                orchestrator_url,
                 stats.clone(),
                 db_conn.clone(),
                 private_key,
                 solana_payer_keypair,
                 solana_program,
-                // Fallback values
-                solver_paid_claiming_enabled,
-                solver_use_bonding_curve,
-                solver_curve_slope,
-                solver_base_price,
-                solver_flat_price_per_token,
             )
             .await
             {

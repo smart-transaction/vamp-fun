@@ -32,12 +32,11 @@ mod send_transaction;
 mod snapshot_indexer;
 mod snapshot_processor;
 mod stats;
-mod use_proto;
+mod vamper_event;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Arc::new(Args::parse());
-    let poll_frequency = parse_duration::parse(&args.poll_frequency_secs)?;
 
     init_db(args.clone()).await?;
 
@@ -49,15 +48,7 @@ async fn main() -> Result<()> {
 
     // Initialize RabbitMQ listener
     let mut deploy_token_listener = request_registrator_listener::RequestRegistratorListener::new(
-        args.request_registrator_url.clone(),
-        poll_frequency,
-        DbConn::new(
-            args.mysql_host.clone(),
-            args.mysql_port.to_string(),
-            args.mysql_user.clone(),
-            args.mysql_password.clone(),
-            args.mysql_database.clone(),
-        ),
+        args.clone()
     )
     .await?;
 
@@ -76,6 +67,7 @@ async fn main() -> Result<()> {
 
     let indexing_stats = Arc::new(Mutex::new(IndexerProcesses::new()));
     let deploy_token_handler = Arc::new(request_handler::DeployTokenHandler::new(
+        args.clone(),
         indexer.clone(),
         indexing_stats.clone(),
         args.default_solana_cluster.clone(),

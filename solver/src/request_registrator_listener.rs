@@ -1,54 +1,60 @@
 use std::{
-    sync::Arc,
-    time::{Duration, SystemTime},
+    collections::HashMap, sync::Arc
 };
 
-use anyhow::{Context, Result, anyhow};
-use ethers::utils::keccak256;
-use sqlx::Row;
+use anyhow::Result;
+use cleanapp_rustlib::rabbitmq::subscriber::{Callback, Message, Subscriber};
 use tracing::{error, info};
-use tokio::time::sleep;
-use tonic::{Request, transport::Channel};
+use tokio::spawn;
 
 use crate::{
-    mysql_conn::DbConn,
-    request_handler::DeployTokenHandler,
-    use_proto::proto::{
-        AppChainResultStatus, PollRequestProto,
-        request_registrator_service_client::RequestRegistratorServiceClient,
-    },
+    args::Args, request_handler::DeployTokenHandler, vamper_event::VampTokenIntent
 };
 
-const TICK_FREQUENCY: &str = "500ms";
-pub const VAMPING_APP_ID: &str = "VampFunVamping";
+pub struct SubscriberCallback {
+    handler: Arc<DeployTokenHandler>
+}
+
+impl SubscriberCallback {
+    pub fn new(handler: Arc<DeployTokenHandler>) -> Self {
+        Self {handler}
+    }
+}
+
+impl Callback for SubscriberCallback {
+    fn on_message(&self, message: &Message) -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let event: VampTokenIntent = message.unmarshal_to()?;
+        let handler = self.handler.clone();
+        spawn(async move {
+            match handler.handle(0, event).await {
+                Ok(_) => {}
+                Err(err) => {
+                    error!("Error handing the vamping request: {}", err);
+                }
+            }
+        });
+        Ok(())
+    }
+}
 
 pub struct RequestRegistratorListener {
-    client: RequestRegistratorServiceClient<Channel>,
-    poll_frequency: Duration,
-    db_conn: DbConn,
+    cfg: Arc<Args>,
+    subscriber: Subscriber,
 }
 
 /// A polling client that pings the request registrator for new UserEventProto events.
 impl RequestRegistratorListener {
     pub async fn new(
-        request_registrator_url: String,
-        poll_frequency: Duration,
-        db_conn: DbConn,
+        cfg: Arc<Args>,
     ) -> Result<Self> {
-        info!(
-            "Connecting to request registrator at {}",
-            request_registrator_url
-        );
-        let client =
-            RequestRegistratorServiceClient::connect(request_registrator_url.clone()).await?;
-        info!(
-            "Connected successfully to request registrator at {}",
-            request_registrator_url
-        );
+        let url = Self::amqp_url(&cfg);
+        info!(url, "Connecting to RabbitMQ...");
+        let subscriber =
+            Subscriber::new(&url, &cfg.exchange_name, &cfg.queue_name).await?;
+        info!(url, "Connected to RabbitMQ.");
         Ok(Self {
-            client,
-            poll_frequency,
-            db_conn,
+            cfg,
+            subscriber,
         })
     }
 
@@ -58,109 +64,23 @@ impl RequestRegistratorListener {
         &mut self,
         deploy_token_handler: Arc<DeployTokenHandler>,
     ) -> Result<()> {
-        let tick_frequency = parse_duration::parse(TICK_FREQUENCY)?;
-        let vamping_app_id = keccak256(VAMPING_APP_ID.as_bytes());
-        let mut last_timestamp = 0u64;
-        loop {
-            sleep(tick_frequency).await;
-            let time_now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
-            if time_now.as_secs() == last_timestamp
-                || time_now.as_secs() % self.poll_frequency.as_secs() != 0
-            {
-                continue;
-            }
-            last_timestamp = time_now.as_secs();
-            let ids = self.read_last_sequence_id().await?;
-            let mut request_proto = PollRequestProto::default();
-            if let Some(last_id) = ids {
-                request_proto.last_sequence_id = last_id;
-            }
-            let last_sequence_id = request_proto.last_sequence_id;
-            let request = Request::new(request_proto);
-            let response = self.client.poll(request).await;
-            if let Err(err) = response {
-                error!("Failed to send request: {:?}", err);
-                continue;
-            }
-            let res = response.unwrap();
-            let response_proto = res.into_inner();
-            if let Some(result) = response_proto.result {
-                if let Err(err) = AppChainResultStatus::try_from(result.status) {
-                    error!("Failed to parse result status: {:?}", err);
-                    continue;
-                }
-                let status = AppChainResultStatus::try_from(result.status).unwrap();
-                match status {
-                    AppChainResultStatus::Ok => {
-                        let sequence_id = response_proto.sequence_id;
-                        if last_sequence_id >= sequence_id {
-                            // The message was already received, skipping it
-                            continue;
-                        }
-                        info!("Received new event with sequence ID: {}", sequence_id);
-                        if let None = response_proto.event {
-                            error!("Malformed request: the event is None");
-                            continue;
-                        }
-                        let event = response_proto.event.unwrap();
-                        if let None = event.user_objective {
-                            error!("Malformed request: the user objective is None");
-                            continue;
-                        }
-                        let event_to_handle = event.clone();
-                        let user_objective = event.user_objective.unwrap();
-                        if user_objective.app_id.as_slice() == vamping_app_id {
-                            let handler = deploy_token_handler.clone();
-                            if let Err(err) = handler.handle(sequence_id, event_to_handle).await {
-                                error!("Failed to handle event: {:?}", err);
-                            }
-                        }
-                        self.write_sequence_id(sequence_id).await?;
-                    }
-                    AppChainResultStatus::EventNotFound => {
-                        // No new event, just skip
-                        continue;
-                    }
-                    AppChainResultStatus::Error => {
-                        error!("Request failed with result: {:?}", result);
-                        continue;
-                    }
-                }
-            }
-        }
-    }
+        let mut callbacks: HashMap<String, Arc<dyn Callback + Send + Sync + 'static>> = HashMap::new();
 
-    async fn read_last_sequence_id(&self) -> Result<Option<u64>> {
-        let conn = self.db_conn.create_db_conn().await.map_err(|e| anyhow!("Error creating DB connection: {}", e))?;
-
-        let seq_id = sqlx::query(r#"
-            SELECT sequence_id
-            FROM request_logs
-            ORDER BY ts DESC
-            LIMIT 1
-        "#)
-        .fetch_optional(&conn)
-        .await
-        .context("fetch the last sequence ID")?
-        .map(|v| v.get::<u64, usize>(0));
-
-        Ok(seq_id)
-    }
-
-    async fn write_sequence_id(&self, sequence_id: u64) -> Result<()> {
-        let conn = self.db_conn.create_db_conn().await.map_err(|e| anyhow!("Error creating DB connection: {}", e))?;
-
-        sqlx::query(
-            r#"
-                INSERT INTO request_logs (sequence_id)
-                VALUES (?)
-            "#
-        )
-        .bind(sequence_id)
-        .execute(&conn)
-        .await
-        .context("write sequence ID")?;
+        callbacks.insert(
+            self.cfg.exchange_name.clone(),
+            Arc::new(SubscriberCallback::new(deploy_token_handler))
+        );
+        
+        self.subscriber.start(callbacks).await?;
 
         Ok(())
+    }
+
+    fn amqp_url(cfg: &Args) -> String {
+        format!("amqp://{}:{}@{}:{}", 
+            cfg.amqp_user, 
+            cfg.amqp_password, 
+            cfg.amqp_host, 
+            cfg.amqp_port)
     }
 }

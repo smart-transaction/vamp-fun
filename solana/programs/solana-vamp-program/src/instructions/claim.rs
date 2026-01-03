@@ -166,7 +166,7 @@ pub fn buy_claim_tokens(
             sol_balance,
             Decimal::new(ctx.accounts.vamp_state.total_claimed as i64, decimals),
             Decimal::new(ctx.accounts.vamp_state.base_price as i64, decimals),
-            Decimal::new(ctx.accounts.vamp_state.curve_slope as i64, decimals))?
+            Decimal::new(ctx.accounts.vamp_state.curve_slope as i64, 9))?
     } else {
         calculate_claim_cost_fixed_price(sol_balance, sol_price)?
     }

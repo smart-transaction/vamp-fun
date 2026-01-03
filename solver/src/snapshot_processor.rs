@@ -22,6 +22,7 @@ use tracing::info;
 
 use crate::mysql_conn::DbConn;
 use crate::snapshot_indexer::{TokenAmount, TokenRequestData};
+use crate::solana_transaction::SolanaTransaction;
 use crate::stats::{IndexerProcesses, VampingStatus};
 
 struct CloneTransactionArgs {
@@ -51,6 +52,7 @@ pub async fn process_and_send_snapshot(
     eth_private_key: LocalWallet,
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,
+    solana_url: String
 ) -> Result<()> {
     info!(
         "Received indexed snapshot for intent_id: {}",
@@ -95,41 +97,25 @@ pub async fn process_and_send_snapshot(
         flat_price_per_token: final_flat_price_per_token,
     };
 
-    // Log vamping parameters for debugging
-    info!("📋 Creating vamping with parameters:");
-    info!("   Paid Claiming Enabled: {}", final_paid_claiming_enabled);
-    info!("   Use Bonding Curve: {}", final_use_bonding_curve);
-    info!("   Curve Slope: {}", final_curve_slope);
-    info!("   Base Price: {} lamports", final_base_price);
-    info!("   Max Price: {:?} lamports", final_max_price);
-    info!(
-        "   Flat Price Per Token: {} lamports",
-        final_flat_price_per_token
-    );
-    info!("   Intent ID: 0x{}", hex::encode(&request_data.intent_id));
+    let solana = SolanaTransaction::new(solana_url);
 
-    let recent_blockhash: [u8; 32] = get_recent_blockhash().await?;
+    let recent_blockhash = solana.get_latest_block_hash().await?;
 
     let (transaction, mint_account, vamp_state) = prepare_transaction(
         solana_payer_keypair.clone(),
         solana_program.clone(),
-        recent_blockhash,
+        recent_blockhash.to_bytes(),
         transaction_args,
     )?;
 
-    let transaction = postcard::to_allocvec(&transaction);
-    let transaction = transaction
-        .map_err(|e| anyhow!("Failed to serialize transaction: {}", e))?
-        .to_vec();
-
-    let solana_txid = send_transaction(transaction).await?;
+    let solana_txid = solana.submit_transaction(transaction).await?;
 
     info!("Solution transaction submitted: {}", solana_txid);
     write_cloning(
         db_conn.clone(),
         request_data.chain_id,
         request_data.erc20_address,
-        &solana_txid,
+        solana_txid.to_string(),
         &mint_account.to_string(),
         &vamp_state.to_string(),
         "",
@@ -195,19 +181,11 @@ fn convert_to_sol(src_amount: &U256) -> Result<(u64, u8)> {
     ))
 }
 
-async fn get_recent_blockhash() -> Result<[u8; 32]> {
-    Ok([0; 32])
-}
-
-async fn send_transaction(_transaction: Vec<u8>) -> Result<String> {
-    Ok("".to_string())
-}
-
 async fn write_cloning(
     db_conn: DbConn,
     chain_id: u64,
     erc20_address: Address,
-    target_txid: &str,
+    target_txid: String,
     mint_account_address: &str,
     vamp_state_address: &str,
     root_intent_cid: &str,

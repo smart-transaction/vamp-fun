@@ -23,12 +23,6 @@ CREATE TABLE IF NOT EXISTS tokens(
   INDEX holder_address_idx(holder_address)
 );
 
-CREATE TABLE IF NOT EXISTS request_logs(
-  sequence_id BIGINT NOT NULL,
-  ts TIMESTAMP DEFAULT current_timestamp,
-  INDEX sequence_id_idx(sequence_id)
-);
-
 CREATE TABLE IF NOT EXISTS clonings(
   chain_id BIGINT NOT NULL,
   erc20_address CHAR(42) NOT NULL,

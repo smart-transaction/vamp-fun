@@ -34,7 +34,6 @@ pub async fn init_db(args: Arc<Args>) -> Result<()> {
     create_epochs(&pool).await?;
     create_tokens(&pool).await?;
     create_clonings(&pool).await?;
-    create_request_logs(&pool).await?;
 
     Ok(())
 }
@@ -69,23 +68,6 @@ async fn create_tokens(db: &MySqlPool) -> Result<()> {
             INDEX chain_id_idx(chain_id),
             INDEX erc20_address_idx(erc20_address),
             INDEX holder_address_idx(holder_address)
-        )
-        "#,
-    )
-    .execute(db)
-    .await
-    .context("db_init: create table indexed_events")?;
-
-    Ok(())
-}
-
-async fn create_request_logs(db: &MySqlPool) -> Result<()> {
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS request_logs(
-            sequence_id BIGINT NOT NULL,
-            ts TIMESTAMP DEFAULT current_timestamp,
-            INDEX sequence_id_idx(sequence_id)
         )
         "#,
     )

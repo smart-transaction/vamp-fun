@@ -21,12 +21,12 @@ export CURVE_SLOPE=1000  # Decimals = 9, val=1e-6
 export BASE_PRICE=10000000  # Decimals = 9, val=1e-2 tokens
 export MAX_PRICE=1000000000  # Decimals = 9, val=1 token
 export FLAT_PRICE_PER_TOKEN=10000000  # Decimals = 9, val=1e-2 tokens
-export AMQP_HOST=
-export AMQP_PORT=
-export AMQP_USER=
-export AMQP_PASSWORD=
-export EXCHANGE_NAME=
-export QUEUE_NAME=
-export ROUTING_KEY=
+export AMQP_HOST="localhost"
+export AMQP_PORT="5672"
+export AMQP_USER="guest"
+export AMQP_PASSWORD="guest"
+export EXCHANGE_NAME="vamp-fun"
+export ROUTING_KEY="event.vamp"
+export QUEUE_NAME="solver-queue"
 
 cargo run

@@ -52,7 +52,7 @@ pub async fn process_and_send_snapshot(
     eth_private_key: LocalWallet,
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,
-    solana_url: String
+    solana_url: &str
 ) -> Result<()> {
     info!(
         "Received indexed snapshot for intent_id: {}",

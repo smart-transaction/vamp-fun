@@ -28,7 +28,6 @@ mod http_handler;
 mod mysql_conn;
 mod request_handler;
 mod request_registrator_listener;
-mod send_transaction;
 mod snapshot_indexer;
 mod snapshot_processor;
 mod solana_transaction;
@@ -71,7 +70,7 @@ async fn main() -> Result<()> {
         args.clone(),
         indexer.clone(),
         indexing_stats.clone(),
-        args.default_solana_cluster.clone(),
+        &args.default_solana_cluster,
     ));
 
     spawn(async move {

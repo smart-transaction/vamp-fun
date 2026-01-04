@@ -26,3 +26,6 @@ target/
 # Node.js dependencies for debugging scripts
 scripts/solana/node_modules/
 scripts/solana/package-lock.json
+
+# Env
+.env

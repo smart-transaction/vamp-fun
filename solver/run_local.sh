@@ -1,28 +1,32 @@
-MYSQL_USER=server
-MYSQL_PASSWORD=secret2
-MYSQL_HOST=localhost
-MYSQL_PORT=3306
-MYSQL_DATABASE=vampfun
-REQUEST_REGISTRATOR_URL=http://localhost:50051
-ORCHESTRATOR_URL=http://localhost:50052
-VALIDATOR_URL=http://localhost:50053
-POLL_FREQUENCY_SECS=5
-PRIVATE_KEY=0xa16244600268d2379a6e22b0dc1d6064d714b43b346a434f3fd50831103f56bf
-SOLANA_PRIVATE_KEY=5uw3Qy49XG31tVAScho8Ww32A9bjXc3iDVtzdvtPRK6iz3hmp9XYFKBcGNJ1j53gUXoiQDQcFQDuhcmb4ieMb4bR
-DEFAULT_SOLANA_CLUSTER=DEVNET
+. .env
 
-cargo run \
-  -- \
-  --request-registrator-url=${REQUEST_REGISTRATOR_URL} \
-  --orchestrator-url=${ORCHESTRATOR_URL} \
-  --validator-url=${VALIDATOR_URL} \
-  --mysql-user=${MYSQL_USER} \
-  --mysql-password=${MYSQL_PASSWORD} \
-  --mysql-host=${MYSQL_HOST} \
-  --mysql-port=${MYSQL_PORT} \
-  --mysql-database=${MYSQL_DATABASE} \
-  --poll-frequency-secs=${POLL_FREQUENCY_SECS} \
-  --private-key=${PRIVATE_KEY} \
-  --solana-private-key=${SOLANA_PRIVATE_KEY} \
-  --default-solana-cluster=${DEFAULT_SOLANA_CLUSTER}
-  
+export PORT=9010
+export SOLANA_DEVNET_URL=https://red-burned-rain.solana-devnet.quiknode.pro/${QUICKNODE_API_KEY}
+export SOLANA_MAINNET_URL=
+export MYSQL_USER=server
+export MYSQL_PASSWORD=secret2
+export MYSQL_HOST=localhost
+export MYSQL_PORT=3306
+export MYSQL_DATABASE=vampfun
+export REQUEST_REGISTRATOR_URL=http://localhost:50051
+export ORCHESTRATOR_URL=http://localhost:50052
+export VALIDATOR_URL=http://localhost:50053
+export POLL_FREQUENCY_SECS=5
+export ETHEREUM_PRIVATE_KEY=${ETHEREUM_PRIVATE_KEY}
+export SOLANA_PRIVATE_KEY=${SOLANA_PRIVATE_KEY}
+export DEFAULT_SOLANA_CLUSTER=DEVNET
+export PAID_CLAIMING_ENABLED=true
+export USE_BONDING_CURVE=true
+export CURVE_SLOPE=1000  # Decimals = 9, val=1e-6
+export BASE_PRICE=10000000  # Decimals = 9, val=1e-2 tokens
+export MAX_PRICE=1000000000  # Decimals = 9, val=1 token
+export FLAT_PRICE_PER_TOKEN=10000000  # Decimals = 9, val=1e-2 tokens
+export AMQP_HOST=
+export AMQP_PORT=
+export AMQP_USER=
+export AMQP_PASSWORD=
+export EXCHANGE_NAME=
+export QUEUE_NAME=
+export ROUTING_KEY=
+
+cargo run

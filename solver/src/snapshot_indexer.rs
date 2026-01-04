@@ -79,11 +79,6 @@ impl SnapshotIndexer {
     pub fn new(args: Arc<Args>) -> Result<Self> {
         let solana_payer_keypair = Arc::new(Keypair::from_base58_string(&args.solana_private_key));
         let solana_program = Arc::new(get_program_instance(solana_payer_keypair.clone())?);
-        let solana_url = if args.default_solana_cluster == "DEVNET" {
-            args.solana_devnet_url.clone()
-        } else {
-            args.solana_mainnet_url.clone()
-        };
         Ok(Self {
             chain_info: HashMap::new(),
             quicknode_chains: HashMap::new(),
@@ -97,7 +92,11 @@ impl SnapshotIndexer {
             private_key: args.ethereum_private_key.clone(),
             solana_payer_keypair,
             solana_program,
-            solana_url,
+            solana_url: if args.default_solana_cluster == "DEVNET" {
+                args.solana_devnet_url.clone()
+            } else {
+                args.solana_mainnet_url.clone()
+            },
         })
     }
 
@@ -256,7 +255,7 @@ impl SnapshotIndexer {
                 private_key,
                 solana_payer_keypair,
                 solana_program,
-                solana_url,
+                &solana_url,
             )
             .await
             {

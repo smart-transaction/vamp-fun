@@ -9,9 +9,10 @@ pub struct SolanaTransaction {
 }
 
 impl SolanaTransaction {
-    pub fn new(url: String) -> Self {
+    pub fn new<T>(url: T) -> Self
+    where T: Into<String> {
         Self {
-            url
+            url: url.into()
         }
     }
 

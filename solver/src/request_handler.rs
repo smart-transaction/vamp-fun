@@ -17,12 +17,20 @@ pub struct DeployTokenHandler {
 }
 
 impl DeployTokenHandler {
-    pub fn new(cfg: Arc<Args>, indexer: Arc<SnapshotIndexer>, indexing_stats: Arc<Mutex<IndexerProcesses>>, default_solana_cluster: String) -> Self {
+    pub fn new<T>(
+        cfg: Arc<Args>,
+        indexer: Arc<SnapshotIndexer>,
+        indexing_stats: Arc<Mutex<IndexerProcesses>>,
+        default_solana_cluster: T,
+    ) -> Self
+    where
+        T: Into<String>,
+    {
         Self {
             cfg,
             indexer,
             stats: indexing_stats,
-            default_solana_cluster,
+            default_solana_cluster: default_solana_cluster.into(),
         }
     }
 
@@ -45,19 +53,32 @@ impl DeployTokenHandler {
         request_data.base_price = self.cfg.base_price;
         request_data.max_price = self.cfg.max_price;
         request_data.flat_price_per_token = self.cfg.flat_price_per_token;
-        
+
         // Log the final vamping parameters that will be used
-        info!("🎯 Final vamping parameters for intent_id: 0x{}", hex::encode(&request_data.intent_id));
-        info!("   paid_claiming_enabled: {:?}", request_data.paid_claiming_enabled);
+        info!(
+            "🎯 Final vamping parameters for intent_id: 0x{}",
+            hex::encode(&request_data.intent_id)
+        );
+        info!(
+            "   paid_claiming_enabled: {:?}",
+            request_data.paid_claiming_enabled
+        );
         info!("   use_bonding_curve: {:?}", request_data.use_bonding_curve);
         info!("   curve_slope: {:?}", request_data.curve_slope);
         info!("   base_price: {:?}", request_data.base_price);
         info!("   max_price: {:?}", request_data.max_price);
-        info!("   flat_price_per_token: {:?}", request_data.flat_price_per_token);
+        info!(
+            "   flat_price_per_token: {:?}",
+            request_data.flat_price_per_token
+        );
         let stats = self.stats.clone();
         let chain_id = request_data.chain_id;
         let erc20_address = request_data.erc20_address;
-        match self.indexer.index_snapshot(request_data, stats.clone()).await {
+        match self
+            .indexer
+            .index_snapshot(request_data, stats.clone())
+            .await
+        {
             Ok(_) => Ok(()),
             Err(err) => {
                 if let Ok(mut stats) = stats.lock() {

@@ -19,11 +19,11 @@ use crate::{args::Args, mysql_conn::DbConn};
 
 pub async fn init_db(args: Arc<Args>) -> Result<()> {
     let db_conn = DbConn::new(
-        args.mysql_host.clone(),
-        args.mysql_port.to_string(),
-        args.mysql_user.clone(),
-        args.mysql_password.clone(),
-        args.mysql_database.clone(),
+        &args.mysql_host,
+        args.mysql_port,
+        &args.mysql_user,
+        &args.mysql_password,
+        &args.mysql_database,
     );
 
     let pool = db_conn

@@ -1,20 +1,17 @@
 . .env
 
 export PORT=9010
-export SOLANA_DEVNET_URL=https://red-burned-rain.solana-devnet.quiknode.pro/${QUICKNODE_API_KEY}
-export SOLANA_MAINNET_URL=
-export MYSQL_USER=server
-export MYSQL_PASSWORD=secret2
-export MYSQL_HOST=localhost
+export SOLANA_DEVNET_URL="https://red-burned-rain.solana-devnet.quiknode.pro/${QUICKNODE_API_KEY}"
+export SOLANA_MAINNET_URL="https://red-burned-rain.solana-mainnet.quiknode.pro/${QUICKNODE_API_KEY}"
+export MYSQL_USER="server"
+export MYSQL_PASSWORD="secret2"
+export MYSQL_HOST="localhost"
 export MYSQL_PORT=3306
-export MYSQL_DATABASE=vampfun
-export REQUEST_REGISTRATOR_URL=http://localhost:50051
-export ORCHESTRATOR_URL=http://localhost:50052
-export VALIDATOR_URL=http://localhost:50053
+export MYSQL_DATABASE="vampfun"
 export POLL_FREQUENCY_SECS=5
-export ETHEREUM_PRIVATE_KEY=${ETHEREUM_PRIVATE_KEY}
-export SOLANA_PRIVATE_KEY=${SOLANA_PRIVATE_KEY}
-export DEFAULT_SOLANA_CLUSTER=DEVNET
+export ETHEREUM_PRIVATE_KEY="${ETHEREUM_PRIVATE_KEY}"
+export SOLANA_PRIVATE_KEY="${SOLANA_PRIVATE_KEY}"
+export DEFAULT_SOLANA_CLUSTER="DEVNET"
 export PAID_CLAIMING_ENABLED=true
 export USE_BONDING_CURVE=true
 export CURVE_SLOPE=1000  # Decimals = 9, val=1e-6

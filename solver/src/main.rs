@@ -53,17 +53,7 @@ async fn main() -> Result<()> {
     .await?;
 
     // Initialize SnapshotIndexer
-    let mut indexer = SnapshotIndexer::new(args.clone())?;
-    let quicknode_api_key = args.quicknode_api_key.clone();
-    if let Some(quicknode_api_key) = quicknode_api_key {
-        if quicknode_api_key.len() == 0 {
-            indexer.init_chain_info(None).await?;
-        } else {
-            indexer.init_chain_info(Some(quicknode_api_key)).await?;
-        }
-    }
-
-    let indexer = Arc::new(indexer);
+    let indexer = Arc::new(SnapshotIndexer::new(args.clone()).await?);
 
     let indexing_stats = Arc::new(Mutex::new(IndexerProcesses::new()));
     let deploy_token_handler = Arc::new(request_handler::DeployTokenHandler::new(
@@ -101,11 +91,11 @@ async fn main() -> Result<()> {
                     http_handler::handle_get_claim_amount(
                         params,
                         DbConn::new(
-                            shared_args_copy.mysql_host.clone(),
-                            shared_args_copy.mysql_port.to_string(),
-                            shared_args_copy.mysql_user.clone(),
-                            shared_args_copy.mysql_password.clone(),
-                            shared_args_copy.mysql_database.clone(),
+                            &shared_args_copy.mysql_host,
+                            shared_args_copy.mysql_port,
+                            &shared_args_copy.mysql_user,
+                            &shared_args_copy.mysql_password,
+                            &shared_args_copy.mysql_database,
                         ),
                     ).await
                 }

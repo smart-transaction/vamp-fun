@@ -7,26 +7,27 @@ use urlencoding::encode;
 #[derive(Clone, Debug)]
 pub struct DbConn {
     mysql_host: String,
-    mysql_port: String,
+    mysql_port: u16,
     mysql_user: String,
     mysql_password: String,
     mysql_database: String,
 }
 
 impl DbConn {
-    pub fn new(
-        mysql_host: String,
-        mysql_port: String,
-        mysql_user: String,
-        mysql_password: String,
-        mysql_database: String,
-    ) -> Self {
+    pub fn new<T>(
+        mysql_host: T,
+        mysql_port: u16,
+        mysql_user: T,
+        mysql_password: T,
+        mysql_database: T,
+    ) -> Self
+    where T: Into<String> {
         Self {
-            mysql_host,
+            mysql_host: mysql_host.into(),
             mysql_port,
-            mysql_user,
-            mysql_password,
-            mysql_database,
+            mysql_user: mysql_user.into(),
+            mysql_password: mysql_password.into(),
+            mysql_database: mysql_database.into(),
         }
     }
 

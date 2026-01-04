@@ -76,18 +76,23 @@ pub struct SnapshotIndexer {
 const BLOCK_STEP: u64 = 9990;
 
 impl SnapshotIndexer {
-    pub fn new(args: Arc<Args>) -> Result<Self> {
+    pub async fn new(args: Arc<Args>) -> Result<Self> {
         let solana_payer_keypair = Arc::new(Keypair::from_base58_string(&args.solana_private_key));
         let solana_program = Arc::new(get_program_instance(solana_payer_keypair.clone())?);
-        Ok(Self {
-            chain_info: HashMap::new(),
-            quicknode_chains: HashMap::new(),
+        let chains = fetch_chains()
+            .await
+            .map_err(|e| anyhow!("Error chains fetching: {}", e))?;
+        let chain_info = chains;
+        let quicknode_chains = if let Some(api_key) = args.quicknode_api_key.clone() { get_quicknode_mapping(&api_key) } else { HashMap::new() };
+        let res = Self {
+            chain_info,
+            quicknode_chains,
             db_conn: DbConn::new(
-                args.mysql_host.clone(),
-                args.mysql_port.to_string(),
-                args.mysql_user.clone(),
-                args.mysql_password.clone(),
-                args.mysql_database.clone(),
+                args.mysql_host.as_str(),
+                args.mysql_port,
+                args.mysql_user.as_str(),
+                args.mysql_password.as_str(),
+                args.mysql_database.as_str(),
             ),
             private_key: args.ethereum_private_key.clone(),
             solana_payer_keypair,
@@ -97,20 +102,8 @@ impl SnapshotIndexer {
             } else {
                 args.solana_mainnet_url.clone()
             },
-        })
-    }
-
-    pub async fn init_chain_info(&mut self, quicknode_api_key: Option<String>) -> Result<()> {
-        let chains = fetch_chains()
-            .await
-            .map_err(|e| anyhow!("Error chains fetching: {}", e))?;
-        self.chain_info = chains;
-
-        if let Some(api_key) = quicknode_api_key {
-            self.quicknode_chains = get_quicknode_mapping(&api_key);
-        }
-
-        Ok(())
+        };
+        Ok(res)
     }
 
     pub async fn index_snapshot(

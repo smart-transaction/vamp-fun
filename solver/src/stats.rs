@@ -2,7 +2,7 @@ use std::{
     cmp::max, collections::HashMap, sync::{Arc, Mutex}, time::Duration
 };
 
-use ethers::types::Address;
+use alloy_primitives::Address;
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 

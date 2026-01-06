@@ -5,16 +5,17 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use anchor_client::{Client, Cluster, Program};
+use alloy::{
+    network::Ethereum,
+    providers::{Provider, ProviderBuilder},
+    rpc::types::Filter,
+};
+use alloy::signers::local::PrivateKeySigner;
+use alloy_primitives::{keccak256, Address, B256, U256};
+use anchor_client::{Client as AnchorClient, Cluster, Program};
 use anchor_lang::declare_program;
 use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
-use ethers::{
-    providers::{Http, Middleware, Provider},
-    signers::LocalWallet,
-    types::{Address, Filter, H256, U256},
-    utils::keccak256,
-};
 use solana_sdk::signature::Keypair;
 use sqlx::Row;
 use tokio::spawn;
@@ -58,7 +59,7 @@ declare_program!(solana_vamp_program);
 
 fn get_program_instance(payer_keypair: Arc<Keypair>) -> Result<Program<Arc<Keypair>>> {
     // The cluster doesn't matter here, it's used only for the instructions creation.
-    let anchor_client = Client::new(Cluster::Debug, payer_keypair.clone());
+    let anchor_client = AnchorClient::new(Cluster::Debug, payer_keypair.clone());
     Ok(anchor_client.program(solana_vamp_program::ID)?)
 }
 
@@ -67,7 +68,7 @@ pub struct SnapshotIndexer {
     quicknode_chains: HashMap<u64, String>,
 
     db_conn: DbConn,
-    private_key: LocalWallet,
+    private_key: PrivateKeySigner,
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,
     solana_url: String,
@@ -125,7 +126,7 @@ impl SnapshotIndexer {
         let mut total_amount = token_supply
             .iter()
             .map(|(_, v)| v.amount)
-            .fold(U256::zero(), |acc, x| acc.checked_add(x).unwrap());
+            .fold(U256::ZERO, |acc, x| acc.checked_add(x).unwrap_or_default());
 
         {
             if let Ok(mut stats) = stats.lock() {
@@ -158,7 +159,7 @@ impl SnapshotIndexer {
                 }
             }
 
-            let event_signature = H256::from_slice(&keccak256("Transfer(address,address,uint256)"));
+            let event_signature: B256 = keccak256("Transfer(address,address,uint256)");
 
             for b in (first_block..latest_block + 1).step_by(BLOCK_STEP as usize) {
                 let block_from = b;
@@ -168,7 +169,7 @@ impl SnapshotIndexer {
                 let filter = Filter::new()
                     .from_block(block_from)
                     .to_block(block_to)
-                    .topic0(event_signature)
+                    .event_signature(event_signature)
                     .address(request_data.erc20_address);
 
                 let logs = provider.get_logs(&filter).await;
@@ -179,12 +180,12 @@ impl SnapshotIndexer {
                 let logs = logs.unwrap();
                 info!("Processing {} transfers", logs.len());
                 for log in logs {
-                    let from = log.topics.get(1).unwrap();
-                    let to = log.topics.get(2).unwrap();
-                    let value = U256::from(log.data.0.to_vec().as_slice());
+                    let from = log.topics()[1];
+                    let to = log.topics()[2];
+                    let value = U256::from_be_slice(log.data().data.as_ref());
                     let from_address = Address::from_slice(&from[12..]);
                     let to_address = Address::from_slice(&to[12..]);
-                    if to_address != Address::zero() {
+                    if to_address != Address::ZERO {
                         match token_supply.get_mut(&to_address) {
                             Some(v) => {
                                 v.amount = v.amount.checked_add(value).unwrap();
@@ -201,7 +202,7 @@ impl SnapshotIndexer {
                             }
                         }
                     }
-                    if from_address != Address::zero() {
+                    if from_address != Address::ZERO {
                         if let Some(v) = token_supply.get_mut(&from_address) {
                             // Checking the substraction. If None then truncate the result to 0
                             if let Some(new_amount) = v.amount.checked_sub(value) {
@@ -212,7 +213,7 @@ impl SnapshotIndexer {
                                     "Token amount for address {:?} = {} is less than the deducted value {}. Setting to zero.",
                                     from_address, v.amount, value
                                 );
-                                v.amount = U256::zero();
+                                v.amount = U256::ZERO;
                             }
                         }
                     }
@@ -264,11 +265,12 @@ impl SnapshotIndexer {
         Ok(())
     }
 
-    async fn connect_chain(&self, chain_id: u64) -> Result<Provider<Http>> {
+    async fn connect_chain(&self, chain_id: u64) -> Result<Box<dyn Provider<Ethereum>>> {
         if let Some(quicknode_url) = self.quicknode_chains.get(&chain_id) {
-            let provider = Provider::<Http>::try_from(quicknode_url.as_str())?;
+            let url: reqwest::Url = quicknode_url.parse()?;
+            let provider = ProviderBuilder::new().connect_http(url);
             let _ = provider.get_block_number().await?;
-            return Ok(provider);
+            return Ok(Box::new(provider));
         }
 
         let chain_info = self
@@ -280,7 +282,11 @@ impl SnapshotIndexer {
             ))
             .map_err(|e| anyhow!("Error getting chain info: {}", e))?;
         for chain_url in &chain_info.rpc {
-            let provider = Provider::<Http>::try_from(chain_url.as_str())?;
+            let url: reqwest::Url = match chain_url.parse() {
+                Ok(u) => u,
+                Err(_) => continue,
+            };
+            let provider = ProviderBuilder::new().connect_http(url);
             if let Err(err) = provider.get_block_number().await {
                 error!(
                     "Failed to connect to the chain with ID {}: {}",
@@ -288,7 +294,7 @@ impl SnapshotIndexer {
                 );
                 continue;
             }
-            return Ok(provider);
+            return Ok(Box::new(provider));
         }
         Err(anyhow!(
             "Failed to connect to any RPC URL for the specified chain ID"
@@ -325,7 +331,7 @@ impl SnapshotIndexer {
             let token_address = row.get::<&str, usize>(0);
             let token_supply_value = row.get::<&str, usize>(1);
             let solver_signature = row.get::<&str, usize>(2);
-            let token_supply_value = U256::from_dec_str(&token_supply_value)?;
+            let token_supply_value = U256::from_str_radix(&token_supply_value, 10)?;
             let token_address = Address::from_str(&token_address)?;
             token_supply.insert(
                 token_address,

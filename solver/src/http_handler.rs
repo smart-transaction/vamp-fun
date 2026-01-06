@@ -3,9 +3,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use alloy_primitives::U256;
 use anyhow::Result;
 use axum::{Json, extract::Query, http::StatusCode};
-use ethers::types::U256;
 use sqlx::Row;
 use tracing::error;
 use serde::{Deserialize, Serialize};
@@ -102,7 +102,7 @@ pub async fn handle_get_claim_amount(
             }
             let row = &rows[0];
             let amount = row.get::<&str, usize>(0);
-            let num_amount = U256::from_dec_str(amount)
+            let num_amount = U256::from_str_radix(amount, 10)
                 .unwrap_or_default()
                 .checked_div(U256::from(10u64.pow(9)))
                 .unwrap_or_default();

@@ -1,5 +1,5 @@
+use alloy::signers::local::PrivateKeySigner;
 use clap::Parser;
-use ethers::signers::LocalWallet;
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -31,7 +31,7 @@ pub struct Args {
     pub quicknode_api_key: Option<String>,
 
     #[arg(long, env = "ETHEREUM_PRIVATE_KEY")]
-    pub ethereum_private_key: LocalWallet,
+    pub ethereum_private_key: PrivateKeySigner,
 
     #[arg(long, env = "SOLANA_PRIVATE_KEY")]
     pub solana_private_key: String,

@@ -1,15 +1,13 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use alloy::signers::{local::PrivateKeySigner, Signer};
+use alloy_primitives::{Address, U256};
 use anchor_client::Program;
 use anchor_client::anchor_lang::declare_program;
 use anyhow::{Context, Result, anyhow};
 use balance_util::get_balance_hash;
 use chrono::Utc;
-use ethers::{
-    signers::{LocalWallet, Signer},
-    types::{Address, U256},
-};
 use mpl_token_metadata::ID as TOKEN_METADATA_PROGRAM_ID;
 use solana_sdk::hash::Hash;
 use solana_sdk::{
@@ -49,7 +47,7 @@ pub async fn process_and_send_snapshot(
     original_snapshot: std::collections::HashMap<Address, TokenAmount>,
     indexing_stats: Arc<Mutex<IndexerProcesses>>,
     db_conn: DbConn,
-    eth_private_key: LocalWallet,
+    eth_private_key: PrivateKeySigner,
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,
     solana_url: &str
@@ -82,12 +80,12 @@ pub async fn process_and_send_snapshot(
     let transaction_args = CloneTransactionArgs {
         token_name: request_data.token_full_name,
         token_symbol: request_data.token_symbol_name,
-        token_erc20_address: request_data.erc20_address.as_bytes().to_vec(),
+        token_erc20_address: request_data.erc20_address.as_slice().to_vec(),
         token_uri: request_data.token_uri,
         amount,
         token_decimals: decimals,
-        solver_public_key: eth_private_key.address().to_fixed_bytes().to_vec(),
-        validator_public_key: eth_private_key.address().to_fixed_bytes().to_vec(),
+        solver_public_key: eth_private_key.address().as_slice().to_vec(),
+        validator_public_key: eth_private_key.address().as_slice().to_vec(),
         intent_id: request_data.intent_id.clone(),
         paid_claiming_enabled: final_paid_claiming_enabled,
         use_bonding_curve: final_use_bonding_curve,
@@ -127,10 +125,10 @@ pub async fn process_and_send_snapshot(
     // Truncate values that are < 1 Gwei, compute signatures
     for (address, supply) in ethereum_snapshot.iter_mut() {
         let (amount, _) = convert_to_sol(&supply.amount)?;
-        let balance_hash = get_balance_hash(&address.0.to_vec(), amount, &request_data.intent_id)
+        let balance_hash = get_balance_hash(&address.as_slice().to_vec(), amount, &request_data.intent_id)
             .map_err(|e| anyhow!("get balance hash: {}", e))?;
         let signature = eth_private_key.sign_message(&balance_hash).await?;
-        supply.signature = signature.to_vec();
+        supply.signature = signature.as_bytes().to_vec();
     }
 
     // Writing the token supply to the database
@@ -172,7 +170,8 @@ fn convert_to_sol(src_amount: &U256) -> Result<(u64, u8)> {
         }
         let max_amount = U256::from(u64::MAX);
         if trunc_amount <= max_amount {
-            return Ok((trunc_amount.as_u64(), 9u8 - decimals));
+            let val: u64 = trunc_amount.try_into().map_err(|_| anyhow!("Failed to convert to u64"))?;
+            return Ok((val, 9u8 - decimals));
         }
     }
     Err(anyhow!(

@@ -5,8 +5,8 @@ use crate::snapshot_indexer::{SnapshotIndexer, TokenRequestData};
 use crate::stats::{IndexerProcesses, VampingStatus};
 use crate::vamper_event::VampTokenIntent;
 
+use alloy_primitives::Address;
 use anyhow::Result;
-use ethers::types::H160;
 use tracing::info;
 
 pub struct DeployTokenHandler {
@@ -42,7 +42,7 @@ impl DeployTokenHandler {
         request_data.block_number = event.block_number;
         // Use the intent_id from the blockchain event
         request_data.intent_id = event.intent_id.to_vec();
-        request_data.erc20_address = H160::from_slice(event.token.as_slice());
+        request_data.erc20_address = Address::from_slice(event.token.as_slice());
         request_data.token_full_name = event.token_name;
         request_data.token_symbol_name = event.token_symbol;
         request_data.token_uri = event.token_uri;

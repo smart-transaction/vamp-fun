@@ -50,7 +50,7 @@ pub async fn process_and_send_snapshot(
     indexing_stats: Arc<Mutex<IndexerProcesses>>,
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,
-    solana_url: &str
+    solana_url: &str,
 ) -> Result<()> {
     info!(
         "Received indexed snapshot for intent_id: {}",
@@ -125,8 +125,12 @@ pub async fn process_and_send_snapshot(
     // Truncate values that are < 1 Gwei, compute signatures
     for (address, supply) in ethereum_snapshot.iter_mut() {
         let (amount, _) = convert_to_sol(&supply.amount)?;
-        let balance_hash = get_balance_hash(&address.as_slice().to_vec(), amount, &request_data.intent_id)
-            .map_err(|e| anyhow!("get balance hash: {}", e))?;
+        let balance_hash = get_balance_hash(
+            &address.as_slice().to_vec(),
+            amount,
+            &request_data.intent_id,
+        )
+        .map_err(|e| anyhow!("get balance hash: {}", e))?;
         let signature = cfg.ethereum_private_key.sign_message(&balance_hash).await?;
         supply.signature = signature.as_bytes().to_vec();
     }
@@ -170,7 +174,9 @@ fn convert_to_sol(src_amount: &U256) -> Result<(u64, u8)> {
         }
         let max_amount = U256::from(u64::MAX);
         if trunc_amount <= max_amount {
-            let val: u64 = trunc_amount.try_into().map_err(|_| anyhow!("Failed to convert to u64"))?;
+            let val: u64 = trunc_amount
+                .try_into()
+                .map_err(|_| anyhow!("Failed to convert to u64"))?;
             return Ok((val, 9u8 - decimals));
         }
     }

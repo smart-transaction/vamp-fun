@@ -1,7 +1,7 @@
 use std::{collections::HashMap, error::Error};
 
+use serde::{Deserialize, Serialize};
 use tracing::info;
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

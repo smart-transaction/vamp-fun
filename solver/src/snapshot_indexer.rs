@@ -10,7 +10,7 @@ use alloy::{
     providers::{Provider, ProviderBuilder},
     rpc::types::Filter,
 };
-use alloy_primitives::{keccak256, Address, B256, U256};
+use alloy_primitives::{Address, B256, U256, keccak256};
 use anchor_client::{Client as AnchorClient, Cluster, Program};
 use anchor_lang::declare_program;
 use anyhow::{Context, Result, anyhow};
@@ -81,7 +81,11 @@ impl SnapshotIndexer {
             .await
             .map_err(|e| anyhow!("Error chains fetching: {}", e))?;
         let chain_info = chains;
-        let quicknode_chains = if let Some(api_key) = args.quicknode_api_key.clone() { get_quicknode_mapping(&api_key) } else { HashMap::new() };
+        let quicknode_chains = if let Some(api_key) = args.quicknode_api_key.clone() {
+            get_quicknode_mapping(&api_key)
+        } else {
+            HashMap::new()
+        };
         let res = Self {
             cfg: args.clone(),
             chain_info,

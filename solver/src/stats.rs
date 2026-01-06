@@ -1,5 +1,8 @@
 use std::{
-    cmp::max, collections::HashMap, sync::{Arc, Mutex}, time::Duration
+    cmp::max,
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use alloy_primitives::Address;

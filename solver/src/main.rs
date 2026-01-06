@@ -46,10 +46,8 @@ async fn main() -> Result<()> {
         .init();
 
     // Initialize RabbitMQ listener
-    let mut deploy_token_listener = request_registrator_listener::RequestRegistratorListener::new(
-        args.clone()
-    )
-    .await?;
+    let mut deploy_token_listener =
+        request_registrator_listener::RequestRegistratorListener::new(args.clone()).await?;
 
     // Initialize SnapshotIndexer
     let indexer = Arc::new(SnapshotIndexer::new(args.clone()).await?);
@@ -87,10 +85,7 @@ async fn main() -> Result<()> {
             "/get_claim_amount",
             get({
                 async move |params| {
-                    http_handler::handle_get_claim_amount(
-                        params,
-                        &shared_args_copy,
-                    ).await
+                    http_handler::handle_get_claim_amount(params, &shared_args_copy).await
                 }
             }),
         )

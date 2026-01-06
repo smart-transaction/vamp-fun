@@ -6,12 +6,14 @@ use std::{
 use alloy_primitives::U256;
 use anyhow::Result;
 use axum::{Json, extract::Query, http::StatusCode};
+use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use tracing::error;
-use serde::{Deserialize, Serialize};
 
 use crate::{
-    args::Args, mysql_conn::create_db_conn, stats::{IndexerProcesses, IndexerStats}
+    args::Args,
+    mysql_conn::create_db_conn,
+    stats::{IndexerProcesses, IndexerStats},
 };
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -87,12 +89,13 @@ pub async fn handle_get_claim_amount(
             FROM tokens
             WHERE chain_id = ?
               AND erc20_address = ?
-              AND holder_address = ?"#)
-        .bind(&chain_id)
-        .bind(&token_address)
-        .bind(&user_address)
-        .fetch_all(&db_conn)
-        .await;
+              AND holder_address = ?"#,
+    )
+    .bind(&chain_id)
+    .bind(&token_address)
+    .bind(&user_address)
+    .fetch_all(&db_conn)
+    .await;
 
     match rows {
         Ok(rows) => {
@@ -125,7 +128,7 @@ pub async fn handle_get_claim_amount(
             WHERE chain_id = ?
               AND erc20_address = ?
             ORDER BY created_at DESC LIMIT 1
-        "#
+        "#,
     )
     .bind(&chain_id)
     .bind(&token_address)

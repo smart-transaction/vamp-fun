@@ -1,23 +1,19 @@
-use std::{
-    collections::HashMap, sync::Arc
-};
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Result;
 use cleanapp_rustlib::rabbitmq::subscriber::{Callback, Message, Subscriber};
-use tracing::{error, info};
 use tokio::spawn;
+use tracing::{error, info};
 
-use crate::{
-    args::Args, request_handler::DeployTokenHandler, vamper_event::VampTokenIntent
-};
+use crate::{args::Args, request_handler::DeployTokenHandler, vamper_event::VampTokenIntent};
 
 pub struct SubscriberCallback {
-    handler: Arc<DeployTokenHandler>
+    handler: Arc<DeployTokenHandler>,
 }
 
 impl SubscriberCallback {
     pub fn new(handler: Arc<DeployTokenHandler>) -> Self {
-        Self {handler}
+        Self { handler }
     }
 }
 
@@ -44,43 +40,34 @@ pub struct RequestRegistratorListener {
 
 /// A polling client that pings the request registrator for new UserEventProto events.
 impl RequestRegistratorListener {
-    pub async fn new(
-        cfg: Arc<Args>,
-    ) -> Result<Self> {
+    pub async fn new(cfg: Arc<Args>) -> Result<Self> {
         let url = Self::amqp_url(&cfg);
         info!(url, "Connecting to RabbitMQ...");
-        let subscriber =
-            Subscriber::new(&url, &cfg.exchange_name, &cfg.queue_name).await?;
+        let subscriber = Subscriber::new(&url, &cfg.exchange_name, &cfg.queue_name).await?;
         info!(url, "Connected to RabbitMQ.");
-        Ok(Self {
-            cfg,
-            subscriber,
-        })
+        Ok(Self { cfg, subscriber })
     }
 
     /// Listens for events on the stream and calls the handler for each event.
     /// The handler is expected to be a function that takes a single argument of the event type.
-    pub async fn listen(
-        &mut self,
-        deploy_token_handler: Arc<DeployTokenHandler>,
-    ) -> Result<()> {
-        let mut callbacks: HashMap<String, Arc<dyn Callback + Send + Sync + 'static>> = HashMap::new();
+    pub async fn listen(&mut self, deploy_token_handler: Arc<DeployTokenHandler>) -> Result<()> {
+        let mut callbacks: HashMap<String, Arc<dyn Callback + Send + Sync + 'static>> =
+            HashMap::new();
 
         callbacks.insert(
             self.cfg.exchange_name.clone(),
-            Arc::new(SubscriberCallback::new(deploy_token_handler))
+            Arc::new(SubscriberCallback::new(deploy_token_handler)),
         );
-        
+
         self.subscriber.start(callbacks).await?;
 
         Ok(())
     }
 
     fn amqp_url(cfg: &Args) -> String {
-        format!("amqp://{}:{}@{}:{}", 
-            cfg.amqp_user, 
-            cfg.amqp_password, 
-            cfg.amqp_host, 
-            cfg.amqp_port)
+        format!(
+            "amqp://{}:{}@{}:{}",
+            cfg.amqp_user, cfg.amqp_password, cfg.amqp_host, cfg.amqp_port
+        )
     }
 }

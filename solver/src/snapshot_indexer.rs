@@ -10,7 +10,6 @@ use alloy::{
     providers::{Provider, ProviderBuilder},
     rpc::types::Filter,
 };
-use alloy::signers::local::PrivateKeySigner;
 use alloy_primitives::{keccak256, Address, B256, U256};
 use anchor_client::{Client as AnchorClient, Cluster, Program};
 use anchor_lang::declare_program;
@@ -24,7 +23,7 @@ use tracing::{error, info, warn};
 use crate::{
     args::Args,
     chain_info::{ChainInfo, fetch_chains, get_quicknode_mapping},
-    mysql_conn::DbConn,
+    mysql_conn::create_db_conn,
     snapshot_processor::process_and_send_snapshot,
     stats::{IndexerProcesses, IndexerStats, VampingStatus},
 };
@@ -64,11 +63,9 @@ fn get_program_instance(payer_keypair: Arc<Keypair>) -> Result<Program<Arc<Keypa
 }
 
 pub struct SnapshotIndexer {
+    cfg: Arc<Args>,
     chain_info: HashMap<u64, ChainInfo>,
     quicknode_chains: HashMap<u64, String>,
-
-    db_conn: DbConn,
-    private_key: PrivateKeySigner,
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,
     solana_url: String,
@@ -86,16 +83,9 @@ impl SnapshotIndexer {
         let chain_info = chains;
         let quicknode_chains = if let Some(api_key) = args.quicknode_api_key.clone() { get_quicknode_mapping(&api_key) } else { HashMap::new() };
         let res = Self {
+            cfg: args.clone(),
             chain_info,
             quicknode_chains,
-            db_conn: DbConn::new(
-                args.mysql_host.as_str(),
-                args.mysql_port,
-                args.mysql_user.as_str(),
-                args.mysql_password.as_str(),
-                args.mysql_database.as_str(),
-            ),
-            private_key: args.ethereum_private_key.clone(),
             solana_payer_keypair,
             solana_program,
             solana_url: if args.default_solana_cluster == "DEVNET" {
@@ -139,8 +129,7 @@ impl SnapshotIndexer {
                 stats.insert((request_data.chain_id, request_data.erc20_address), item);
             }
         }
-        let db_conn = self.db_conn.clone();
-        let private_key = self.private_key.clone();
+        let cfg = self.cfg.clone();
         let solana_payer_keypair = self.solana_payer_keypair.clone();
         let solana_program = self.solana_program.clone();
         let solana_url = self.solana_url.clone();
@@ -241,12 +230,11 @@ impl SnapshotIndexer {
             let erc20_address = request_data.erc20_address.clone();
 
             if let Err(err) = process_and_send_snapshot(
+                cfg,
                 request_data,
                 total_amount,
                 token_supply,
                 stats.clone(),
-                db_conn.clone(),
-                private_key,
                 solana_payer_keypair,
                 solana_program,
                 &solana_url,
@@ -307,9 +295,7 @@ impl SnapshotIndexer {
         erc20_address: Address,
     ) -> Result<(HashMap<Address, TokenAmount>, Option<u64>)> {
         let mut token_supply = HashMap::new();
-        let conn = self
-            .db_conn
-            .create_db_conn()
+        let conn = create_db_conn(&self.cfg)
             .await
             .map_err(|e| anyhow!("Error creating DB connection: {}", e))?;
         // Reading the current snapshot from the database

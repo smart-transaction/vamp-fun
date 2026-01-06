@@ -11,7 +11,7 @@ use tracing::error;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    mysql_conn::DbConn, stats::{IndexerProcesses, IndexerStats}
+    args::Args, mysql_conn::create_db_conn, stats::{IndexerProcesses, IndexerStats}
 };
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -31,9 +31,9 @@ pub struct TokenClaimData {
 
 pub async fn handle_get_claim_amount(
     params: Query<HashMap<String, String>>,
-    db_conn: DbConn,
+    cfg: &Args,
 ) -> Result<Json<TokenClaimData>, StatusCode> {
-    let db_conn = db_conn.create_db_conn().await;
+    let db_conn = create_db_conn(cfg).await;
     if let Err(err) = db_conn {
         log::error!("Failed to create DB connection: {:?}", err);
         return Err(StatusCode::INTERNAL_SERVER_ERROR);

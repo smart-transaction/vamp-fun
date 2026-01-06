@@ -11,7 +11,6 @@ use axum::{
     serve,
 };
 use clap::Parser;
-use mysql_conn::DbConn;
 use snapshot_indexer::SnapshotIndexer;
 use stats::{IndexerProcesses, cleanup_stats};
 use tokio::{net::TcpListener, spawn};
@@ -90,13 +89,7 @@ async fn main() -> Result<()> {
                 async move |params| {
                     http_handler::handle_get_claim_amount(
                         params,
-                        DbConn::new(
-                            &shared_args_copy.mysql_host,
-                            shared_args_copy.mysql_port,
-                            &shared_args_copy.mysql_user,
-                            &shared_args_copy.mysql_password,
-                            &shared_args_copy.mysql_database,
-                        ),
+                        &shared_args_copy,
                     ).await
                 }
             }),

@@ -15,19 +15,10 @@ use std::sync::Arc;
 use anyhow::{Context, Result, anyhow};
 use sqlx::MySqlPool;
 
-use crate::{args::Args, mysql_conn::DbConn};
+use crate::{args::Args, mysql_conn::create_db_conn};
 
 pub async fn init_db(args: Arc<Args>) -> Result<()> {
-    let db_conn = DbConn::new(
-        &args.mysql_host,
-        args.mysql_port,
-        &args.mysql_user,
-        &args.mysql_password,
-        &args.mysql_database,
-    );
-
-    let pool = db_conn
-        .create_db_conn()
+    let pool = create_db_conn(&args)
         .await
         .map_err(|e| anyhow!("error creating DB connection: {}", e))?;
 

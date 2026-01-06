@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use alloy::signers::{local::PrivateKeySigner, Signer};
+use alloy::signers::Signer;
 use alloy_primitives::{Address, U256};
 use anchor_client::Program;
 use anchor_client::anchor_lang::declare_program;
@@ -18,7 +18,8 @@ use spl_associated_token_account::ID as ASSOCIATED_TOKEN_PROGRAM_ID;
 use spl_token::ID as TOKEN_PROGRAM_ID;
 use tracing::info;
 
-use crate::mysql_conn::DbConn;
+use crate::args::Args;
+use crate::mysql_conn::create_db_conn;
 use crate::snapshot_indexer::{TokenAmount, TokenRequestData};
 use crate::solana_transaction::SolanaTransaction;
 use crate::stats::{IndexerProcesses, VampingStatus};
@@ -42,12 +43,11 @@ struct CloneTransactionArgs {
 }
 
 pub async fn process_and_send_snapshot(
+    cfg: Arc<Args>,
     request_data: TokenRequestData,
     amount: U256,
     original_snapshot: std::collections::HashMap<Address, TokenAmount>,
     indexing_stats: Arc<Mutex<IndexerProcesses>>,
-    db_conn: DbConn,
-    eth_private_key: PrivateKeySigner,
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,
     solana_url: &str
@@ -84,8 +84,8 @@ pub async fn process_and_send_snapshot(
         token_uri: request_data.token_uri,
         amount,
         token_decimals: decimals,
-        solver_public_key: eth_private_key.address().as_slice().to_vec(),
-        validator_public_key: eth_private_key.address().as_slice().to_vec(),
+        solver_public_key: cfg.ethereum_private_key.address().as_slice().to_vec(),
+        validator_public_key: cfg.ethereum_private_key.address().as_slice().to_vec(),
         intent_id: request_data.intent_id.clone(),
         paid_claiming_enabled: final_paid_claiming_enabled,
         use_bonding_curve: final_use_bonding_curve,
@@ -110,7 +110,7 @@ pub async fn process_and_send_snapshot(
 
     info!("Solution transaction submitted: {}", solana_txid);
     write_cloning(
-        db_conn.clone(),
+        &cfg,
         request_data.chain_id,
         request_data.erc20_address,
         solana_txid.to_string(),
@@ -127,13 +127,13 @@ pub async fn process_and_send_snapshot(
         let (amount, _) = convert_to_sol(&supply.amount)?;
         let balance_hash = get_balance_hash(&address.as_slice().to_vec(), amount, &request_data.intent_id)
             .map_err(|e| anyhow!("get balance hash: {}", e))?;
-        let signature = eth_private_key.sign_message(&balance_hash).await?;
+        let signature = cfg.ethereum_private_key.sign_message(&balance_hash).await?;
         supply.signature = signature.as_bytes().to_vec();
     }
 
     // Writing the token supply to the database
     write_token_supply(
-        db_conn.clone(),
+        &cfg,
         request_data.chain_id,
         request_data.erc20_address,
         request_data.block_number,
@@ -181,7 +181,7 @@ fn convert_to_sol(src_amount: &U256) -> Result<(u64, u8)> {
 }
 
 async fn write_cloning(
-    db_conn: DbConn,
+    cfg: &Args,
     chain_id: u64,
     erc20_address: Address,
     target_txid: String,
@@ -190,8 +190,7 @@ async fn write_cloning(
     root_intent_cid: &str,
     intent_id: &str,
 ) -> Result<()> {
-    let conn = db_conn
-        .create_db_conn()
+    let conn = create_db_conn(cfg)
         .await
         .map_err(|e| anyhow!("create DB com=nnection: {}", e))?;
     let addr_str = format!("{:#x}", erc20_address);
@@ -225,14 +224,13 @@ async fn write_cloning(
 }
 
 async fn write_token_supply(
-    db_conn: DbConn,
+    cfg: &Args,
     chain_id: u64,
     erc20_address: Address,
     block_number: u64,
     token_supply: &HashMap<Address, TokenAmount>,
 ) -> Result<()> {
-    let conn = db_conn
-        .create_db_conn()
+    let conn = create_db_conn(cfg)
         .await
         .map_err(|e| anyhow!("error connecting to database: {}", e))?;
     // Delete existing records for the given erc20_address

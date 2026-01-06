@@ -4,46 +4,20 @@ use anyhow::Context;
 use sqlx::MySqlPool;
 use urlencoding::encode;
 
-#[derive(Clone, Debug)]
-pub struct DbConn {
-    mysql_host: String,
-    mysql_port: u64,
-    mysql_user: String,
-    mysql_password: String,
-    mysql_database: String,
-}
+use crate::args::Args;
 
-impl DbConn {
-    pub fn new<T, U>(
-        mysql_host: T,
-        mysql_port: U,
-        mysql_user: T,
-        mysql_password: T,
-        mysql_database: T,
-    ) -> Self
-    where T: Into<String>, U: Into<u64> {
-        Self {
-            mysql_host: mysql_host.into(),
-            mysql_port: mysql_port.into(),
-            mysql_user: mysql_user.into(),
-            mysql_password: mysql_password.into(),
-            mysql_database: mysql_database.into(),
-        }
-    }
-
-    pub async fn create_db_conn(&self) -> Result<MySqlPool, Box<dyn Error>> {
-        let encoded_password = encode(&self.mysql_password);
-        let mysql_url = format!(
-            "mysql://{}:{}@{}:{}/{}",
-            self.mysql_user,
-            encoded_password,
-            self.mysql_host,
-            self.mysql_port,
-            self.mysql_database
-        );
-        let db_conn = MySqlPool::connect(&mysql_url)
-            .await
-            .context("connect mysql")?;
-        Ok(db_conn)
-    }
+pub async fn create_db_conn(cfg: &Args) -> Result<MySqlPool, Box<dyn Error>> {
+    let encoded_password = encode(&cfg.mysql_password);
+    let mysql_url = format!(
+        "mysql://{}:{}@{}:{}/{}",
+        cfg.mysql_user,
+        encoded_password,
+        cfg.mysql_host,
+        cfg.mysql_port,
+        cfg.mysql_database
+    );
+    let db_conn = MySqlPool::connect(&mysql_url)
+        .await
+        .context("connect mysql")?;
+    Ok(db_conn)
 }

@@ -23,6 +23,7 @@ use crate::{args::Args, db_init::init_db};
 mod args;
 mod chain_info;
 mod db_init;
+mod events;
 mod http_handler;
 mod mysql_conn;
 mod request_handler;
@@ -31,7 +32,6 @@ mod snapshot_indexer;
 mod snapshot_processor;
 mod solana_transaction;
 mod stats;
-mod vamper_event;
 
 #[tokio::main]
 async fn main() -> Result<()> {

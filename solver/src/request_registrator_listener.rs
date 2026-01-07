@@ -5,7 +5,7 @@ use cleanapp_rustlib::rabbitmq::subscriber::{Callback, Message, Subscriber};
 use tokio::spawn;
 use tracing::{error, info};
 
-use crate::{args::Args, request_handler::DeployTokenHandler, vamper_event::VampTokenIntent};
+use crate::{args::Args, request_handler::DeployTokenHandler, events::VampTokenIntent};
 
 pub struct SubscriberCallback {
     handler: Arc<DeployTokenHandler>,

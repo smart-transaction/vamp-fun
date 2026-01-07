@@ -1,3 +1,4 @@
+use alloy::sol;
 use alloy_primitives::{Address, FixedBytes};
 use serde::{Deserialize, Serialize};
 
@@ -11,4 +12,13 @@ pub struct VampTokenIntent {
     pub token_name: String,
     pub token_symbol: String,
     pub token_uri: String,
+}
+
+sol! {
+    #[derive(Debug, Deserialize, Serialize)]
+    event Transfer(
+        address from,
+        address to,
+        uint256 amount,
+    );
 }

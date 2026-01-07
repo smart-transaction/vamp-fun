@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use crate::args::Args;
 use crate::snapshot_indexer::{SnapshotIndexer, TokenRequestData};
 use crate::stats::{IndexerProcesses, VampingStatus};
-use crate::vamper_event::VampTokenIntent;
+use crate::events::VampTokenIntent;
 
 use alloy_primitives::Address;
 use anyhow::Result;

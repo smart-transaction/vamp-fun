@@ -8,7 +8,7 @@ use std::{
 use alloy::{
     network::Ethereum,
     providers::{Provider, ProviderBuilder},
-    rpc::types::Filter,
+    rpc::types::Filter, sol_types::SolEvent,
 };
 use alloy_primitives::{Address, B256, U256, keccak256};
 use anchor_client::{Client as AnchorClient, Cluster, Program};
@@ -21,11 +21,7 @@ use tokio::spawn;
 use tracing::{error, info, warn};
 
 use crate::{
-    args::Args,
-    chain_info::{ChainInfo, fetch_chains, get_quicknode_mapping},
-    mysql_conn::create_db_conn,
-    snapshot_processor::process_and_send_snapshot,
-    stats::{IndexerProcesses, IndexerStats, VampingStatus},
+    args::Args, chain_info::{ChainInfo, fetch_chains, get_quicknode_mapping}, events::Transfer, mysql_conn::create_db_conn, snapshot_processor::process_and_send_snapshot, stats::{IndexerProcesses, IndexerStats, VampingStatus}
 };
 
 #[derive(Default)]
@@ -173,44 +169,45 @@ impl SnapshotIndexer {
                 let logs = logs.unwrap();
                 info!("Processing {} transfers", logs.len());
                 for log in logs {
-                    let from = log.topics()[1];
-                    let to = log.topics()[2];
-                    let value = U256::from_be_slice(log.data().data.as_ref());
-                    let from_address = Address::from_slice(&from[12..]);
-                    let to_address = Address::from_slice(&to[12..]);
-                    if to_address != Address::ZERO {
-                        match token_supply.get_mut(&to_address) {
+                    let typed = Transfer::decode_log(&log.inner);
+                    if let Err(err) = typed {
+                        error!("Error decoding Transfer event: {}", err);
+                        continue;
+                    }
+                    let event = &typed.unwrap().data;
+                    if event.to != Address::ZERO {
+                        match token_supply.get_mut(&event.to) {
                             Some(v) => {
-                                v.amount = v.amount.checked_add(value).unwrap();
+                                v.amount = v.amount.checked_add(event.amount).unwrap();
                             }
                             None => {
                                 // Fix: Create new entry with the transfer amount instead of zero
                                 token_supply.insert(
-                                    to_address,
+                                    event.to,
                                     TokenAmount {
-                                        amount: value,
+                                        amount: event.amount,
                                         signature: Vec::new(),
                                     },
                                 );
                             }
                         }
                     }
-                    if from_address != Address::ZERO {
-                        if let Some(v) = token_supply.get_mut(&from_address) {
+                    if event.from != Address::ZERO {
+                        if let Some(v) = token_supply.get_mut(&event.from) {
                             // Checking the substraction. If None then truncate the result to 0
-                            if let Some(new_amount) = v.amount.checked_sub(value) {
+                            if let Some(new_amount) = v.amount.checked_sub(event.amount) {
                                 v.amount = new_amount;
                             } else {
                                 // If the amount is less than the value, set it to zero
                                 warn!(
                                     "Token amount for address {:?} = {} is less than the deducted value {}. Setting to zero.",
-                                    from_address, v.amount, value
+                                    event.from, v.amount, event.amount
                                 );
                                 v.amount = U256::ZERO;
                             }
                         }
                     }
-                    total_amount = total_amount.checked_add(value).unwrap();
+                    total_amount = total_amount.checked_add(event.amount).unwrap();
                 }
                 // Update stats
                 {

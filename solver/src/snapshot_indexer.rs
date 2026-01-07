@@ -10,7 +10,7 @@ use alloy::{
     providers::{Provider, ProviderBuilder},
     rpc::types::Filter, sol_types::SolEvent,
 };
-use alloy_primitives::{Address, B256, U256, keccak256};
+use alloy_primitives::{Address, U256};
 use anchor_client::{Client as AnchorClient, Cluster, Program};
 use anchor_lang::declare_program;
 use anyhow::{Context, Result, anyhow};
@@ -148,8 +148,6 @@ impl SnapshotIndexer {
                 }
             }
 
-            let event_signature: B256 = keccak256("Transfer(address,address,uint256)");
-
             for b in (first_block..latest_block + 1).step_by(BLOCK_STEP as usize) {
                 let block_from = b;
                 let block_to = min(b + BLOCK_STEP - 1, latest_block);
@@ -158,7 +156,7 @@ impl SnapshotIndexer {
                 let filter = Filter::new()
                     .from_block(block_from)
                     .to_block(block_to)
-                    .event_signature(event_signature)
+                    .event_signature(Transfer::SIGNATURE_HASH)
                     .address(request_data.erc20_address);
 
                 let logs = provider.get_logs(&filter).await;

@@ -20,12 +20,13 @@ impl SubscriberCallback {
 impl Callback for SubscriberCallback {
     fn on_message(&self, message: &Message) -> std::result::Result<(), Box<dyn std::error::Error>> {
         let event: VampTokenIntent = message.unmarshal_to()?;
+        info!("Decoded event: {:?}", event);
         let handler = self.handler.clone();
         spawn(async move {
             match handler.handle(0, event).await {
                 Ok(_) => {}
                 Err(err) => {
-                    error!("Error handing the vamping request: {}", err);
+                    error!("Error handling the vamping request: {}", err);
                 }
             }
         });
@@ -55,7 +56,7 @@ impl RequestRegistratorListener {
             HashMap::new();
 
         callbacks.insert(
-            self.cfg.exchange_name.clone(),
+            self.cfg.routing_key.clone(),
             Arc::new(SubscriberCallback::new(deploy_token_handler)),
         );
 

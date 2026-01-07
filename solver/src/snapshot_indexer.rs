@@ -307,6 +307,7 @@ impl SnapshotIndexer {
                   AND erc20_address = ?
             "#,
         )
+        .bind(&chain_id)
         .bind(&addr_str)
         .fetch_all(&conn)
         .await

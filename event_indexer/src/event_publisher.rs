@@ -4,6 +4,7 @@ use alloy::sol_types::SolEvent;
 use alloy_primitives::Log;
 use anyhow::Result;
 use cleanapp_rustlib::rabbitmq::publisher::Publisher;
+use tracing::info;
 
 use crate::{cfg::Cfg, vamper_event::VampTokenIntent};
 
@@ -23,6 +24,7 @@ impl EventPublisher {
         // decoding a raw log -> typed
         let typed = VampTokenIntent::decode_log(event)?;
         let ev: &VampTokenIntent = &typed.data;
+        info!("Publishing the event: {:?}", ev);
 
         self.publisher.publish(&ev).await?;
 

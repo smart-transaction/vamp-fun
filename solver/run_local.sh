@@ -3,10 +3,10 @@
 export PORT=9010
 export SOLANA_DEVNET_URL="https://red-burned-rain.solana-devnet.quiknode.pro/${QUICKNODE_API_KEY}"
 export SOLANA_MAINNET_URL="https://red-burned-rain.solana-mainnet.quiknode.pro/${QUICKNODE_API_KEY}"
-export MYSQL_USER="server"
-export MYSQL_PASSWORD="secret2"
 export MYSQL_HOST="localhost"
 export MYSQL_PORT=3306
+export MYSQL_USER="vamper"
+export MYSQL_PASSWORD="secret2"
 export MYSQL_DATABASE="vampfun"
 export POLL_FREQUENCY_SECS=5
 export ETHEREUM_PRIVATE_KEY="${ETHEREUM_PRIVATE_KEY}"

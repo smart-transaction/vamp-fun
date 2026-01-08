@@ -27,7 +27,6 @@ pub struct TokenClaimData {
     pub validator_signature: String,
     pub mint_account_address: String,
     pub token_spl_address: String,
-    pub root_intent_cid: String,
     pub intent_id: String,
 }
 
@@ -79,7 +78,6 @@ pub async fn handle_get_claim_amount(
         validator_signature: "".to_string(),
         mint_account_address: "".to_string(),
         token_spl_address: "".to_string(),
-        root_intent_cid: "".to_string(),
         intent_id: "".to_string(),
     };
 
@@ -123,11 +121,11 @@ pub async fn handle_get_claim_amount(
 
     let rows = sqlx::query(
         r#"
-            SELECT target_txid, token_spl_address, mint_account_address, root_intent_cid, intent_id
+            SELECT target_txid, token_spl_address, mint_account_address, intent_id
             FROM clonings
             WHERE chain_id = ?
               AND erc20_address = ?
-            ORDER BY created_at DESC LIMIT 1
+            ORDER BY ts DESC LIMIT 1
         "#,
     )
     .bind(&chain_id)
@@ -144,12 +142,10 @@ pub async fn handle_get_claim_amount(
             let target_txid = row.get::<&str, usize>(0);
             let token_spl_address = row.get::<&str, usize>(1);
             let mint_account_address = row.get::<&str, usize>(2);
-            let root_intent_cid = row.get::<&str, usize>(3);
             let intent_id = row.get::<&str, usize>(4);
             claim_data.target_txid = target_txid.to_string();
             claim_data.token_spl_address = token_spl_address.to_string();
             claim_data.mint_account_address = mint_account_address.to_string();
-            claim_data.root_intent_cid = root_intent_cid.to_string();
             claim_data.intent_id = intent_id.to_string();
         }
         Err(err) => {

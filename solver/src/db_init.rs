@@ -56,6 +56,7 @@ async fn create_tokens(db: &MySqlPool) -> Result<()> {
             holder_address CHAR(42) NOT NULL,
             holder_amount VARCHAR(78) NOT NULL,
             signature VARCHAR(255),
+            ts TIMESTAMP DEFAULT current_timestamp,
             INDEX chain_id_idx(chain_id),
             INDEX erc20_address_idx(erc20_address),
             INDEX holder_address_idx(holder_address)
@@ -78,6 +79,8 @@ async fn create_clonings(db: &MySqlPool) -> Result<()> {
             target_txid VARCHAR(128) NOT NULL,
             mint_account_address VARCHAR(128) NOT NULL,
             token_spl_address VARCHAR(128) NOT NULL,
+            intent_id VARCHAR(255) NOT NULL,
+            ts TIMESTAMP DEFAULT current_timestamp,
             INDEX chain_id_idx(chain_id),
             INDEX erc20_address_idx(erc20_address)
         )

@@ -116,7 +116,6 @@ pub async fn process_and_send_snapshot(
         solana_txid.to_string(),
         &mint_account.to_string(),
         &vamp_state.to_string(),
-        "",
         &hex::encode(&request_data.intent_id),
     )
     .await?;
@@ -193,12 +192,11 @@ async fn write_cloning(
     target_txid: String,
     mint_account_address: &str,
     vamp_state_address: &str,
-    root_intent_cid: &str,
     intent_id: &str,
 ) -> Result<()> {
     let conn = create_db_conn(cfg)
         .await
-        .map_err(|e| anyhow!("create DB com=nnection: {}", e))?;
+        .map_err(|e| anyhow!("create DB connection: {}", e))?;
     let addr_str = format!("{:#x}", erc20_address);
 
     sqlx::query(
@@ -209,10 +207,8 @@ async fn write_cloning(
                 target_txid,
                 mint_account_address,
                 token_spl_address,
-                root_intent_cid,
-                intent_id,
-                created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                intent_id)
+            VALUES (?, ?, ?, ?, ?, ?)
         "#,
     )
     .bind(&chain_id)
@@ -220,7 +216,6 @@ async fn write_cloning(
     .bind(target_txid)
     .bind(mint_account_address)
     .bind(vamp_state_address)
-    .bind(root_intent_cid)
     .bind(intent_id)
     .execute(&conn)
     .await

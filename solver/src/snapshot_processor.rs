@@ -46,7 +46,7 @@ pub async fn process_and_send_snapshot(
     cfg: Arc<Args>,
     request_data: TokenRequestData,
     amount: U256,
-    original_snapshot: std::collections::HashMap<Address, TokenAmount>,
+    original_snapshot: HashMap<Address, TokenAmount>,
     indexing_stats: Arc<Mutex<IndexerProcesses>>,
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,

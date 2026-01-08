@@ -26,16 +26,25 @@ struct Migration {
     /// Human-readable description of what this migration does
     description: &'static str,
     /// Function that applies the migration
-    up: fn(&MySqlPool) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + '_>>,
+    up: fn(
+        &MySqlPool,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + '_>>,
 }
 
 impl Migration {
     fn new(
         id: &'static str,
         description: &'static str,
-        up: fn(&MySqlPool) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + '_>>,
+        up: fn(
+            &MySqlPool,
+        )
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + '_>>,
     ) -> Self {
-        Self { id, description, up }
+        Self {
+            id,
+            description,
+            up,
+        }
     }
 }
 
@@ -49,7 +58,7 @@ pub async fn init_db(args: Arc<Args>) -> Result<()> {
     ensure_migrations_table(&pool).await?;
 
     // Run all pending migrations
-    run_migrations(&pool).await?;
+    run_migrations(&pool).await.context("Run migrations")?;
 
     Ok(())
 }
@@ -85,7 +94,11 @@ async fn is_migration_applied(db: &MySqlPool, migration_id: &str) -> Result<bool
 }
 
 /// Marks a migration as applied
-async fn mark_migration_applied(db: &MySqlPool, migration_id: &str, description: &str) -> Result<()> {
+async fn mark_migration_applied(
+    db: &MySqlPool,
+    migration_id: &str,
+    description: &str,
+) -> Result<()> {
     sqlx::query("INSERT INTO schema_migrations (id, description) VALUES (?, ?)")
         .bind(migration_id)
         .bind(description)
@@ -108,25 +121,31 @@ fn migrations() -> Vec<Migration> {
         Migration::new("003_create_clonings_table", "Create clonings table", |db| {
             Box::pin(async move { migration_003_create_clonings(db).await })
         }),
+        Migration::new("004_add_intent_id_to_tokens", "Add intent ID to tokens", |db| {
+            Box::pin(async move { migration_004_add_intent_id_to_tokens(db).await })
+        }),
     ]
 }
 
 /// Runs all pending migrations
 async fn run_migrations(db: &MySqlPool) -> Result<()> {
     let all_migrations = migrations();
-    
+
     for migration in all_migrations {
         if is_migration_applied(db, migration.id).await? {
             info!("Migration {} already applied, skipping", migration.id);
             continue;
         }
 
-        info!("Running migration {}: {}", migration.id, migration.description);
-        
+        info!(
+            "Running migration {}: {}",
+            migration.id, migration.description
+        );
+
         // Execute migration in a transaction
-        let mut tx = db.begin().await?;
-        
-        match (migration.up)(db).await {
+        let tx = db.begin().await?;
+
+        match (migration.up)(db).await.context(format!("Migration {} failed", migration.id)) {
             Ok(_) => {
                 mark_migration_applied(db, migration.id, migration.description).await?;
                 tx.commit().await?;
@@ -134,7 +153,7 @@ async fn run_migrations(db: &MySqlPool) -> Result<()> {
             }
             Err(e) => {
                 tx.rollback().await?;
-                return Err(anyhow!("Migration {} failed: {}", migration.id, e));
+                return Err(e);
             }
         }
     }
@@ -150,7 +169,7 @@ async fn run_migrations(db: &MySqlPool) -> Result<()> {
 async fn table_exists(db: &MySqlPool, table_name: &str) -> Result<bool> {
     let result = sqlx::query(
         "SELECT COUNT(*) as count FROM information_schema.tables 
-         WHERE table_schema = DATABASE() AND table_name = ?"
+         WHERE table_schema = DATABASE() AND table_name = ?",
     )
     .bind(table_name)
     .fetch_one(db)
@@ -164,7 +183,7 @@ async fn table_exists(db: &MySqlPool, table_name: &str) -> Result<bool> {
 async fn column_exists(db: &MySqlPool, table_name: &str, column_name: &str) -> Result<bool> {
     let result = sqlx::query(
         "SELECT COUNT(*) as count FROM information_schema.columns 
-         WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?"
+         WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?",
     )
     .bind(table_name)
     .bind(column_name)
@@ -179,7 +198,7 @@ async fn column_exists(db: &MySqlPool, table_name: &str, column_name: &str) -> R
 async fn index_exists(db: &MySqlPool, table_name: &str, index_name: &str) -> Result<bool> {
     let result = sqlx::query(
         "SELECT COUNT(*) as count FROM information_schema.statistics 
-         WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?"
+         WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?",
     )
     .bind(table_name)
     .bind(index_name)
@@ -198,15 +217,21 @@ async fn add_column_if_not_exists(
     column_definition: &str,
 ) -> Result<()> {
     if column_exists(db, table_name, column_name).await? {
-        info!("Column {}.{} already exists, skipping", table_name, column_name);
+        info!(
+            "Column {}.{} already exists, skipping",
+            table_name, column_name
+        );
         return Ok(());
     }
 
-    let query = format!("ALTER TABLE {} ADD COLUMN {} {}", table_name, column_name, column_definition);
-    sqlx::query(&query)
-        .execute(db)
-        .await
-        .context(format!("Failed to add column {}.{}", table_name, column_name))?;
+    let query = format!(
+        "ALTER TABLE {} ADD COLUMN {} {}",
+        table_name, column_name, column_definition
+    );
+    sqlx::query(&query).execute(db).await.context(format!(
+        "Failed to add column {}.{}",
+        table_name, column_name
+    ))?;
 
     info!("Added column {}.{}", table_name, column_name);
     Ok(())
@@ -219,11 +244,14 @@ async fn modify_column(
     column_name: &str,
     new_definition: &str,
 ) -> Result<()> {
-    let query = format!("ALTER TABLE {} MODIFY COLUMN {} {}", table_name, column_name, new_definition);
-    sqlx::query(&query)
-        .execute(db)
-        .await
-        .context(format!("Failed to modify column {}.{}", table_name, column_name))?;
+    let query = format!(
+        "ALTER TABLE {} MODIFY COLUMN {} {}",
+        table_name, column_name, new_definition
+    );
+    sqlx::query(&query).execute(db).await.context(format!(
+        "Failed to modify column {}.{}",
+        table_name, column_name
+    ))?;
 
     info!("Modified column {}.{}", table_name, column_name);
     Ok(())
@@ -232,15 +260,18 @@ async fn modify_column(
 /// Drops a column from a table if it exists
 async fn drop_column_if_exists(db: &MySqlPool, table_name: &str, column_name: &str) -> Result<()> {
     if !column_exists(db, table_name, column_name).await? {
-        info!("Column {}.{} does not exist, skipping drop", table_name, column_name);
+        info!(
+            "Column {}.{} does not exist, skipping drop",
+            table_name, column_name
+        );
         return Ok(());
     }
 
     let query = format!("ALTER TABLE {} DROP COLUMN {}", table_name, column_name);
-    sqlx::query(&query)
-        .execute(db)
-        .await
-        .context(format!("Failed to drop column {}.{}", table_name, column_name))?;
+    sqlx::query(&query).execute(db).await.context(format!(
+        "Failed to drop column {}.{}",
+        table_name, column_name
+    ))?;
 
     info!("Dropped column {}.{}", table_name, column_name);
     Ok(())
@@ -254,15 +285,21 @@ async fn add_index_if_not_exists(
     columns: &str,
 ) -> Result<()> {
     if index_exists(db, table_name, index_name).await? {
-        info!("Index {} on {} already exists, skipping", index_name, table_name);
+        info!(
+            "Index {} on {} already exists, skipping",
+            index_name, table_name
+        );
         return Ok(());
     }
 
-    let query = format!("CREATE INDEX {} ON {} ({})", index_name, table_name, columns);
-    sqlx::query(&query)
-        .execute(db)
-        .await
-        .context(format!("Failed to create index {} on {}", index_name, table_name))?;
+    let query = format!(
+        "CREATE INDEX {} ON {} ({})",
+        index_name, table_name, columns
+    );
+    sqlx::query(&query).execute(db).await.context(format!(
+        "Failed to create index {} on {}",
+        index_name, table_name
+    ))?;
 
     info!("Created index {} on {}", index_name, table_name);
     Ok(())
@@ -271,22 +308,29 @@ async fn add_index_if_not_exists(
 /// Drops an index from a table if it exists
 async fn drop_index_if_exists(db: &MySqlPool, table_name: &str, index_name: &str) -> Result<()> {
     if !index_exists(db, table_name, index_name).await? {
-        info!("Index {} on {} does not exist, skipping drop", index_name, table_name);
+        info!(
+            "Index {} on {} does not exist, skipping drop",
+            index_name, table_name
+        );
         return Ok(());
     }
 
     let query = format!("DROP INDEX {} ON {}", index_name, table_name);
-    sqlx::query(&query)
-        .execute(db)
-        .await
-        .context(format!("Failed to drop index {} on {}", index_name, table_name))?;
+    sqlx::query(&query).execute(db).await.context(format!(
+        "Failed to drop index {} on {}",
+        index_name, table_name
+    ))?;
 
     info!("Dropped index {} on {}", index_name, table_name);
     Ok(())
 }
 
 /// Creates a table if it doesn't exist
-async fn create_table_if_not_exists(db: &MySqlPool, table_name: &str, table_definition: &str) -> Result<()> {
+async fn create_table_if_not_exists(
+    db: &MySqlPool,
+    table_name: &str,
+    table_definition: &str,
+) -> Result<()> {
     if table_exists(db, table_name).await? {
         info!("Table {} already exists, skipping creation", table_name);
         return Ok(());
@@ -329,8 +373,8 @@ async fn migration_001_create_epochs(db: &MySqlPool) -> Result<()> {
         db,
         "epochs",
         r#"(
-            chain_id BIGINT NOT NULL,
-            block_number BIGINT NOT NULL,
+            chain_id BIGINT UNSIGNED NOT NULL,
+            block_number BIGINT UNSIGNED NOT NULL,
             erc20_address CHAR(42) NOT NULL,
             ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )"#,
@@ -364,7 +408,7 @@ async fn migration_003_create_clonings(db: &MySqlPool) -> Result<()> {
         db,
         "clonings",
         r#"(
-            chain_id BIGINT NOT NULL,
+            chain_id BIGINT UNSIGNED NOT NULL,
             erc20_address CHAR(42) NOT NULL,
             target_txid VARCHAR(128) NOT NULL,
             mint_account_address VARCHAR(128) NOT NULL,
@@ -376,4 +420,27 @@ async fn migration_003_create_clonings(db: &MySqlPool) -> Result<()> {
         )"#,
     )
     .await
+}
+
+/// Migration 004: Add an intent_id to tokens table
+async fn migration_004_add_intent_id_to_tokens(db: &MySqlPool) -> Result<()> {
+    let col_res = add_column_if_not_exists(
+        db,
+        "tokens",
+        "intent_id",
+        "VARCHAR(255) NOT NULL DEFAULT ''",
+    )
+    .await;
+    let idx_res = add_index_if_not_exists(
+        db,
+        "tokens",
+        "idx_intent_id",
+        "intent_id"
+    ).await;
+    if col_res.is_err() {
+        return col_res;
+    } else if idx_res.is_err() {
+        return idx_res;
+    }
+    Ok(())
 }

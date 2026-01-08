@@ -141,6 +141,7 @@ pub async fn process_and_send_snapshot(
         request_data.erc20_address,
         request_data.block_number,
         &ethereum_snapshot,
+        &hex::encode(&request_data.intent_id),
     )
     .await?;
 
@@ -230,6 +231,7 @@ async fn write_token_supply(
     erc20_address: Address,
     block_number: u64,
     token_supply: &HashMap<Address, TokenAmount>,
+    intent_id: &str,
 ) -> Result<()> {
     let conn = create_db_conn(cfg)
         .await
@@ -261,9 +263,10 @@ async fn write_token_supply(
                     erc20_address,
                     holder_address,
                     holder_amount,
-                    signature
+                    signature,
+                    intent_id
                 )
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(&chain_id)
@@ -271,6 +274,7 @@ async fn write_token_supply(
         .bind(&token_addr_str)
         .bind(supply.amount.to_string().as_str())
         .bind(hex::encode(&supply.signature).as_str())
+        .bind(intent_id)
         .execute(&mut *tx)
         .await
         .context("insert token supply")?;

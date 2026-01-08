@@ -1,8 +1,8 @@
 . .env
 
 export PORT=9010
-export SOLANA_DEVNET_URL="https://red-burned-rain.solana-devnet.quiknode.pro/${QUICKNODE_API_KEY}"
-export SOLANA_MAINNET_URL="https://red-burned-rain.solana-mainnet.quiknode.pro/${QUICKNODE_API_KEY}"
+export SOLANA_DEVNET_URL="https://api.devnet.solana.com"
+export SOLANA_MAINNET_URL="https://api.mainnet-beta.solana.com"
 export MYSQL_HOST="localhost"
 export MYSQL_PORT=3306
 export MYSQL_USER="vamper"

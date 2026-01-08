@@ -167,45 +167,44 @@ impl SnapshotIndexer {
                 let logs = logs.unwrap();
                 info!("Processing {} transfers", logs.len());
                 for log in logs {
-                    let typed = Transfer::decode_log(&log.inner);
-                    if let Err(err) = typed {
-                        error!("Error decoding Transfer event: {}", err);
-                        continue;
-                    }
-                    let event = &typed.unwrap().data;
-                    if event.to != Address::ZERO {
-                        match token_supply.get_mut(&event.to) {
+                    let from = log.topics()[1];
+                    let to = log.topics()[2];
+                    let value = U256::from_be_slice(log.data().data.as_ref());
+                    let from_address = Address::from_slice(&from[12..]);
+                    let to_address = Address::from_slice(&to[12..]);
+                    if to_address != Address::ZERO {
+                        match token_supply.get_mut(&to_address) {
                             Some(v) => {
-                                v.amount = v.amount.checked_add(event.amount).unwrap();
+                                v.amount = v.amount.checked_add(value).unwrap();
                             }
                             None => {
                                 // Fix: Create new entry with the transfer amount instead of zero
                                 token_supply.insert(
-                                    event.to,
+                                    to_address,
                                     TokenAmount {
-                                        amount: event.amount,
+                                        amount: value,
                                         signature: Vec::new(),
                                     },
                                 );
                             }
                         }
                     }
-                    if event.from != Address::ZERO {
-                        if let Some(v) = token_supply.get_mut(&event.from) {
+                    if from_address != Address::ZERO {
+                        if let Some(v) = token_supply.get_mut(&from_address) {
                             // Checking the substraction. If None then truncate the result to 0
-                            if let Some(new_amount) = v.amount.checked_sub(event.amount) {
+                            if let Some(new_amount) = v.amount.checked_sub(value) {
                                 v.amount = new_amount;
                             } else {
                                 // If the amount is less than the value, set it to zero
                                 warn!(
                                     "Token amount for address {:?} = {} is less than the deducted value {}. Setting to zero.",
-                                    event.from, v.amount, event.amount
+                                    from_address, v.amount, value
                                 );
                                 v.amount = U256::ZERO;
                             }
                         }
                     }
-                    total_amount = total_amount.checked_add(event.amount).unwrap();
+                    total_amount = total_amount.checked_add(value).unwrap();
                 }
                 // Update stats
                 {

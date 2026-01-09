@@ -1,5 +1,5 @@
 [package]
-name = "claim_solver"
+name = "vamp-fun-solver-claim"
 version = "0.1.0"
 edition = "2024"
 

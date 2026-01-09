@@ -39,7 +39,7 @@ pub struct EventSubscriber {
     subscriber: Subscriber,
 }
 
-/// A polling client that pings the request registrator for new UserEventProto events.
+/// A RabbitMQ event subscriber. Receives events published by the event listener.
 impl EventSubscriber {
     pub async fn new(cfg: Arc<Cfg>) -> Result<Self> {
         let url = Self::amqp_url(&cfg);

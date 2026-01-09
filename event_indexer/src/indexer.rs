@@ -1,17 +1,19 @@
 use alloy::sol_types::SolEvent;
-use std::{sync::Arc, time::Duration};
+use serde::Serialize;
+use std::{fmt::Debug, sync::Arc, time::Duration};
 use tokio::time::sleep;
 use tracing::{info, warn};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use sqlx::{MySql, MySqlPool, Row, Transaction};
 
 use alloy_primitives::{Address, B256};
 use alloy_rpc_types::{Filter, Log};
 
-use crate::{app_state::AppState, eth_client::EthClient, vamper_event::VampTokenIntent};
+use crate::{app_state::AppState, eth_client::EthClient, events::VampTokenIntent};
 
-pub async fn indexer_loop(state: AppState) -> Result<()> {
+pub async fn indexer_loop<Event>(state: AppState, contract: Address) -> Result<()>
+where Event: Debug + SolEvent + Serialize {
     info!("indexer loop started");
 
     let mut backoff = Duration::from_secs(1);
@@ -22,7 +24,7 @@ pub async fn indexer_loop(state: AppState) -> Result<()> {
         .saturating_sub(state.cfg.overlap_blocks);
 
     loop {
-        match indexer_tick(&state, current_block).await {
+        match indexer_tick::<Event>(&state, current_block, contract).await {
             Ok(next_block) => {
                 backoff = Duration::from_secs(1);
                 current_block = next_block;
@@ -37,7 +39,8 @@ pub async fn indexer_loop(state: AppState) -> Result<()> {
     }
 }
 
-pub async fn indexer_tick(state: &AppState, last_block: u64) -> anyhow::Result<u64> {
+pub async fn indexer_tick<Event>(state: &AppState, last_block: u64, contract: Address) -> anyhow::Result<u64>
+where Event: Debug + SolEvent + Serialize {
     // Determine finalized head (head - confirmations)
     let head = state.eth.provider.get_block_number().await?;
     if head <= state.cfg.confirmations {
@@ -59,12 +62,6 @@ pub async fn indexer_tick(state: &AppState, last_block: u64) -> anyhow::Result<u
     // We do bounded ranges so eth_getLogs doesn't blow up on large spans.
     let mut current_from = from;
 
-    let contract: Address = state
-        .cfg
-        .vamp_clone_contract_address
-        .parse()
-        .map_err(|e| anyhow!("Error parsing contract address: {}", e))?;
-
     let topic0 = VampTokenIntent::SIGNATURE_HASH;
 
     let mut current_to: u64 = state.cfg.deployment_block;
@@ -80,7 +77,7 @@ pub async fn indexer_tick(state: &AppState, last_block: u64) -> anyhow::Result<u
         )
         .await?;
         if !logs.is_empty() {
-            persist_logs_and_advance_checkpoint(state, &logs).await?;
+            persist_logs_and_advance_checkpoint::<Event>(state, &logs).await?;
         } else {
             update_checkpoint_empty_log(&state.db, current_to).await?;
         }
@@ -107,10 +104,11 @@ pub async fn fetch_logs(
     eth.provider.get_logs(&filter).await.context("getting logs")
 }
 
-pub async fn persist_logs_and_advance_checkpoint(
+pub async fn persist_logs_and_advance_checkpoint<Event>(
     state: &AppState,
     logs: &[Log],
-) -> anyhow::Result<()> {
+) -> anyhow::Result<()>
+where Event: Debug + SolEvent + Serialize {
     // Sort logs by (block_number, log_index) so checkpoint advancement is correct.
     let mut logs_sorted = logs.to_vec();
     logs_sorted.sort_by_key(|l| {
@@ -130,7 +128,7 @@ pub async fn persist_logs_and_advance_checkpoint(
         )
         .await?
         {
-            state.publisher.publish(&l.inner).await?;
+            state.publisher.publish::<Event>(&l.inner).await?;
             insert_event_idempotent(&mut tx, state.cfg.chain_id, l).await?;
             info!(
                 l.block_number,

@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, sync::Arc};
 
 use alloy_provider::ProviderBuilder;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use axum::{
     extract::State,
@@ -17,7 +17,7 @@ use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use urlencoding::encode;
 
-use crate::{app_state::AppState, cfg::Cfg, db_init::init_db, eth_client::EthClient, event_publisher::EventPublisher, indexer::{ensure_checkpoint_row, indexer_loop}};
+use crate::{app_state::AppState, cfg::Cfg, db_init::init_db, eth_client::EthClient, event_publisher::EventPublisher, events::{ClaimToken, VampTokenIntent}, indexer::{ensure_checkpoint_row, indexer_loop}};
 
 mod app_state;
 mod cfg;
@@ -25,7 +25,7 @@ mod db_init;
 mod eth_client;
 mod event_publisher;
 mod indexer;
-mod vamper_event;
+mod events;
 
 #[derive(Serialize)]
 struct HealthResponse {
@@ -67,7 +67,17 @@ async fn main() -> Result<()> {
 
     let state = AppState { db, eth, cfg: args.clone(), publisher };
 
-    tokio::spawn(indexer_loop(state.clone()));
+    let vamp_clone_contract = args
+        .vamp_clone_contract_address
+        .parse()
+        .map_err(|e| anyhow!("Error parsing contract address: {}", e))?;
+    let vamp_claim_contract = args
+        .vamp_claim_contract_address
+        .parse()
+        .map_err(|e| anyhow!("Error parsing contract address: {}", e))?;
+
+    tokio::spawn(indexer_loop::<VampTokenIntent>(state.clone(), vamp_clone_contract));
+    tokio::spawn(indexer_loop::<ClaimToken>(state.clone(), vamp_claim_contract));
 
     // HTTP server
     let app = Router::new()

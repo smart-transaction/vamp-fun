@@ -14,7 +14,7 @@ use crate::{app_state::AppState, eth_client::EthClient, events::VampTokenIntent}
 
 pub async fn indexer_loop<Event>(state: AppState, contract: Address) -> Result<()>
 where Event: Debug + SolEvent + Serialize {
-    info!("indexer loop started");
+    info!("indexer loop started, contract: {}, event: {}", contract, Event::SIGNATURE);
 
     let mut backoff = Duration::from_secs(1);
     let max_backoff = Duration::from_secs(30);

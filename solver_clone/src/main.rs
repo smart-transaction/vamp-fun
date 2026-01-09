@@ -26,8 +26,8 @@ mod db_init;
 mod events;
 mod http_handler;
 mod mysql_conn;
-mod request_handler;
-mod request_registrator_listener;
+mod event_handler;
+mod event_subscriber;
 mod snapshot_indexer;
 mod snapshot_processor;
 mod solana_transaction;
@@ -47,13 +47,13 @@ async fn main() -> Result<()> {
 
     // Initialize RabbitMQ listener
     let mut deploy_token_listener =
-        request_registrator_listener::RequestRegistratorListener::new(args.clone()).await?;
+        event_subscriber::EventSubscriber::new(args.clone()).await?;
 
     // Initialize SnapshotIndexer
     let indexer = Arc::new(SnapshotIndexer::new(args.clone()).await?);
 
     let indexing_stats = Arc::new(Mutex::new(IndexerProcesses::new()));
-    let deploy_token_handler = Arc::new(request_handler::DeployTokenHandler::new(
+    let deploy_token_handler = Arc::new(event_handler::DeployTokenHandler::new(
         args.clone(),
         indexer.clone(),
         indexing_stats.clone(),

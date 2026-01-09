@@ -5,7 +5,7 @@ use cleanapp_rustlib::rabbitmq::subscriber::{Callback, Message, Subscriber};
 use tokio::spawn;
 use tracing::{error, info};
 
-use crate::{cfg::Cfg, request_handler::DeployTokenHandler, events::VampTokenIntent};
+use crate::{cfg::Cfg, event_handler::DeployTokenHandler, events::VampTokenIntent};
 
 pub struct SubscriberCallback {
     handler: Arc<DeployTokenHandler>,
@@ -34,13 +34,13 @@ impl Callback for SubscriberCallback {
     }
 }
 
-pub struct RequestRegistratorListener {
+pub struct EventSubscriber {
     cfg: Arc<Cfg>,
     subscriber: Subscriber,
 }
 
 /// A polling client that pings the request registrator for new UserEventProto events.
-impl RequestRegistratorListener {
+impl EventSubscriber {
     pub async fn new(cfg: Arc<Cfg>) -> Result<Self> {
         let url = Self::amqp_url(&cfg);
         info!(url, "Connecting to RabbitMQ...");

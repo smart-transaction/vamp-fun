@@ -21,7 +21,7 @@ use tokio::spawn;
 use tracing::{error, info, warn};
 
 use crate::{
-    args::Args, chain_info::{ChainInfo, fetch_chains, get_quicknode_mapping}, events::Transfer, mysql_conn::create_db_conn, snapshot_processor::process_and_send_snapshot, stats::{IndexerProcesses, IndexerStats, VampingStatus}
+    cfg::Cfg, chain_info::{ChainInfo, fetch_chains, get_quicknode_mapping}, events::Transfer, mysql_conn::create_db_conn, snapshot_processor::process_and_send_snapshot, stats::{IndexerProcesses, IndexerStats, VampingStatus}
 };
 
 #[derive(Default)]
@@ -59,7 +59,7 @@ fn get_program_instance(payer_keypair: Arc<Keypair>) -> Result<Program<Arc<Keypa
 }
 
 pub struct SnapshotIndexer {
-    cfg: Arc<Args>,
+    cfg: Arc<Cfg>,
     chain_info: HashMap<u64, ChainInfo>,
     quicknode_chains: HashMap<u64, String>,
     solana_payer_keypair: Arc<Keypair>,
@@ -70,7 +70,7 @@ pub struct SnapshotIndexer {
 const BLOCK_STEP: u64 = 9990;
 
 impl SnapshotIndexer {
-    pub async fn new(args: Arc<Args>) -> Result<Self> {
+    pub async fn new(args: Arc<Cfg>) -> Result<Self> {
         let solana_payer_keypair = Arc::new(Keypair::from_base58_string(&args.solana_private_key));
         let solana_program = Arc::new(get_program_instance(solana_payer_keypair.clone())?);
         let chains = fetch_chains()

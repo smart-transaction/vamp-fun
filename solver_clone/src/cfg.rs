@@ -2,7 +2,7 @@ use alloy::signers::local::PrivateKeySigner;
 use clap::Parser;
 
 #[derive(Parser, Debug)]
-pub struct Args {
+pub struct Cfg {
     #[arg(long, env = "PORT", default_value_t = 9000)]
     pub port: u16,
 

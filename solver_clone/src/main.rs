@@ -18,9 +18,9 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
-use crate::{args::Args, db_init::init_db};
+use crate::{cfg::Cfg, db_init::init_db};
 
-mod args;
+mod cfg;
 mod chain_info;
 mod db_init;
 mod events;
@@ -35,7 +35,7 @@ mod stats;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let args = Arc::new(Args::parse());
+    let args = Arc::new(Cfg::parse());
 
     init_db(args.clone()).await?;
 

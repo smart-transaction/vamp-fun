@@ -11,7 +11,7 @@ use sqlx::Row;
 use tracing::error;
 
 use crate::{
-    args::Args,
+    cfg::Cfg,
     mysql_conn::create_db_conn,
     stats::{IndexerProcesses, IndexerStats},
 };
@@ -32,7 +32,7 @@ pub struct TokenClaimData {
 
 pub async fn handle_get_claim_amount(
     params: Query<HashMap<String, String>>,
-    cfg: &Args,
+    cfg: &Cfg,
 ) -> Result<Json<TokenClaimData>, StatusCode> {
     let db_conn = create_db_conn(cfg).await;
     if let Err(err) = db_conn {

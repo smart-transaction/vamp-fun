@@ -4,9 +4,9 @@ use anyhow::Context;
 use sqlx::MySqlPool;
 use urlencoding::encode;
 
-use crate::args::Args;
+use crate::cfg::Cfg;
 
-pub async fn create_db_conn(cfg: &Args) -> Result<MySqlPool, Box<dyn Error>> {
+pub async fn create_db_conn(cfg: &Cfg) -> Result<MySqlPool, Box<dyn Error>> {
     let encoded_password = encode(&cfg.mysql_password);
     let mysql_url = format!(
         "mysql://{}:{}@{}:{}/{}",

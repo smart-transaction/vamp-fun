@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::args::Args;
+use crate::cfg::Cfg;
 use crate::snapshot_indexer::{SnapshotIndexer, TokenRequestData};
 use crate::stats::{IndexerProcesses, VampingStatus};
 use crate::events::VampTokenIntent;
@@ -10,7 +10,7 @@ use anyhow::Result;
 use tracing::info;
 
 pub struct DeployTokenHandler {
-    pub cfg: Arc<Args>,
+    pub cfg: Arc<Cfg>,
     pub indexer: Arc<SnapshotIndexer>,
     pub stats: Arc<Mutex<IndexerProcesses>>,
     pub default_solana_cluster: String,
@@ -18,7 +18,7 @@ pub struct DeployTokenHandler {
 
 impl DeployTokenHandler {
     pub fn new<T>(
-        cfg: Arc<Args>,
+        cfg: Arc<Cfg>,
         indexer: Arc<SnapshotIndexer>,
         indexing_stats: Arc<Mutex<IndexerProcesses>>,
         default_solana_cluster: T,

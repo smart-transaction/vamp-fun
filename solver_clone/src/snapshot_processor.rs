@@ -18,7 +18,7 @@ use spl_associated_token_account::ID as ASSOCIATED_TOKEN_PROGRAM_ID;
 use spl_token::ID as TOKEN_PROGRAM_ID;
 use tracing::info;
 
-use crate::args::Args;
+use crate::cfg::Cfg;
 use crate::mysql_conn::create_db_conn;
 use crate::snapshot_indexer::{TokenAmount, TokenRequestData};
 use crate::solana_transaction::SolanaTransaction;
@@ -43,7 +43,7 @@ struct CloneTransactionArgs {
 }
 
 pub async fn process_and_send_snapshot(
-    cfg: Arc<Args>,
+    cfg: Arc<Cfg>,
     request_data: TokenRequestData,
     amount: U256,
     original_snapshot: HashMap<Address, TokenAmount>,
@@ -187,7 +187,7 @@ fn convert_to_sol(src_amount: &U256) -> Result<(u64, u8)> {
 }
 
 async fn write_cloning(
-    cfg: &Args,
+    cfg: &Cfg,
     chain_id: u64,
     erc20_address: Address,
     target_txid: String,
@@ -226,7 +226,7 @@ async fn write_cloning(
 }
 
 async fn write_token_supply(
-    cfg: &Args,
+    cfg: &Cfg,
     chain_id: u64,
     erc20_address: Address,
     block_number: u64,

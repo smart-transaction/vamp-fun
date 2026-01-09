@@ -17,7 +17,7 @@ use anyhow::{Context, Result, anyhow};
 use sqlx::{MySqlPool, Row};
 use tracing::{info, warn};
 
-use crate::{args::Args, mysql_conn::create_db_conn};
+use crate::{cfg::Cfg, mysql_conn::create_db_conn};
 
 /// Represents a single database migration
 struct Migration {
@@ -49,7 +49,7 @@ impl Migration {
 }
 
 /// Main entry point for database initialization
-pub async fn init_db(args: Arc<Args>) -> Result<()> {
+pub async fn init_db(args: Arc<Cfg>) -> Result<()> {
     let pool = create_db_conn(&args)
         .await
         .map_err(|e| anyhow!("error creating DB connection: {}", e))?;

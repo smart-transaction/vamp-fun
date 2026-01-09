@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "../src/TokenVampBump.sol";
 import "../src/MockERC20MetadataURI.sol";
 
-contract VampTokenEmitterUpgradeableTest is Test {
+contract TokenVampBumpTest is Test {
     TokenVampBump internal vamp;
     TokenVampBump internal zeroVamp;
     MockERC20MetadataURI internal token;

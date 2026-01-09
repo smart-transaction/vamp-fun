@@ -47,7 +47,7 @@ if [[ "$1" =~ ^\[.*\]$ ]]; then
 fi
 
 # Salt
-SALT=3483729438
+SALT=$(date +%s%N)
 # Fee in WEI
 # 10 GWei
 FEE=10000000000
@@ -73,7 +73,7 @@ echo -e "• Chains: ${GREEN}${TARGET_CHAINS:-all networks}${NC}"
 SCRIPT_PATH="script/Deploy${CONTRACT_NAME}.s.sol"
 [ ! -f "$SCRIPT_PATH" ] && error_exit "Deployment script not found: $SCRIPT_PATH"
 
-FORGE_CMD="forge script $SCRIPT_PATH --broadcast -vvvv --ffi"
+FORGE_CMD="forge script $SCRIPT_PATH --broadcast -vvvvv --ffi"
 FORGE_CMD+=" --sig \"run(uint256,uint256)\" $SALT $FEE"
 
 echo ${FORGE_CMD}

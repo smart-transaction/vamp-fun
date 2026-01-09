@@ -33,7 +33,7 @@ CONFIG_FILE="config/networks.json"
 # Error handling function
 error_exit() {
     echo -e "${RED}❌ Error: $1${NC}" >&2
-    echo -e "${CYAN}Usage: ./verify.sh <mainnet|testnet|lestnet> <contract-name> <contract-address> [chains] [constructor-sig] [constructor-args]${NC}" >&2
+    echo -e "${CYAN}Usage: ./verify.sh <mainnet|testnet> <contract-name> <contract-address> [chains] [constructor-sig] [constructor-args]${NC}" >&2
     exit 1
 }
 

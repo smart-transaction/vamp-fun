@@ -26,7 +26,6 @@ use crate::{
 
 #[derive(Default)]
 pub struct TokenRequestData {
-    pub sequence_id: u64,
     pub chain_id: u64,
     pub erc20_address: Address,
     pub token_full_name: String,

@@ -23,7 +23,7 @@ impl Callback for SubscriberCallback {
         info!("Decoded event: {:?}", event);
         let handler = self.handler.clone();
         spawn(async move {
-            match handler.handle(0, event).await {
+            match handler.handle(event).await {
                 Ok(_) => {}
                 Err(err) => {
                     error!("Error handling the vamping request: {}", err);

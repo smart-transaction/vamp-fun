@@ -23,8 +23,8 @@ pub struct Cfg {
     #[arg(long, env = "ETH_RPC_URL")]
     pub eth_rpc_url: String,
 
-    #[arg(long, env = "VAMP_FUN_CONTRACT_ADDRESS")]
-    pub vamp_fun_contract_address: String,
+    #[arg(long, env = "VAMP_CLONE_CONTRACT_ADDRESS")]
+    pub vamp_clone_contract_address: String,
 
     #[arg(long, env = "CONFIRMATIONS", default_value_t = 12)]
     pub confirmations: u64,

@@ -61,7 +61,7 @@ pub async fn indexer_tick(state: &AppState, last_block: u64) -> anyhow::Result<u
 
     let contract: Address = state
         .cfg
-        .vamp_fun_contract_address
+        .vamp_clone_contract_address
         .parse()
         .map_err(|e| anyhow!("Error parsing contract address: {}", e))?;
 

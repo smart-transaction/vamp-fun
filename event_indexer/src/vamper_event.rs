@@ -13,4 +13,12 @@ sol! {
         string token_symbol,
         string token_uri
     );
+
+    #[derive(Debug, Deserialize, Serialize)]
+    event ClaimToken(
+        bytes32 intent_id,
+        address claimer,
+        uint256 amount,
+        bytes owner_signature,
+    );
 }

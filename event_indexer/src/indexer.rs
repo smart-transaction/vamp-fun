@@ -10,9 +10,9 @@ use sqlx::{MySql, MySqlPool, Row, Transaction};
 use alloy_primitives::{Address, B256};
 use alloy_rpc_types::{Filter, Log};
 
-use crate::{app_state::AppState, eth_client::EthClient, events::VampTokenIntent};
+use crate::{app_state::AppState, eth_client::EthClient, event_publisher::EventPublisher, events::VampTokenIntent};
 
-pub async fn indexer_loop<Event>(state: AppState, contract: Address) -> Result<()>
+pub async fn indexer_loop<Event>(state: Arc<AppState>, contract: Address, publisher:EventPublisher) -> Result<()>
 where Event: Debug + SolEvent + Serialize {
     info!("indexer loop started, contract: {}, event: {}", contract, Event::SIGNATURE);
 
@@ -24,7 +24,7 @@ where Event: Debug + SolEvent + Serialize {
         .saturating_sub(state.cfg.overlap_blocks);
 
     loop {
-        match indexer_tick::<Event>(&state, current_block, contract).await {
+        match indexer_tick::<Event>(&state, current_block, contract, &publisher).await {
             Ok(next_block) => {
                 backoff = Duration::from_secs(1);
                 current_block = next_block;
@@ -39,7 +39,7 @@ where Event: Debug + SolEvent + Serialize {
     }
 }
 
-pub async fn indexer_tick<Event>(state: &AppState, last_block: u64, contract: Address) -> anyhow::Result<u64>
+pub async fn indexer_tick<Event>(state: &AppState, last_block: u64, contract: Address, publisher: &EventPublisher) -> anyhow::Result<u64>
 where Event: Debug + SolEvent + Serialize {
     // Determine finalized head (head - confirmations)
     let head = state.eth.provider.get_block_number().await?;
@@ -71,13 +71,13 @@ where Event: Debug + SolEvent + Serialize {
         let logs = fetch_logs(
             contract,
             topic0,
-            state.eth.clone(),
+            &state.eth,
             current_from,
             current_to,
         )
         .await?;
         if !logs.is_empty() {
-            persist_logs_and_advance_checkpoint::<Event>(state, &logs).await?;
+            persist_logs_and_advance_checkpoint::<Event>(state, &logs, publisher).await?;
         } else {
             update_checkpoint_empty_log(&state.db, current_to).await?;
         }
@@ -91,7 +91,7 @@ where Event: Debug + SolEvent + Serialize {
 pub async fn fetch_logs(
     contract: Address,
     topic0: B256,
-    eth: Arc<EthClient>,
+    eth: &EthClient,
     from: u64,
     to: u64,
 ) -> Result<Vec<Log>> {
@@ -107,6 +107,7 @@ pub async fn fetch_logs(
 pub async fn persist_logs_and_advance_checkpoint<Event>(
     state: &AppState,
     logs: &[Log],
+    publisher: &EventPublisher
 ) -> anyhow::Result<()>
 where Event: Debug + SolEvent + Serialize {
     // Sort logs by (block_number, log_index) so checkpoint advancement is correct.
@@ -128,7 +129,7 @@ where Event: Debug + SolEvent + Serialize {
         )
         .await?
         {
-            state.publisher.publish::<Event>(&l.inner).await?;
+            publisher.publish::<Event>(&l.inner).await?;
             insert_event_idempotent(&mut tx, state.cfg.chain_id, l).await?;
             info!(
                 l.block_number,

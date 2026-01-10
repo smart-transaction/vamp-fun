@@ -4,7 +4,6 @@ use alloy_provider::ProviderBuilder;
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use axum::{
-    extract::State,
     http::StatusCode,
     response::IntoResponse,
     routing::get,
@@ -32,7 +31,7 @@ struct HealthResponse {
     status: &'static str,
 }
 
-fn get_mysql_url(args: Arc<Cfg>) -> Result<String> {
+fn get_mysql_url(args: &Cfg) -> Result<String> {
     let encoded_password = encode(&args.mysql_password);
     let mysql_url = format!(
         "mysql://{}:{}@{}:{}/{}",
@@ -49,42 +48,43 @@ async fn main() -> Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let args = Arc::new(Cfg::parse());
+    let cfg = Cfg::parse();
 
-    let mysql_url = get_mysql_url(args.clone())?;
+    let mysql_url = get_mysql_url(&cfg)?;
 
     let db = MySqlPool::connect(&mysql_url).await.context("connect mysql")?;
     init_db(&db).await?;
     ensure_checkpoint_row(&db).await?;
 
     let provider = ProviderBuilder::new()
-        .connect(&args.eth_rpc_url)
+        .connect(&cfg.eth_rpc_url)
         .await
         .map_err(|e| anyhow::anyhow!("failed to connect provider: {e}"))?;
 
-    let eth = Arc::new(EthClient { provider: Arc::new(provider) });
-    let publisher = Arc::new(EventPublisher::new(args.clone()).await?);
+    let eth = EthClient { provider: Arc::new(provider) };
 
-    let state = AppState { db, eth, cfg: args.clone(), publisher };
+    let state = Arc::new(AppState { db, eth, cfg});
 
-    let vamp_clone_contract = args
+    let clone_publisher = EventPublisher::new(state.clone(), &state.cfg.clone_routing_key).await?;
+    let claim_publisher = EventPublisher::new(state.clone(), &state.cfg.claim_routing_key).await?;
+
+    let vamp_clone_contract = state.cfg
         .vamp_clone_contract_address
         .parse()
         .map_err(|e| anyhow!("Error parsing contract address: {}", e))?;
-    let vamp_claim_contract = args
+    let vamp_claim_contract = state.cfg
         .vamp_claim_contract_address
         .parse()
         .map_err(|e| anyhow!("Error parsing contract address: {}", e))?;
 
-    tokio::spawn(indexer_loop::<VampTokenIntent>(state.clone(), vamp_clone_contract));
-    tokio::spawn(indexer_loop::<ClaimToken>(state.clone(), vamp_claim_contract));
+    tokio::spawn(indexer_loop::<VampTokenIntent>(state.clone(), vamp_clone_contract, clone_publisher));
+    tokio::spawn(indexer_loop::<ClaimToken>(state.clone(), vamp_claim_contract, claim_publisher));
 
     // HTTP server
     let app = Router::new()
-        .route("/health", get(health))
-        .with_state(state);
+        .route("/health", get(health));
 
-    let addr: SocketAddr = format!("0.0.0.0:{}", args.port).parse().expect("valid listen addr");
+    let addr: SocketAddr = format!("0.0.0.0:{}", state.cfg.port).parse().expect("valid listen addr");
     info!("listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr)
@@ -101,7 +101,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn health(State(_state): State<AppState>) -> impl IntoResponse {
+async fn health() -> impl IntoResponse {
     // You can extend this to check db connectivity, provider liveness, etc.
     let body = axum::Json(HealthResponse { status: "ok" });
     (StatusCode::OK, body)

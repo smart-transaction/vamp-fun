@@ -62,6 +62,9 @@ pub struct Cfg {
     #[arg(long, env = "EXCHANGE_NAME")]
     pub exchange_name: String,
 
-    #[arg(long, env = "ROUTING_KEY")]
-    pub routing_key: String,
+    #[arg(long, env = "CLONE_ROUTING_KEY")]
+    pub clone_routing_key: String,
+
+    #[arg(long, env = "CLAIM_ROUTING_KEY")]
+    pub claim_routing_key: String,
 }

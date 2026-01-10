@@ -7,17 +7,17 @@ use cleanapp_rustlib::rabbitmq::publisher::Publisher;
 use serde::Serialize;
 use tracing::info;
 
-use crate::cfg::Cfg;
+use crate::{app_state::AppState, cfg::Cfg};
 
 pub struct EventPublisher {
     publisher: Publisher
 }
 
 impl EventPublisher {
-    pub async fn new(cfg: Arc<Cfg>) -> Result<Self> {
-        let amqp_url = Self::amqp_url(&cfg);
+    pub async fn new(state: Arc<AppState>, routing_key: &str) -> Result<Self> {
+        let amqp_url = Self::amqp_url(&state.cfg);
         Ok(Self {
-            publisher: Publisher::new(&amqp_url, &cfg.exchange_name, &cfg.routing_key).await?
+            publisher: Publisher::new(&amqp_url, &state.cfg.exchange_name, routing_key).await?
         })
     }
 

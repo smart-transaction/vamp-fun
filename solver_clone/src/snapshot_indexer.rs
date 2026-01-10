@@ -295,18 +295,39 @@ impl SnapshotIndexer {
         let conn = create_db_conn(&self.cfg)
             .await
             .map_err(|e| anyhow!("Error creating DB connection: {}", e))?;
-        // Reading the current snapshot from the database
+
         let addr_str = format!("{:#x}", erc20_address);
+        // Reading the latest intent ID for a given token
+        let row = sqlx::query(
+            r#"
+                SELECT intent_id
+                FROM tokens
+                WHERE chain_id = ?
+                  AND erc20_address = ?
+                  AND ts = (SELECT MAX(ts) FROM tokens)
+                LIMIT 1
+            "#
+        )
+        .bind(&chain_id)
+        .bind(&addr_str)
+        .fetch_optional(&conn)
+        .await
+        .context("fetch the latest intent")?;
+        if row.is_none() {
+            return Ok((token_supply, None));
+        }
+        let row = row.unwrap();
+        let intent_id = row.get::<&str, usize>(0);
+
+        // Reading the current snapshot from the database
         let rows = sqlx::query(
             r#"
                 SELECT holder_address, holder_amount, signature
                 FROM tokens
-                WHERE chain_id = ?
-                  AND erc20_address = ?
+                WHERE intent_id = ?
             "#,
         )
-        .bind(&chain_id)
-        .bind(&addr_str)
+        .bind(&intent_id)
         .fetch_all(&conn)
         .await
         .context("fetch token supply")?;

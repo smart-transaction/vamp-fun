@@ -23,7 +23,7 @@ export AMQP_PORT="5672"
 export AMQP_USER="guest"
 export AMQP_PASSWORD="guest"
 export EXCHANGE_NAME="vamp-fun"
-export ROUTING_KEY="event.vamp"
+export ROUTING_KEY="event.clone"
 export QUEUE_NAME="solver-queue"
 
 cargo run

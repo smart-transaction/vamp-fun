@@ -124,6 +124,9 @@ fn migrations() -> Vec<Migration> {
         Migration::new("004_add_intent_id_to_tokens", "Add intent ID to tokens", |db| {
             Box::pin(async move { migration_004_add_intent_id_to_tokens(db).await })
         }),
+        Migration::new("005_add_token_ts_iundex", "Add tokens timestamp index", |db| {
+            Box::pin(async move { migration_005_add_token_ts_iundex(db).await })
+        }),
     ]
 }
 
@@ -442,5 +445,16 @@ async fn migration_004_add_intent_id_to_tokens(db: &MySqlPool) -> Result<()> {
     } else if idx_res.is_err() {
         return idx_res;
     }
+    Ok(())
+}
+
+/// Migration 005: Add an intent_id to tokens table
+async fn migration_005_add_token_ts_iundex(db: &MySqlPool) -> Result<()> {
+    add_index_if_not_exists(
+        db,
+        "tokens",
+        "idx_ts",
+        "ts"
+    ).await?;
     Ok(())
 }

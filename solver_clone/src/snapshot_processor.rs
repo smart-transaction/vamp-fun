@@ -236,21 +236,8 @@ async fn write_token_supply(
     let conn = create_db_conn(cfg)
         .await
         .map_err(|e| anyhow!("error connecting to database: {}", e))?;
-    // Delete existing records for the given erc20_address
     let mut tx = conn.begin().await.context("begin tx")?;
     let str_address = format!("{:#x}", erc20_address);
-    sqlx::query(
-        r#"
-            DELETE FROM tokens
-            WHERE chain_id = ?
-                AND erc20_address = ?
-        "#,
-    )
-    .bind(&chain_id)
-    .bind(&str_address)
-    .execute(&mut *tx)
-    .await
-    .context("delete existing token supply")?;
 
     // Insert new supplies
     for (token_address, supply) in token_supply {

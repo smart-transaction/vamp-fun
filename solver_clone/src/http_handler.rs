@@ -131,7 +131,7 @@ pub async fn handle_get_claim_amount(
     let target_txid = row.get::<&str, usize>(0);
     let token_spl_address = row.get::<&str, usize>(1);
     let mint_account_address = row.get::<&str, usize>(2);
-    let intent_id = row.get::<&str, usize>(4);
+    let intent_id = row.get::<&str, usize>(3);
     claim_data.target_txid = target_txid.to_string();
     claim_data.token_spl_address = token_spl_address.to_string();
     claim_data.mint_account_address = mint_account_address.to_string();

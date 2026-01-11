@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use anyhow::Result;
 use axum::{
@@ -52,7 +52,7 @@ async fn main() -> Result<()> {
     // Initialize SnapshotIndexer
     let indexer = Arc::new(SnapshotIndexer::new(args.clone()).await?);
 
-    let indexing_stats = Arc::new(Mutex::new(IndexerProcesses::new()));
+    let indexing_stats = Arc::new(RwLock::new(IndexerProcesses::new()));
     let deploy_token_handler = Arc::new(event_handler::DeployTokenHandler::new(
         args.clone(),
         indexer.clone(),

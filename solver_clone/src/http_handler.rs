@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use alloy_primitives::U256;
@@ -142,9 +142,9 @@ pub async fn handle_get_claim_amount(
 
 pub fn handle_get_stats(
     params: Query<HashMap<String, String>>,
-    stats: Arc<Mutex<IndexerProcesses>>,
+    stats: Arc<RwLock<IndexerProcesses>>,
 ) -> Result<Json<IndexerStats>, StatusCode> {
-    let mut stats = stats.lock().map_err(|err| {
+    let stats = stats.read().map_err(|err| {
         error!("Lock error: {}", err);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
@@ -159,7 +159,7 @@ pub fn handle_get_stats(
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    match stats.get_mut(&(chain_id.unwrap(), erc20_address.unwrap())) {
+    match stats.get(&(chain_id.unwrap(), erc20_address.unwrap())) {
         Some(item) => {
             return Ok(Json(item.clone()));
         }

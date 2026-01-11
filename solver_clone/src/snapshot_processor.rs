@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use alloy::signers::Signer;
 use alloy_primitives::{Address, U256};
@@ -47,7 +47,7 @@ pub async fn process_and_send_snapshot(
     request_data: TokenRequestData,
     amount: U256,
     original_snapshot: HashMap<Address, TokenAmount>,
-    indexing_stats: Arc<Mutex<IndexerProcesses>>,
+    indexing_stats: Arc<RwLock<IndexerProcesses>>,
     solana_payer_keypair: Arc<Keypair>,
     solana_program: Arc<Program<Arc<Keypair>>>,
     solana_url: &str,
@@ -57,7 +57,7 @@ pub async fn process_and_send_snapshot(
         hex::encode(&request_data.intent_id)
     );
     {
-        if let Ok(mut stats) = indexing_stats.lock() {
+        if let Ok(mut stats) = indexing_stats.write() {
             if let Some(item) = stats.get_mut(&(request_data.chain_id, request_data.erc20_address))
             {
                 item.current_timestamp = Utc::now().timestamp();

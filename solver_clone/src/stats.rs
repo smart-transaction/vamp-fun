@@ -1,7 +1,7 @@
 use std::{
     cmp::max,
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
     time::Duration,
 };
 
@@ -38,10 +38,10 @@ pub struct IndexerStats {
 
 const MAX_STATS: usize = 100;
 
-pub async fn cleanup_stats(stats: Arc<Mutex<IndexerProcesses>>) {
+pub async fn cleanup_stats(stats: Arc<RwLock<IndexerProcesses>>) {
     loop {
         sleep(Duration::from_secs(60)).await;
-        if let Ok(mut stats) = stats.lock() {
+        if let Ok(mut stats) = stats.write() {
             // Find oldest stats
             let num_to_remove = max(MAX_STATS, stats.len()) - MAX_STATS;
             if num_to_remove == 0 {

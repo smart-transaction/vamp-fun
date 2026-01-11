@@ -2,7 +2,7 @@ use std::{
     cmp::{max, min},
     collections::HashMap,
     str::FromStr,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use alloy::{
@@ -99,7 +99,7 @@ impl SnapshotIndexer {
     pub async fn index_snapshot(
         &self,
         request_data: TokenRequestData,
-        stats: Arc<Mutex<IndexerProcesses>>,
+        stats: Arc<RwLock<IndexerProcesses>>,
     ) -> Result<()> {
         info!(
             "Indexing snapshot for token address: {:?} at block number: {:?}",
@@ -118,7 +118,7 @@ impl SnapshotIndexer {
             .fold(U256::ZERO, |acc, x| acc.checked_add(x).unwrap_or_default());
 
         {
-            if let Ok(mut stats) = stats.lock() {
+            if let Ok(mut stats) = stats.write() {
                 let mut item = IndexerStats::default();
                 item.chain_id = request_data.chain_id;
                 item.token_address = request_data.erc20_address;
@@ -137,7 +137,7 @@ impl SnapshotIndexer {
             let first_block = prev_block_number.unwrap_or(0) + 1;
             let latest_block = request_data.block_number;
             {
-                if let Ok(mut stats) = stats.lock() {
+                if let Ok(mut stats) = stats.write() {
                     let item = stats
                         .get_mut(&(request_data.chain_id, request_data.erc20_address))
                         .unwrap();
@@ -207,7 +207,7 @@ impl SnapshotIndexer {
                 }
                 // Update stats
                 {
-                    if let Ok(mut stats) = stats.lock() {
+                    if let Ok(mut stats) = stats.write() {
                         let item = stats
                             .get_mut(&(request_data.chain_id, request_data.erc20_address))
                             .unwrap();
@@ -239,7 +239,7 @@ impl SnapshotIndexer {
             .await
             {
                 error!("Failed to process and send snapshot: {:?}", err);
-                if let Ok(mut stats) = stats.lock() {
+                if let Ok(mut stats) = stats.write() {
                     let item = stats.get_mut(&(chain_id, erc20_address)).unwrap();
                     item.status = VampingStatus::Failure;
                     item.message = err.to_string();

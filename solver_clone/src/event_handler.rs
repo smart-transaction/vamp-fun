@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use crate::cfg::Cfg;
 use crate::snapshot_indexer::{SnapshotIndexer, TokenRequestData};
@@ -12,7 +12,7 @@ use tracing::info;
 pub struct DeployTokenHandler {
     pub cfg: Arc<Cfg>,
     pub indexer: Arc<SnapshotIndexer>,
-    pub stats: Arc<Mutex<IndexerProcesses>>,
+    pub stats: Arc<RwLock<IndexerProcesses>>,
     pub default_solana_cluster: String,
 }
 
@@ -20,7 +20,7 @@ impl DeployTokenHandler {
     pub fn new<T>(
         cfg: Arc<Cfg>,
         indexer: Arc<SnapshotIndexer>,
-        indexing_stats: Arc<Mutex<IndexerProcesses>>,
+        indexing_stats: Arc<RwLock<IndexerProcesses>>,
         default_solana_cluster: T,
     ) -> Self
     where
@@ -80,7 +80,7 @@ impl DeployTokenHandler {
         {
             Ok(_) => Ok(()),
             Err(err) => {
-                if let Ok(mut stats) = stats.lock() {
+                if let Ok(mut stats) = stats.write() {
                     if let Some(item) = stats.get_mut(&(chain_id, erc20_address)) {
                         item.status = VampingStatus::Failure;
                         item.message = err.to_string();

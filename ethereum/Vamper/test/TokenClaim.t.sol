@@ -17,6 +17,7 @@ contract ClaimTokenTest is Test {
     address internal user  = address(0xBEEF);
     uint256 internal amount = 10_000_000_000;
     bytes internal signature = initSignature();
+    bytes20 claimerSolana = bytes20(address(0x12345678));
 
     uint256 internal feeWei = 1 gwei;
 
@@ -25,7 +26,8 @@ contract ClaimTokenTest is Test {
         bytes32 intentId,
         address claimer,
         uint256 amount,
-        bytes signature
+        bytes signature,
+        bytes20 claimerColana
     );
 
     function initSignature() pure internal returns (bytes memory sig) {
@@ -65,7 +67,7 @@ contract ClaimTokenTest is Test {
     function test_claimToken_revertsOnBadFee() public {
         vm.prank(user);
         vm.expectRevert();
-        claim.claimToken{value: feeWei - 1}(intentId, amount, signature);
+        claim.claimToken{value: feeWei - 1}(intentId, amount, signature, claimerSolana);
     }
 
     function test_claimToken_transfersFee_andEmitsEvent() public {
@@ -78,11 +80,12 @@ contract ClaimTokenTest is Test {
             intentId,
             user,
             amount,
-            signature
+            signature,
+            claimerSolana
         );
 
         vm.prank(user);
-        claim.claimToken{value: feeWei}(intentId, amount, signature);
+        claim.claimToken{value: feeWei}(intentId, amount, signature, claimerSolana);
 
         // Owner received the fee
         assertEq(claim.owner().balance - ownerBalBefore, feeWei);
@@ -97,11 +100,12 @@ contract ClaimTokenTest is Test {
             intentId,
             user,
             amount,
-            signature
+            signature,
+            claimerSolana
         );
 
         vm.prank(user);
-        zeroClaim.claimToken{value: 0}(intentId, amount, signature);
+        zeroClaim.claimToken{value: 0}(intentId, amount, signature, claimerSolana);
 
         // Owner received the fee
         assertEq(zeroClaim.owner().balance - ownerBalBefore, 0);

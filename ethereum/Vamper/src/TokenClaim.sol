@@ -20,7 +20,8 @@ contract TokenClaim is ReentrancyGuard, Ownable
         bytes32 intentId,
         address claimer,
         uint256 amount,
-        bytes signature
+        bytes signature,
+        bytes20 claimerSolana
     );
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -37,7 +38,7 @@ contract TokenClaim is ReentrancyGuard, Ownable
     /// @param _intentId The intent ID for given claiming
     /// @param _tokenAmount The amount of tokens to be claimed
     /// @param _signature The owner's account and amount signature
-    function claimToken(bytes32 _intentId, uint256 _tokenAmount, bytes memory _signature) external payable nonReentrant {
+    function claimToken(bytes32 _intentId, uint256 _tokenAmount, bytes memory _signature, bytes20 _claimerSolana) external payable nonReentrant {
         if (msg.value != feeWei) revert BadFee();
 
         address claimer = msg.sender;
@@ -53,7 +54,8 @@ contract TokenClaim is ReentrancyGuard, Ownable
             _intentId,
             claimer,
             _tokenAmount,
-            _signature
+            _signature,
+            _claimerSolana
         );
     }
 }

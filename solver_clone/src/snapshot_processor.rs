@@ -9,14 +9,18 @@ use anyhow::{Context, Result, anyhow};
 use balance_util::get_balance_hash;
 use chrono::Utc;
 use intent_id_util::fold_intent_id;
-use solana_sdk::signature::Keypair;
+use mpl_token_metadata::ID as TOKEN_METADATA_PROGRAM_ID;
+use solana_sdk::pubkey::Pubkey;
+use solana_sdk::{signature::{Keypair, Signer as _}, system_program, sysvar};
+use spl_associated_token_account::ID as ASSOCIATED_TOKEN_PROGRAM_ID;
+use spl_token::ID as TOKEN_PROGRAM_ID;
 use tracing::info;
 
 use crate::cfg::Cfg;
 use crate::mysql_conn::create_db_conn;
 use crate::snapshot_indexer::{TokenAmount, TokenRequestData};
 use crate::solana_transaction::SolanaTransaction;
-use crate::solana_transaction::solana_vamp_program::client::args::CreateTokenMint;
+use crate::solana_transaction::solana_vamp_program::client::{accounts, args};
 use crate::stats::{IndexerProcesses, VampingStatus};
 
 declare_program!(solana_vamp_program);
@@ -58,7 +62,56 @@ pub async fn process_and_send_snapshot(
     let final_max_price = 0;
     let final_flat_price_per_token = request_data.flat_price_per_token;
 
-    let transaction_args = CreateTokenMint {
+    let vamp_identifier = fold_intent_id(&request_data.intent_id)?;
+    let solana_payer_keypair = Arc::new(Keypair::from_base58_string(&cfg.solana_private_key));
+    let (mint_account, _) = Pubkey::find_program_address(
+        &[
+            b"mint",
+            solana_payer_keypair.pubkey().as_ref(),
+            vamp_identifier.to_le_bytes().as_ref(),
+        ],
+        &solana_vamp_program::ID,
+    );
+    let (metadata_account, _bump) = Pubkey::find_program_address(
+        &[
+            b"metadata",
+            TOKEN_METADATA_PROGRAM_ID.as_ref(),
+            mint_account.as_ref(),
+        ],
+        &TOKEN_METADATA_PROGRAM_ID,
+    );
+
+    let (vamp_state, _) = Pubkey::find_program_address(
+        &[b"vamp", mint_account.as_ref()],
+        &solana_vamp_program::ID,
+    );
+
+    let (vault, _) = Pubkey::find_program_address(
+        &[b"vault", mint_account.as_ref()],
+        &solana_vamp_program::ID,
+    );
+
+    let (sol_vault, _) = Pubkey::find_program_address(
+        &[b"sol_vault", mint_account.as_ref()],
+        &solana_vamp_program::ID,
+    );
+
+    let transaction_accounts = accounts::CreateTokenMint {
+        authority: solana_payer_keypair.pubkey(),
+        // mint_account: destination_token_address,
+        mint_account,
+        metadata_account,
+        vamp_state,
+        vault,
+        sol_vault,
+        token_program: TOKEN_PROGRAM_ID,
+        token_metadata_program: TOKEN_METADATA_PROGRAM_ID,
+        system_program: system_program::ID,
+        associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+        rent: sysvar::rent::ID,
+    };
+
+    let transaction_args = args::CreateTokenMint {
         vamp_identifier: fold_intent_id(&request_data.intent_id)?,
         token_decimals: decimals,
         token_name: request_data.token_full_name,
@@ -85,14 +138,15 @@ pub async fn process_and_send_snapshot(
 
     let solana = SolanaTransaction::new(solana_url);
 
-    let solana_payer_keypair = Arc::new(Keypair::from_base58_string(&cfg.solana_private_key));
     let solana_program = Arc::new(get_program_instance(solana_payer_keypair.clone())?);
 
     let (transaction, mint_account, vamp_state) = solana
         .prepare(
             solana_payer_keypair.clone(),
             solana_program.clone(),
-            transaction_args.vamp_identifier,
+            mint_account,
+            vamp_state,
+            transaction_accounts,
             transaction_args,
         )
         .await?;

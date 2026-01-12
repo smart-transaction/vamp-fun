@@ -1,24 +1,20 @@
 use std::sync::Arc;
 
 use anchor_client::Program;
-use anchor_lang::{InstructionData, declare_program};
+use anchor_lang::{InstructionData, ToAccountMetas, declare_program};
 use anyhow::{Result, anyhow};
 
-use mpl_token_metadata::ID as TOKEN_METADATA_PROGRAM_ID;
 use solana_client::rpc_client::RpcClient;
 use solana_commitment_config::CommitmentConfig;
 use solana_sdk::hash::Hash;
 use solana_sdk::signature::Signature;
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction, pubkey::Pubkey, signature::Keypair,
-    signer::Signer as SolanaSigner, system_program, sysvar, transaction::Transaction,
+    signer::Signer as SolanaSigner, transaction::Transaction,
 };
-use spl_associated_token_account::ID as ASSOCIATED_TOKEN_PROGRAM_ID;
-use spl_token::ID as TOKEN_PROGRAM_ID;
 use tracing::info;
 
 declare_program!(solana_vamp_program);
-use solana_vamp_program::client::accounts;
 
 pub struct SolanaTransaction {
     solana_url: String,
@@ -34,64 +30,22 @@ impl SolanaTransaction {
         }
     }
 
-    pub async fn prepare<TransactionArgs>(
+    pub async fn prepare<TransactionAccounts, TransactionArgs>(
         &self,
         payer_keypair: Arc<Keypair>,
         program: Arc<Program<Arc<Keypair>>>,
-        vamp_identifier: u64,
+        mint_account: Pubkey,
+        vamp_state: Pubkey,
+        transaction_accounts: TransactionAccounts,
         transaction_args: TransactionArgs,
     ) -> Result<(Transaction, Pubkey, Pubkey)>
     where
+        TransactionAccounts: ToAccountMetas,
         TransactionArgs: InstructionData,
     {
-        let (mint_account, _) = Pubkey::find_program_address(
-            &[
-                b"mint",
-                payer_keypair.pubkey().as_ref(),
-                vamp_identifier.to_le_bytes().as_ref(),
-            ],
-            &solana_vamp_program::ID,
-        );
-
-        let (metadata_account, _bump) = Pubkey::find_program_address(
-            &[
-                b"metadata",
-                TOKEN_METADATA_PROGRAM_ID.as_ref(),
-                mint_account.as_ref(),
-            ],
-            &TOKEN_METADATA_PROGRAM_ID,
-        );
-
-        let (vamp_state, _) = Pubkey::find_program_address(
-            &[b"vamp", mint_account.as_ref()],
-            &solana_vamp_program::ID,
-        );
-
-        let (vault, _) = Pubkey::find_program_address(
-            &[b"vault", mint_account.as_ref()],
-            &solana_vamp_program::ID,
-        );
-
-        let (sol_vault, _) = Pubkey::find_program_address(
-            &[b"sol_vault", mint_account.as_ref()],
-            &solana_vamp_program::ID,
-        );
         let program_instructions = program
             .request()
-            .accounts(accounts::CreateTokenMint {
-                authority: payer_keypair.pubkey(),
-                // mint_account: destination_token_address,
-                mint_account,
-                metadata_account,
-                vamp_state,
-                vault,
-                sol_vault,
-                token_program: TOKEN_PROGRAM_ID,
-                token_metadata_program: TOKEN_METADATA_PROGRAM_ID,
-                system_program: system_program::ID,
-                associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
-                rent: sysvar::rent::ID,
-            })
+            .accounts(transaction_accounts)
             .args(transaction_args)
             .instructions()?;
 

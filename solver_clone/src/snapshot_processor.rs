@@ -15,7 +15,8 @@ use tracing::info;
 use crate::cfg::Cfg;
 use crate::mysql_conn::create_db_conn;
 use crate::snapshot_indexer::{TokenAmount, TokenRequestData};
-use crate::solana_transaction::{CloneTransactionArgs, SolanaTransaction};
+use crate::solana_transaction::SolanaTransaction;
+use crate::solana_transaction::solana_vamp_program::client::args;
 use crate::stats::{IndexerProcesses, VampingStatus};
 
 declare_program!(solana_vamp_program);
@@ -57,18 +58,17 @@ pub async fn process_and_send_snapshot(
     let final_max_price = 0;
     let final_flat_price_per_token = request_data.flat_price_per_token;
 
-    // Now create the TokenVampingInfoProto with the validator address from the response
-    let transaction_args = CloneTransactionArgs {
+    let transaction_args = args::CreateTokenMint {
+        vamp_identifier: fold_intent_id(&request_data.intent_id)?,
+        token_decimals: decimals,
         token_name: request_data.token_full_name,
         token_symbol: request_data.token_symbol_name,
         token_erc20_address: request_data.erc20_address.as_slice().to_vec(),
         token_uri: request_data.token_uri,
         amount,
-        token_decimals: decimals,
         solver_public_key: cfg.ethereum_private_key.address().as_slice().to_vec(),
         validator_public_key: cfg.ethereum_private_key.address().as_slice().to_vec(),
         intent_id: request_data.intent_id.clone(),
-        vamp_identifier: fold_intent_id(&request_data.intent_id)?,
         paid_claiming_enabled: final_paid_claiming_enabled,
         use_bonding_curve: final_use_bonding_curve,
         curve_slope: final_curve_slope,

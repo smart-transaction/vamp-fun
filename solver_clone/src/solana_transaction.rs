@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use anchor_client::Program;
-use anchor_lang::declare_program;
+use anchor_lang::{InstructionData, declare_program};
 use anyhow::{Result, anyhow};
 
+use mpl_token_metadata::ID as TOKEN_METADATA_PROGRAM_ID;
 use solana_client::rpc_client::RpcClient;
 use solana_commitment_config::CommitmentConfig;
-use mpl_token_metadata::ID as TOKEN_METADATA_PROGRAM_ID;
 use solana_sdk::hash::Hash;
 use solana_sdk::signature::Signature;
 use solana_sdk::{
@@ -18,7 +18,7 @@ use spl_token::ID as TOKEN_PROGRAM_ID;
 use tracing::info;
 
 declare_program!(solana_vamp_program);
-use solana_vamp_program::{client::accounts, client::args};
+use solana_vamp_program::client::accounts;
 
 pub struct SolanaTransaction {
     solana_url: String,
@@ -29,20 +29,26 @@ impl SolanaTransaction {
     where
         T: Into<String>,
     {
-        Self { solana_url: solana_url.into() }
+        Self {
+            solana_url: solana_url.into(),
+        }
     }
 
-    pub async fn prepare(
+    pub async fn prepare<TransactionArgs>(
         &self,
         payer_keypair: Arc<Keypair>,
         program: Arc<Program<Arc<Keypair>>>,
-        transaction_args: args::CreateTokenMint,
-    ) -> Result<(Transaction, Pubkey, Pubkey)> {
+        vamp_identifier: u64,
+        transaction_args: TransactionArgs,
+    ) -> Result<(Transaction, Pubkey, Pubkey)>
+    where
+        TransactionArgs: InstructionData,
+    {
         let (mint_account, _) = Pubkey::find_program_address(
             &[
                 b"mint",
                 payer_keypair.pubkey().as_ref(),
-                transaction_args.vamp_identifier.to_le_bytes().as_ref(),
+                vamp_identifier.to_le_bytes().as_ref(),
             ],
             &solana_vamp_program::ID,
         );
@@ -56,11 +62,15 @@ impl SolanaTransaction {
             &TOKEN_METADATA_PROGRAM_ID,
         );
 
-        let (vamp_state, _) =
-            Pubkey::find_program_address(&[b"vamp", mint_account.as_ref()], &solana_vamp_program::ID);
+        let (vamp_state, _) = Pubkey::find_program_address(
+            &[b"vamp", mint_account.as_ref()],
+            &solana_vamp_program::ID,
+        );
 
-        let (vault, _) =
-            Pubkey::find_program_address(&[b"vault", mint_account.as_ref()], &solana_vamp_program::ID);
+        let (vault, _) = Pubkey::find_program_address(
+            &[b"vault", mint_account.as_ref()],
+            &solana_vamp_program::ID,
+        );
 
         let (sol_vault, _) = Pubkey::find_program_address(
             &[b"sol_vault", mint_account.as_ref()],
@@ -102,14 +112,16 @@ impl SolanaTransaction {
 
     async fn get_latest_block_hash(&self) -> Result<Hash> {
         // TODO: Add the chain selection logic here
-        let client = RpcClient::new_with_commitment(&self.solana_url, CommitmentConfig::confirmed());
+        let client =
+            RpcClient::new_with_commitment(&self.solana_url, CommitmentConfig::confirmed());
         Ok(client
             .get_latest_blockhash()
             .map_err(|e| anyhow!("Failed to get latest blockhash: {}", e))?)
     }
 
     pub async fn submit_transaction(&self, transaction: Transaction) -> Result<Signature> {
-        let client = RpcClient::new_with_commitment(&self.solana_url, CommitmentConfig::confirmed());
+        let client =
+            RpcClient::new_with_commitment(&self.solana_url, CommitmentConfig::confirmed());
         let tx_sig = client
             .send_and_confirm_transaction(&transaction)
             .map_err(|e| anyhow!("Failed to send transaction: {}", e))?;

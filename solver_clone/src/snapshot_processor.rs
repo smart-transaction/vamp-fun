@@ -16,7 +16,7 @@ use crate::cfg::Cfg;
 use crate::mysql_conn::create_db_conn;
 use crate::snapshot_indexer::{TokenAmount, TokenRequestData};
 use crate::solana_transaction::SolanaTransaction;
-use crate::solana_transaction::solana_vamp_program::client::args;
+use crate::solana_transaction::solana_vamp_program::client::args::CreateTokenMint;
 use crate::stats::{IndexerProcesses, VampingStatus};
 
 declare_program!(solana_vamp_program);
@@ -58,7 +58,7 @@ pub async fn process_and_send_snapshot(
     let final_max_price = 0;
     let final_flat_price_per_token = request_data.flat_price_per_token;
 
-    let transaction_args = args::CreateTokenMint {
+    let transaction_args = CreateTokenMint {
         vamp_identifier: fold_intent_id(&request_data.intent_id)?,
         token_decimals: decimals,
         token_name: request_data.token_full_name,
@@ -88,11 +88,14 @@ pub async fn process_and_send_snapshot(
     let solana_payer_keypair = Arc::new(Keypair::from_base58_string(&cfg.solana_private_key));
     let solana_program = Arc::new(get_program_instance(solana_payer_keypair.clone())?);
 
-    let (transaction, mint_account, vamp_state) = solana.prepare(
-        solana_payer_keypair.clone(),
-        solana_program.clone(),
-        transaction_args,
-    ).await?;
+    let (transaction, mint_account, vamp_state) = solana
+        .prepare(
+            solana_payer_keypair.clone(),
+            solana_program.clone(),
+            transaction_args.vamp_identifier,
+            transaction_args,
+        )
+        .await?;
 
     let solana_txid = solana.submit_transaction(transaction).await?;
 

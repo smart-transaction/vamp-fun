@@ -20,5 +20,6 @@ sol! {
         address claimer,
         uint256 amount,
         bytes owner_signature,
+        bytes20 claimer_solana
     );
 }

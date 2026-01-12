@@ -4144,6 +4144,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "intent_id_util"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10234,6 +10241,7 @@ dependencies = [
  "cleanapp_rustlib",
  "futures",
  "hex",
+ "intent_id_util",
  "log",
  "mpl-token-metadata",
  "parse_duration",

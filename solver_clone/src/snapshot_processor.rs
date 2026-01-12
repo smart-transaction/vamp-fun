@@ -4,43 +4,18 @@ use std::sync::{Arc, RwLock};
 use alloy::signers::Signer;
 use alloy_primitives::{Address, U256};
 use anchor_client::Program;
-use anchor_client::anchor_lang::declare_program;
 use anyhow::{Context, Result, anyhow};
 use balance_util::get_balance_hash;
 use chrono::Utc;
-use mpl_token_metadata::ID as TOKEN_METADATA_PROGRAM_ID;
-use solana_sdk::hash::Hash;
-use solana_sdk::{
-    compute_budget::ComputeBudgetInstruction, pubkey::Pubkey, signature::Keypair,
-    signer::Signer as SolanaSigner, system_program, sysvar, transaction::Transaction,
-};
-use spl_associated_token_account::ID as ASSOCIATED_TOKEN_PROGRAM_ID;
-use spl_token::ID as TOKEN_PROGRAM_ID;
+use intent_id_util::fold_intent_id;
+use solana_sdk::signature::Keypair;
 use tracing::info;
 
 use crate::cfg::Cfg;
 use crate::mysql_conn::create_db_conn;
 use crate::snapshot_indexer::{TokenAmount, TokenRequestData};
-use crate::solana_transaction::SolanaTransaction;
+use crate::solana_transaction::{CloneTransactionArgs, SolanaTransaction};
 use crate::stats::{IndexerProcesses, VampingStatus};
-
-struct CloneTransactionArgs {
-    token_decimals: u8,
-    token_name: String,
-    token_symbol: String,
-    token_erc20_address: Vec<u8>,
-    token_uri: String,
-    amount: u64,
-    solver_public_key: Vec<u8>,
-    validator_public_key: Vec<u8>,
-    intent_id: Vec<u8>,
-    paid_claiming_enabled: bool,
-    use_bonding_curve: bool,
-    curve_slope: u64,
-    base_price: u64,
-    max_price: u64,
-    flat_price_per_token: u64,
-}
 
 pub async fn process_and_send_snapshot(
     cfg: Arc<Cfg>,
@@ -87,6 +62,7 @@ pub async fn process_and_send_snapshot(
         solver_public_key: cfg.ethereum_private_key.address().as_slice().to_vec(),
         validator_public_key: cfg.ethereum_private_key.address().as_slice().to_vec(),
         intent_id: request_data.intent_id.clone(),
+        vamp_identifier: fold_intent_id(&request_data.intent_id)?,
         paid_claiming_enabled: final_paid_claiming_enabled,
         use_bonding_curve: final_use_bonding_curve,
         curve_slope: final_curve_slope,
@@ -99,7 +75,7 @@ pub async fn process_and_send_snapshot(
 
     let recent_blockhash = solana.get_latest_block_hash().await?;
 
-    let (transaction, mint_account, vamp_state) = prepare_transaction(
+    let (transaction, mint_account, vamp_state) = solana.prepare(
         solana_payer_keypair.clone(),
         solana_program.clone(),
         recent_blockhash.to_bytes(),
@@ -287,162 +263,9 @@ async fn write_token_supply(
     Ok(())
 }
 
-declare_program!(solana_vamp_program);
-use solana_vamp_program::{client::accounts, client::args};
-
-fn prepare_transaction(
-    payer_keypair: Arc<Keypair>,
-    program: Arc<Program<Arc<Keypair>>>,
-    recent_blockhash: [u8; 32],
-    transaction_args: CloneTransactionArgs,
-) -> Result<(Transaction, Pubkey, Pubkey)> {
-    let vamp_identifier = fold_intent_id(&transaction_args.intent_id)?;
-
-    let (mint_account, _) = Pubkey::find_program_address(
-        &[
-            b"mint",
-            payer_keypair.pubkey().as_ref(),
-            vamp_identifier.to_le_bytes().as_ref(),
-        ],
-        &solana_vamp_program::ID,
-    );
-
-    let (metadata_account, _bump) = Pubkey::find_program_address(
-        &[
-            b"metadata",
-            TOKEN_METADATA_PROGRAM_ID.as_ref(),
-            mint_account.as_ref(),
-        ],
-        &TOKEN_METADATA_PROGRAM_ID,
-    );
-
-    let (vamp_state, _) =
-        Pubkey::find_program_address(&[b"vamp", mint_account.as_ref()], &solana_vamp_program::ID);
-
-    let (vault, _) =
-        Pubkey::find_program_address(&[b"vault", mint_account.as_ref()], &solana_vamp_program::ID);
-
-    let (sol_vault, _) = Pubkey::find_program_address(
-        &[b"sol_vault", mint_account.as_ref()],
-        &solana_vamp_program::ID,
-    );
-    let program_instructions = program
-        .request()
-        .accounts(accounts::CreateTokenMint {
-            authority: payer_keypair.pubkey(),
-            // mint_account: destination_token_address,
-            mint_account,
-            metadata_account,
-            vamp_state,
-            vault,
-            sol_vault,
-            token_program: TOKEN_PROGRAM_ID,
-            token_metadata_program: TOKEN_METADATA_PROGRAM_ID,
-            system_program: system_program::ID,
-            associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
-            rent: sysvar::rent::ID,
-        })
-        .args(args::CreateTokenMint {
-            vamp_identifier,
-            token_decimals: transaction_args.token_decimals,
-            token_name: transaction_args.token_name,
-            token_symbol: transaction_args.token_symbol,
-            token_erc20_address: transaction_args.token_erc20_address,
-            token_uri: transaction_args.token_uri,
-            amount: transaction_args.amount,
-            solver_public_key: transaction_args.solver_public_key,
-            validator_public_key: transaction_args.validator_public_key,
-            intent_id: transaction_args.intent_id,
-            paid_claiming_enabled: transaction_args.paid_claiming_enabled,
-            use_bonding_curve: transaction_args.use_bonding_curve,
-            curve_slope: transaction_args.curve_slope,
-            base_price: transaction_args.base_price,
-            max_price: transaction_args.max_price,
-            flat_price_per_token: transaction_args.flat_price_per_token,
-        })
-        .instructions()?;
-
-    info!(
-        "🔧 Creating token mint with decimals: {}",
-        transaction_args.token_decimals
-    );
-
-    // Add compute limit
-    let compute_ix = ComputeBudgetInstruction::set_compute_unit_limit(2_000_000);
-    let mut all_instructions = vec![compute_ix];
-    all_instructions.extend(program_instructions);
-
-    let tx = Transaction::new_signed_with_payer(
-        &all_instructions,
-        Some(&payer_keypair.pubkey()),
-        &[&*payer_keypair],
-        Hash::new_from_array(recent_blockhash),
-    );
-    Ok((tx, mint_account, vamp_state))
-}
-
-fn fold_intent_id(intent_id: &[u8]) -> Result<u64> {
-    let mut hash64 = 0u64;
-    for chunk in intent_id.chunks(8) {
-        let chunk_value = u64::from_le_bytes(chunk.try_into()?);
-        hash64 ^= chunk_value; // XOR the chunks to reduce to 64 bits
-    }
-    Ok(hash64)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_fold_intent_id_empty() {
-        let intent_id = vec![];
-        let result = fold_intent_id(&intent_id);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 0);
-    }
-
-    #[test]
-    fn test_fold_intent_id_single_chunk() {
-        let intent_id = vec![1, 0, 0, 0, 0, 0, 0, 0];
-        let result = fold_intent_id(&intent_id);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 1);
-    }
-
-    #[test]
-    fn test_fold_intent_id_multiple_chunks() {
-        let intent_id = vec![
-            1, 0, 0, 0, 0, 0, 0, 0, // First chunk
-            2, 0, 0, 0, 0, 0, 0, 0, // Second chunk
-        ];
-        let result = fold_intent_id(&intent_id);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 3); // 1 XOR 2 = 3
-    }
-
-    #[test]
-    fn test_fold_intent_id_partial_chunk() {
-        let intent_id = vec![
-            1, 0, 0, 0, 0, 0, 0, 0, // First chunk
-            2, 0, 0, 0, 0, 0, 0, // Partial second chunk
-        ];
-        let result = fold_intent_id(&intent_id);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_fold_intent_id_large_input() {
-        let intent_id = vec![
-            1, 0, 0, 0, 0, 0, 0, 0, // First chunk
-            2, 0, 0, 0, 0, 0, 0, 0, // Second chunk
-            3, 0, 0, 0, 0, 0, 0, 0, // Third chunk
-        ];
-        let result = fold_intent_id(&intent_id);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 0); // 1 XOR 2 XOR 3 = 0
-    }
-
     #[test]
     fn test_convert_to_sol_small_value() {
         let res = convert_to_sol(&U256::from(123456789777000000111u128));

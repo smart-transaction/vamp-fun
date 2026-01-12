@@ -20,6 +20,7 @@ clap = { version = "4.5.53", features = ["derive", "env"] }
 cleanapp_rustlib = { git = "https://github.com/cleanappio/cleanapp-rustlib", tag = "v1.1.7" }
 futures = "0.3.31"
 hex = "0.4.3"
+intent_id_util = { path = "../crates/intent_id_util" }
 log = "0.4.29"
 mpl-token-metadata = "5.1.1"
 parse_duration = "2.1.1"

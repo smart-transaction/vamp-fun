@@ -11,7 +11,14 @@ use chrono::Utc;
 use intent_id_util::fold_intent_id;
 use mpl_token_metadata::ID as TOKEN_METADATA_PROGRAM_ID;
 use solana_sdk::pubkey::Pubkey;
-use solana_sdk::{signature::{Keypair, Signer as _}, system_program, sysvar};
+use solana_sdk::{
+    signature::{Keypair, Signer as _},
+    system_program, sysvar,
+};
+use solana_transaction_util::{
+    SolanaTransaction,
+    solana_vamp_program::client::{accounts, args},
+};
 use spl_associated_token_account::ID as ASSOCIATED_TOKEN_PROGRAM_ID;
 use spl_token::ID as TOKEN_PROGRAM_ID;
 use tracing::info;
@@ -19,8 +26,6 @@ use tracing::info;
 use crate::cfg::Cfg;
 use crate::mysql_conn::create_db_conn;
 use crate::snapshot_indexer::{TokenAmount, TokenRequestData};
-use crate::solana_transaction::SolanaTransaction;
-use crate::solana_transaction::solana_vamp_program::client::{accounts, args};
 use crate::stats::{IndexerProcesses, VampingStatus};
 
 declare_program!(solana_vamp_program);
@@ -81,15 +86,11 @@ pub async fn process_and_send_snapshot(
         &TOKEN_METADATA_PROGRAM_ID,
     );
 
-    let (vamp_state, _) = Pubkey::find_program_address(
-        &[b"vamp", mint_account.as_ref()],
-        &solana_vamp_program::ID,
-    );
+    let (vamp_state, _) =
+        Pubkey::find_program_address(&[b"vamp", mint_account.as_ref()], &solana_vamp_program::ID);
 
-    let (vault, _) = Pubkey::find_program_address(
-        &[b"vault", mint_account.as_ref()],
-        &solana_vamp_program::ID,
-    );
+    let (vault, _) =
+        Pubkey::find_program_address(&[b"vault", mint_account.as_ref()], &solana_vamp_program::ID);
 
     let (sol_vault, _) = Pubkey::find_program_address(
         &[b"sol_vault", mint_account.as_ref()],

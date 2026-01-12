@@ -8662,6 +8662,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "solana_transaction_util"
+version = "0.1.0"
+dependencies = [
+ "anchor-client",
+ "anchor-lang",
+ "anyhow",
+ "mpl-token-metadata",
+ "solana-client",
+ "solana-commitment-config",
+ "solana-sdk",
+ "spl-associated-token-account",
+ "spl-token 8.0.0",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10253,6 +10271,7 @@ dependencies = [
  "solana-client",
  "solana-commitment-config",
  "solana-sdk",
+ "solana_transaction_util",
  "spl-associated-token-account",
  "spl-token 8.0.0",
  "sqlx",

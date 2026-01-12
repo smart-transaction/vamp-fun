@@ -30,7 +30,6 @@ mod event_handler;
 mod event_subscriber;
 mod snapshot_indexer;
 mod snapshot_processor;
-mod solana_transaction;
 mod stats;
 
 #[tokio::main]

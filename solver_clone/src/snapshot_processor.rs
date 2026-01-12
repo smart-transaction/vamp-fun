@@ -3,7 +3,8 @@ use std::sync::{Arc, RwLock};
 
 use alloy::signers::Signer;
 use alloy_primitives::{Address, U256};
-use anchor_client::Program;
+use anchor_client::{Client as AnchorClient, Cluster, Program};
+use anchor_lang::declare_program;
 use anyhow::{Context, Result, anyhow};
 use balance_util::get_balance_hash;
 use chrono::Utc;
@@ -17,15 +18,20 @@ use crate::snapshot_indexer::{TokenAmount, TokenRequestData};
 use crate::solana_transaction::{CloneTransactionArgs, SolanaTransaction};
 use crate::stats::{IndexerProcesses, VampingStatus};
 
+declare_program!(solana_vamp_program);
+
+fn get_program_instance(payer_keypair: Arc<Keypair>) -> Result<Program<Arc<Keypair>>> {
+    // The cluster doesn't matter here, it's used only for the instructions creation.
+    let anchor_client = AnchorClient::new(Cluster::Debug, payer_keypair.clone());
+    Ok(anchor_client.program(solana_vamp_program::ID)?)
+}
+
 pub async fn process_and_send_snapshot(
     cfg: Arc<Cfg>,
     request_data: TokenRequestData,
     amount: U256,
     original_snapshot: HashMap<Address, TokenAmount>,
     indexing_stats: Arc<RwLock<IndexerProcesses>>,
-    solana_payer_keypair: Arc<Keypair>,
-    solana_program: Arc<Program<Arc<Keypair>>>,
-    solana_url: &str,
 ) -> Result<()> {
     info!(
         "Received indexed snapshot for intent_id: {}",
@@ -71,9 +77,18 @@ pub async fn process_and_send_snapshot(
         flat_price_per_token: final_flat_price_per_token,
     };
 
+    let solana_url = if cfg.default_solana_cluster == "DEVNET" {
+        cfg.solana_devnet_url.clone()
+    } else {
+        cfg.solana_mainnet_url.clone()
+    };
+
     let solana = SolanaTransaction::new(solana_url);
 
     let recent_blockhash = solana.get_latest_block_hash().await?;
+
+    let solana_payer_keypair = Arc::new(Keypair::from_base58_string(&cfg.solana_private_key));
+    let solana_program = Arc::new(get_program_instance(solana_payer_keypair.clone())?);
 
     let (transaction, mint_account, vamp_state) = solana.prepare(
         solana_payer_keypair.clone(),

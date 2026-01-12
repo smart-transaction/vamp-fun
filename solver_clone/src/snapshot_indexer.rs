@@ -11,11 +11,8 @@ use alloy::{
     rpc::types::Filter, sol_types::SolEvent,
 };
 use alloy_primitives::{Address, U256};
-use anchor_client::{Client as AnchorClient, Cluster, Program};
-use anchor_lang::declare_program;
 use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
-use solana_sdk::signature::Keypair;
 use sqlx::Row;
 use tokio::spawn;
 use tracing::{error, info, warn};
@@ -49,49 +46,29 @@ pub struct TokenAmount {
     pub signature: Vec<u8>,
 }
 
-declare_program!(solana_vamp_program);
-
-fn get_program_instance(payer_keypair: Arc<Keypair>) -> Result<Program<Arc<Keypair>>> {
-    // The cluster doesn't matter here, it's used only for the instructions creation.
-    let anchor_client = AnchorClient::new(Cluster::Debug, payer_keypair.clone());
-    Ok(anchor_client.program(solana_vamp_program::ID)?)
-}
-
 pub struct SnapshotIndexer {
     cfg: Arc<Cfg>,
     chain_info: HashMap<u64, ChainInfo>,
     quicknode_chains: HashMap<u64, String>,
-    solana_payer_keypair: Arc<Keypair>,
-    solana_program: Arc<Program<Arc<Keypair>>>,
-    solana_url: String,
 }
 
 const BLOCK_STEP: u64 = 9990;
 
 impl SnapshotIndexer {
-    pub async fn new(args: Arc<Cfg>) -> Result<Self> {
-        let solana_payer_keypair = Arc::new(Keypair::from_base58_string(&args.solana_private_key));
-        let solana_program = Arc::new(get_program_instance(solana_payer_keypair.clone())?);
+    pub async fn new(cfg: Arc<Cfg>) -> Result<Self> {
         let chains = fetch_chains()
             .await
             .map_err(|e| anyhow!("Error chains fetching: {}", e))?;
         let chain_info = chains;
-        let quicknode_chains = if let Some(api_key) = args.quicknode_api_key.clone() {
+        let quicknode_chains = if let Some(api_key) = cfg.quicknode_api_key.clone() {
             get_quicknode_mapping(&api_key)
         } else {
             HashMap::new()
         };
         let res = Self {
-            cfg: args.clone(),
+            cfg: cfg.clone(),
             chain_info,
             quicknode_chains,
-            solana_payer_keypair,
-            solana_program,
-            solana_url: if args.default_solana_cluster == "DEVNET" {
-                args.solana_devnet_url.clone()
-            } else {
-                args.solana_mainnet_url.clone()
-            },
         };
         Ok(res)
     }
@@ -129,9 +106,6 @@ impl SnapshotIndexer {
             }
         }
         let cfg = self.cfg.clone();
-        let solana_payer_keypair = self.solana_payer_keypair.clone();
-        let solana_program = self.solana_program.clone();
-        let solana_url = self.solana_url.clone();
 
         spawn(async move {
             let first_block = prev_block_number.unwrap_or(0) + 1;
@@ -232,9 +206,6 @@ impl SnapshotIndexer {
                 total_amount,
                 token_supply,
                 stats.clone(),
-                solana_payer_keypair,
-                solana_program,
-                &solana_url,
             )
             .await
             {

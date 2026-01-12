@@ -18,16 +18,16 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
-use crate::{cfg::Cfg, db_init::init_db};
+use crate::{cfg::Cfg, db_init::init_db, event_handler::CloneEventHandler};
 
 mod cfg;
 mod chain_info;
 mod db_init;
+mod event_handler;
+mod event_subscriber;
 mod events;
 mod http_handler;
 mod mysql_conn;
-mod event_handler;
-mod event_subscriber;
 mod snapshot_indexer;
 mod snapshot_processor;
 mod stats;
@@ -45,23 +45,21 @@ async fn main() -> Result<()> {
         .init();
 
     // Initialize RabbitMQ listener
-    let mut deploy_token_listener =
-        event_subscriber::EventSubscriber::new(args.clone()).await?;
+    let mut deploy_token_listener = event_subscriber::EventSubscriber::new(args.clone()).await?;
 
     // Initialize SnapshotIndexer
     let indexer = Arc::new(SnapshotIndexer::new(args.clone()).await?);
 
     let indexing_stats = Arc::new(RwLock::new(IndexerProcesses::new()));
-    let deploy_token_handler = Arc::new(event_handler::DeployTokenHandler::new(
+    let deploy_token_handler = Arc::new(CloneEventHandler::new(
         args.clone(),
         indexer.clone(),
         indexing_stats.clone(),
-        &args.default_solana_cluster,
     ));
 
     spawn(async move {
         if let Err(err) = deploy_token_listener.listen(deploy_token_handler).await {
-            error!("Failed to listen to request registrator: {:?}", err);
+            error!("Failed on event listening: {:?}", err);
         }
     });
 

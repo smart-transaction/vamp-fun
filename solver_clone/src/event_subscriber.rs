@@ -5,14 +5,14 @@ use cleanapp_rustlib::rabbitmq::subscriber::{Callback, Message, Subscriber};
 use tokio::spawn;
 use tracing::{error, info};
 
-use crate::{cfg::Cfg, event_handler::DeployTokenHandler, events::VampTokenIntent};
+use crate::{cfg::Cfg, event_handler::CloneEventHandler, events::VampTokenIntent};
 
 pub struct SubscriberCallback {
-    handler: Arc<DeployTokenHandler>,
+    handler: Arc<CloneEventHandler>,
 }
 
 impl SubscriberCallback {
-    pub fn new(handler: Arc<DeployTokenHandler>) -> Self {
+    pub fn new(handler: Arc<CloneEventHandler>) -> Self {
         Self { handler }
     }
 }
@@ -51,7 +51,7 @@ impl EventSubscriber {
 
     /// Listens for events on the stream and calls the handler for each event.
     /// The handler is expected to be a function that takes a single argument of the event type.
-    pub async fn listen(&mut self, deploy_token_handler: Arc<DeployTokenHandler>) -> Result<()> {
+    pub async fn listen(&mut self, deploy_token_handler: Arc<CloneEventHandler>) -> Result<()> {
         let mut callbacks: HashMap<String, Arc<dyn Callback + Send + Sync + 'static>> =
             HashMap::new();
 

@@ -9,28 +9,22 @@ use alloy_primitives::Address;
 use anyhow::Result;
 use tracing::info;
 
-pub struct DeployTokenHandler {
+pub struct CloneEventHandler {
     pub cfg: Arc<Cfg>,
     pub indexer: Arc<SnapshotIndexer>,
     pub stats: Arc<RwLock<IndexerProcesses>>,
-    pub default_solana_cluster: String,
 }
 
-impl DeployTokenHandler {
-    pub fn new<T>(
+impl CloneEventHandler {
+    pub fn new(
         cfg: Arc<Cfg>,
         indexer: Arc<SnapshotIndexer>,
         indexing_stats: Arc<RwLock<IndexerProcesses>>,
-        default_solana_cluster: T,
-    ) -> Self
-    where
-        T: Into<String>,
-    {
+    ) -> Self {
         Self {
             cfg,
             indexer,
-            stats: indexing_stats,
-            default_solana_cluster: default_solana_cluster.into(),
+            stats: indexing_stats
         }
     }
 
@@ -45,7 +39,7 @@ impl DeployTokenHandler {
         request_data.token_full_name = event.token_name;
         request_data.token_symbol_name = event.token_symbol;
         request_data.token_uri = event.token_uri;
-        request_data.solana_cluster = self.default_solana_cluster.clone();
+        request_data.solana_cluster = self.cfg.default_solana_cluster.clone();
         request_data.paid_claiming_enabled = self.cfg.paid_claiming_enabled;
         request_data.use_bonding_curve = self.cfg.use_bonding_curve;
         request_data.curve_slope = self.cfg.curve_slope;

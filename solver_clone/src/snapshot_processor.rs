@@ -85,17 +85,14 @@ pub async fn process_and_send_snapshot(
 
     let solana = SolanaTransaction::new(solana_url);
 
-    let recent_blockhash = solana.get_latest_block_hash().await?;
-
     let solana_payer_keypair = Arc::new(Keypair::from_base58_string(&cfg.solana_private_key));
     let solana_program = Arc::new(get_program_instance(solana_payer_keypair.clone())?);
 
     let (transaction, mint_account, vamp_state) = solana.prepare(
         solana_payer_keypair.clone(),
         solana_program.clone(),
-        recent_blockhash.to_bytes(),
         transaction_args,
-    )?;
+    ).await?;
 
     let solana_txid = solana.submit_transaction(transaction).await?;
 

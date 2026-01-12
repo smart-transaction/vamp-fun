@@ -51,11 +51,10 @@ impl SolanaTransaction {
         Self { solana_url: solana_url.into() }
     }
 
-    pub fn prepare(
+    pub async fn prepare(
         &self,
         payer_keypair: Arc<Keypair>,
         program: Arc<Program<Arc<Keypair>>>,
-        recent_blockhash: [u8; 32],
         transaction_args: CloneTransactionArgs,
     ) -> Result<(Transaction, Pubkey, Pubkey)> {
         let (mint_account, _) = Pubkey::find_program_address(
@@ -132,6 +131,7 @@ impl SolanaTransaction {
         let mut all_instructions = vec![compute_ix];
         all_instructions.extend(program_instructions);
 
+        let recent_blockhash = self.get_latest_block_hash().await?.to_bytes();
         let tx = Transaction::new_signed_with_payer(
             &all_instructions,
             Some(&payer_keypair.pubkey()),
@@ -141,7 +141,7 @@ impl SolanaTransaction {
         Ok((tx, mint_account, vamp_state))
     }
 
-    pub async fn get_latest_block_hash(&self) -> Result<Hash> {
+    async fn get_latest_block_hash(&self) -> Result<Hash> {
         // TODO: Add the chain selection logic here
         let client = RpcClient::new_with_commitment(&self.solana_url, CommitmentConfig::confirmed());
         Ok(client

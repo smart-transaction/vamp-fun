@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{cfg::Cfg, events::ClaimToken};
 use anchor_client::{Client as AnchorClient, Cluster, Program};
 use anchor_lang::declare_program;
-use anyhow::{Context, Result, anyhow};
+use anyhow::Result;
 use array_bytes::vec2array;
 use balance_util::convert_to_sol_with_dec;
 use intent_id_util::fold_intent_id;
@@ -17,6 +17,7 @@ use solana_transaction_util::{
     solana_vamp_program::client::{accounts, args},
 };
 use spl_token::ID as TOKEN_PROGRAM_ID;
+use tracing::info;
 
 
 declare_program!(solana_vamp_program);
@@ -25,10 +26,6 @@ fn get_program_instance(payer_keypair: Arc<Keypair>) -> Result<Program<Arc<Keypa
     // The cluster doesn't matter here, it's used only for the instructions creation.
     let anchor_client = AnchorClient::new(Cluster::Debug, payer_keypair.clone());
     Ok(anchor_client.program(solana_vamp_program::ID)?)
-}
-#[derive(Debug)]
-pub enum ClaimDataError {
-    InvalidSignatureLength
 }
 
 pub struct ClaimHandler {
@@ -43,8 +40,6 @@ impl ClaimHandler {
     pub async fn handle(&self, event: ClaimToken) -> Result<()> {
         let solana_payer_keypair =
             Arc::new(Keypair::from_base58_string(&self.cfg.solana_private_key));
-        let solana_program = get_program_instance(solana_payer_keypair.clone());
-
         let (mint_account, _) = Pubkey::find_program_address(
             &[
                 b"mint",
@@ -95,8 +90,34 @@ impl ClaimHandler {
         let transaction_args = args::Claim {
             eth_address: event.claimer.into_array(),
             balance,
-            ownership_sig: vec2array::<_, 65>(event.owner_signature.to_vec())?
+            ownership_sig: vec2array::<_, 65>(event.owner_signature.to_vec())?,
+            solver_individual_balance_sig: vec2array::<_, 65>(event.solver_signature.to_vec())?,
+            validator_individual_balance_sig: vec2array::<_, 65>(event.validator_signature.to_vec())?,
         };
+
+        let solana_url = if self.cfg.default_solana_cluster == "DEVNET" {
+            self.cfg.solana_devnet_url.clone()
+        } else {
+            self.cfg.solana_mainnet_url.clone()
+        };
+
+        let solana = SolanaTransaction::new(solana_url);
+        let solana_program = Arc::new(get_program_instance(solana_payer_keypair.clone())?);
+
+        let (transaction, _, _) = solana
+            .prepare(
+                solana_payer_keypair.clone(),
+                solana_program.clone(),
+                mint_account,
+                vamp_state,
+                transaction_accounts,
+                transaction_args,
+            )
+            .await?;
+
+        let solana_txid = solana.submit_transaction(transaction).await?;
+
+        info!("Submitted claiming transaction id: {}", solana_txid);
 
         Ok(())
     }

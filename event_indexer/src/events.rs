@@ -19,7 +19,10 @@ sol! {
         bytes32 intent_id,
         address claimer,
         uint256 amount,
+        uint8 decimals,
         bytes owner_signature,
-        bytes20 claimer_solana
+        bytes solver_signature,
+        bytes validator_signature,
+        bytes32 claimer_solana
     );
 }

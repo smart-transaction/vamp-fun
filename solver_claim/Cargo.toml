@@ -4,7 +4,26 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+alloy = { version = "1.2.1", features = ["providers", "signers", "signer-local", "rpc-types", "transports", "transport-http", "reqwest"] }
+alloy-primitives = "1.5.2"
+anchor-client = "0.31.1"
+anchor-lang = "0.31.1"
+anyhow = "1.0.100"
+array-bytes = "9.3.0"
 axum = "0.8.8"
+balance_util = { path = "../crates/balance_util" }
+clap = { version = "4.5.53", features = ["derive", "env"] }
+cleanapp_rustlib = { git = "https://github.com/cleanappio/cleanapp-rustlib", tag = "v1.1.7" }
+intent_id_util = { path = "../crates/intent_id_util" }
+mpl-token-metadata = "5.1.1"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
+solana-client = "2.2.7"
+solana-commitment-config = "2.2.1"
+solana-sdk = "2.2.2"
+solana_transaction_util = { path = "../crates/solana_transaction_util" }
+spl-associated-token-account = "7.0.0"
+spl-token = "8.0.0"
 tokio = { version = "1.49.0", features = ["full"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["fmt", "env-filter"] }

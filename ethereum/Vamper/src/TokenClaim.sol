@@ -20,8 +20,11 @@ contract TokenClaim is ReentrancyGuard, Ownable
         bytes32 intentId,
         address claimer,
         uint256 amount,
-        bytes signature,
-        bytes20 claimerSolana
+        uint8 decimals,
+        bytes ownerSignature,
+        bytes solverSignature,
+        bytes validatorSignature,
+        bytes32 claimerSolana
     );
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -37,8 +40,19 @@ contract TokenClaim is ReentrancyGuard, Ownable
     /// @notice Called by frontend. Charges ETH fee and emits an event with claim data.
     /// @param _intentId The intent ID for given claiming
     /// @param _tokenAmount The amount of tokens to be claimed
-    /// @param _signature The owner's account and amount signature
-    function claimToken(bytes32 _intentId, uint256 _tokenAmount, bytes memory _signature, bytes20 _claimerSolana) external payable nonReentrant {
+    /// @param _decimals The amount decimals in solana
+    /// @param _owner_signature The owner's account and amount signature
+    /// @param _solver_signature The solver's account and amount signature
+    /// @param _validator_signature The validator's account and amount signature
+    function claimToken(
+        bytes32 _intentId,
+        uint256 _tokenAmount,
+        uint8 _decimals,
+        bytes calldata _owner_signature,
+        bytes calldata _solver_signature,
+        bytes calldata _validator_signature,
+        bytes20 _claimerSolana
+    ) external payable nonReentrant {
         if (msg.value != feeWei) revert BadFee();
 
         address claimer = msg.sender;
@@ -54,7 +68,10 @@ contract TokenClaim is ReentrancyGuard, Ownable
             _intentId,
             claimer,
             _tokenAmount,
-            _signature,
+            _decimals,
+            _owner_signature,
+            _solver_signature,
+            _validator_signature,
             _claimerSolana
         );
     }

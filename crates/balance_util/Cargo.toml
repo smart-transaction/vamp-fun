@@ -6,5 +6,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+alloy-primitives = "1.5.2"
+anyhow = "1.0.100"
 hex = "0.4.3"
 sha3 = "0.10.8"

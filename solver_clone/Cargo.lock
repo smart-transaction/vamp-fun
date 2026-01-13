@@ -1699,6 +1699,8 @@ dependencies = [
 name = "balance_util"
 version = "0.1.0"
 dependencies = [
+ "alloy-primitives",
+ "anyhow",
  "hex",
  "sha3",
 ]

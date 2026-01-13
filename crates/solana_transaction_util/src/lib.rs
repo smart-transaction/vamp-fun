@@ -17,7 +17,7 @@ use tracing::info;
 declare_program!(solana_vamp_program);
 
 pub struct SolanaTransaction {
-    solana_url: String,
+    client: RpcClient,
 }
 
 impl SolanaTransaction {
@@ -25,8 +25,9 @@ impl SolanaTransaction {
     where
         T: Into<String>,
     {
+        let url = solana_url.into();
         Self {
-            solana_url: solana_url.into(),
+            client: RpcClient::new_with_commitment(&url, CommitmentConfig::confirmed())
         }
     }
 
@@ -65,9 +66,7 @@ impl SolanaTransaction {
     }
 
     pub async fn submit_transaction(&self, transaction: Transaction) -> Result<Signature> {
-        let client =
-            RpcClient::new_with_commitment(&self.solana_url, CommitmentConfig::confirmed());
-        let tx_sig = client
+        let tx_sig = self.client
             .send_and_confirm_transaction(&transaction)
             .map_err(|e| anyhow!("Failed to send transaction: {}", e))?;
         info!("Transaction submitted: {}", tx_sig);
@@ -77,9 +76,7 @@ impl SolanaTransaction {
 
     async fn get_latest_block_hash(&self) -> Result<Hash> {
         // TODO: Add the chain selection logic here
-        let client =
-            RpcClient::new_with_commitment(&self.solana_url, CommitmentConfig::confirmed());
-        Ok(client
+        Ok(self.client
             .get_latest_blockhash()
             .map_err(|e| anyhow!("Failed to get latest blockhash: {}", e))?)
     }

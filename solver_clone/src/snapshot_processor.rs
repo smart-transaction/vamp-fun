@@ -6,7 +6,7 @@ use alloy_primitives::{Address, U256};
 use anchor_client::{Client as AnchorClient, Cluster, Program};
 use anchor_lang::declare_program;
 use anyhow::{Context, Result, anyhow};
-use balance_util::get_balance_hash;
+use balance_util::{convert_to_sol, get_balance_hash};
 use chrono::Utc;
 use intent_id_util::fold_intent_id;
 use mpl_token_metadata::ID as TOKEN_METADATA_PROGRAM_ID;
@@ -194,44 +194,6 @@ pub async fn process_and_send_snapshot(
     Ok(())
 }
 
-fn convert_to_sol(src_amount: &U256) -> Result<(u64, u8)> {
-    // Truncate the amount to gwei
-    let amount = src_amount
-        .checked_div(U256::from(10u64.pow(9)))
-        .ok_or(anyhow!("Failed to divide amount"))?;
-    // Further truncating until the value fits u64
-    // Setting it to zero right now, as we are fixed on decimals = 9.
-    // Will be set to 9 later when we can customize decimals On Solana
-    let max_extra_decimals = 9u8;
-    for decimals in 0..=max_extra_decimals {
-        let trunc_amount = amount
-            .checked_div(U256::from(10u64.pow(decimals as u32)))
-            .ok_or(anyhow!("Failed to divide amount"))?;
-        // Check that we are not losing precision
-        if trunc_amount
-            .checked_mul(U256::from(10u64.pow(decimals as u32)))
-            .ok_or(anyhow!("Failed to multiply amount"))?
-            != amount
-        {
-            return Err(anyhow!(
-                "The amount {:?} is too large to be minted on Solana",
-                amount
-            ));
-        }
-        let max_amount = U256::from(u64::MAX);
-        if trunc_amount <= max_amount {
-            let val: u64 = trunc_amount
-                .try_into()
-                .map_err(|_| anyhow!("Failed to convert to u64"))?;
-            return Ok((val, 9u8 - decimals));
-        }
-    }
-    Err(anyhow!(
-        "The amount {:?} is too large to be minted on Solana",
-        amount
-    ))
-}
-
 async fn write_cloning(
     cfg: &Cfg,
     chain_id: u64,
@@ -331,28 +293,4 @@ async fn write_token_supply(
 
     tx.commit().await.context("commit transaction")?;
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_convert_to_sol_small_value() {
-        let res = convert_to_sol(&U256::from(123456789777000000111u128));
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap(), (123456789777, 9));
-    }
-
-    #[test]
-    fn test_convert_to_sol_large_value() {
-        let res = convert_to_sol(&U256::from(123123123456789123000000000000000111u128));
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap(), (12312312345678912300, 2));
-    }
-
-    #[test]
-    fn test_convert_to_sol_too_large_value() {
-        let res = convert_to_sol(&U256::from(123123123456789123555555000000000111u128));
-        assert!(res.is_err());
-    }
 }
